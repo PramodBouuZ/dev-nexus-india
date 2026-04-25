@@ -160,6 +160,8 @@ function DeveloperDashboard({ userId }: { userId: string }) {
           ))}
         </div>
       </section>
+
+      <ContractsList userId={userId} role="developer" />
     </>
   );
 }
