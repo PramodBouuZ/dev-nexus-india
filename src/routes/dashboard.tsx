@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck } from "lucide-react";
+import { ContractsList } from "@/components/ContractsList";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — HireSpark" }] }),
@@ -87,6 +88,8 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           ))}
         </div>
       </section>
+
+      <ContractsList userId={userId} role="recruiter" />
     </>
   );
 }
