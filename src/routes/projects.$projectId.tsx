@@ -175,10 +175,19 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
   const { data: apps } = useQuery({
     queryKey: ["project-apps", projectId],
     queryFn: async () => {
-      const { data } = await supabase.from("applications")
-        .select("*, profiles!applications_developer_id_fkey(full_name, avatar_url), developer_profiles!inner(headline, hourly_rate_inr, skills, is_verified)")
-        .eq("project_id", projectId).order("created_at", { ascending: false });
-      return data ?? [];
+      const { data: appRows } = await supabase.from("applications")
+        .select("*").eq("project_id", projectId).order("created_at", { ascending: false });
+      if (!appRows?.length) return [];
+      const devIds = [...new Set(appRows.map(a => a.developer_id))];
+      const [{ data: profs }, { data: devs }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
+        supabase.from("developer_profiles").select("id, headline, hourly_rate_inr, skills, is_verified").in("id", devIds),
+      ]);
+      return appRows.map(a => ({
+        ...a,
+        profile: profs?.find(p => p.id === a.developer_id) ?? null,
+        dev: devs?.find(d => d.id === a.developer_id) ?? null,
+      }));
     },
   });
 
@@ -216,10 +225,10 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{a.profiles?.full_name ?? "Developer"}</h3>
-                  {a.developer_profiles?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
+                  <h3 className="font-semibold">{a.profile?.full_name ?? "Developer"}</h3>
+                  {a.dev?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
                 </div>
-                <p className="text-xs text-muted-foreground">{a.developer_profiles?.headline}</p>
+                <p className="text-xs text-muted-foreground">{a.dev?.headline}</p>
                 <p className="mt-3 text-sm">{a.cover_message}</p>
                 {a.proposed_rate_inr && <p className="mt-2 text-xs text-muted-foreground">Proposed rate: ₹{a.proposed_rate_inr.toLocaleString()}</p>}
               </div>
