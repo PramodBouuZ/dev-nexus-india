@@ -71,6 +71,12 @@ function DevList() {
                     {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
                   </div>
                   {d.location && <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" /> {d.location}</p>}
+                  {d.rating_count > 0 && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <Stars value={d.rating_avg} size={12} />
+                      <span className="text-xs text-muted-foreground">{d.rating_avg.toFixed(1)} · {d.rating_count}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               {d.headline && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>}
