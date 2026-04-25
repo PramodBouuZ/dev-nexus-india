@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Search, Github, Globe, IndianRupee, Clock, MapPin, ShieldCheck } from "lucide-react";
+import { Stars } from "@/components/Stars";
 
 export const Route = createFileRoute("/developers")({
   head: () => ({ meta: [{ title: "Find developers — HireSpark" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
@@ -21,8 +22,20 @@ function DevList() {
       const { data: devs } = await supabase.from("developer_profiles").select("*").order("is_verified", { ascending: false });
       if (!devs?.length) return [];
       const ids = devs.map(d => d.id);
-      const { data: profs } = await supabase.from("profiles").select("id, full_name, avatar_url").in("id", ids);
-      return devs.map(d => ({ ...d, profile: profs?.find(p => p.id === d.id) ?? null }));
+      const [{ data: profs }, { data: reviews }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", ids),
+        supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", ids),
+      ]);
+      return devs.map(d => {
+        const mine = reviews?.filter(r => r.reviewee_id === d.id) ?? [];
+        const avg = mine.length ? mine.reduce((s, r) => s + r.rating, 0) / mine.length : 0;
+        return {
+          ...d,
+          profile: profs?.find(p => p.id === d.id) ?? null,
+          rating_avg: avg,
+          rating_count: mine.length,
+        };
+      });
     },
   });
 
