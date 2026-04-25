@@ -25,12 +25,7 @@ function ProjectDetail() {
   const { data: project, isLoading } = useQuery({
     queryKey: ["project", projectId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("projects").select("*, profiles!projects_recruiter_id_fkey(full_name), recruiter_profiles!inner(company_name)").eq("id", projectId).maybeSingle();
-      if (error) {
-        // fallback simpler
-        const { data: p } = await supabase.from("projects").select("*").eq("id", projectId).single();
-        return p;
-      }
+      const { data } = await supabase.from("projects").select("*").eq("id", projectId).maybeSingle();
       return data;
     },
   });
