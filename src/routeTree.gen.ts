@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as DevelopersRouteImport } from './routes/developers'
@@ -21,6 +22,11 @@ import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
 
+const VerificationRoute = VerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -85,6 +91,7 @@ export interface FileRoutesByFullPath {
   '/developers': typeof DevelopersRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   '/developers': typeof DevelopersRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   '/developers': typeof DevelopersRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/pricing'
     | '/profile'
+    | '/verification'
     | '/applications/$appId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -140,6 +150,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/pricing'
     | '/profile'
+    | '/verification'
     | '/applications/$appId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -153,6 +164,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/pricing'
     | '/profile'
+    | '/verification'
     | '/applications/$appId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -167,6 +179,7 @@ export interface RootRouteChildren {
   DevelopersRoute: typeof DevelopersRoute
   PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
+  VerificationRoute: typeof VerificationRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
@@ -175,6 +188,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verification': {
+      id: '/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof VerificationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -263,6 +283,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevelopersRoute: DevelopersRoute,
   PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
+  VerificationRoute: VerificationRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
@@ -271,3 +292,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

@@ -362,6 +362,51 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_requests: {
+        Row: {
+          admin_notes: string | null
+          created_at: string
+          developer_id: string
+          github_url: string | null
+          id: string
+          linkedin_url: string | null
+          notes: string | null
+          portfolio_url: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["verification_status"]
+          updated_at: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          created_at?: string
+          developer_id: string
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          notes?: string | null
+          portfolio_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          updated_at?: string
+        }
+        Update: {
+          admin_notes?: string | null
+          created_at?: string
+          developer_id?: string
+          github_url?: string | null
+          id?: string
+          linkedin_url?: string | null
+          notes?: string | null
+          portfolio_url?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["verification_status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -381,6 +426,7 @@ export type Database = {
       contract_status: "active" | "completed" | "cancelled"
       project_status: "open" | "in_progress" | "completed" | "closed"
       project_type: "fixed" | "hourly"
+      verification_status: "pending" | "approved" | "rejected"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -513,6 +559,7 @@ export const Constants = {
       contract_status: ["active", "completed", "cancelled"],
       project_status: ["open", "in_progress", "completed", "closed"],
       project_type: ["fixed", "hourly"],
+      verification_status: ["pending", "approved", "rejected"],
     },
   },
 } as const

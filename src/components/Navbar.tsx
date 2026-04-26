@@ -35,6 +35,11 @@ export function Navbar() {
               <Button asChild variant="ghost" size="sm">
                 <Link to="/dashboard">Dashboard</Link>
               </Button>
+              {role === "developer" && (
+                <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                  <Link to="/verification">Get verified</Link>
+                </Button>
+              )}
               {role === "admin" && (
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/admin">Admin</Link>
