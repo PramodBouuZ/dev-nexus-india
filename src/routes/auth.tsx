@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Briefcase, Code2 } from "lucide-react";
+import { ArrowLeft, Briefcase, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
 
@@ -32,11 +32,18 @@ function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground hover:text-foreground">
+          <Link to="/">
+            <ArrowLeft className="mr-1 h-4 w-4" />
+            Back to home
+          </Link>
+        </Button>
+
         <Link to="/" className="mb-8 flex items-center justify-center gap-2 font-display text-xl font-bold">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-accent text-primary-foreground shadow-glow">
             <Briefcase className="h-4 w-4" />
           </span>
-          HireSpark
+          Developer Connect
         </Link>
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-elegant">
