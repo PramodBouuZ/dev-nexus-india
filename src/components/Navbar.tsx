@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
-import { Briefcase } from "lucide-react";
+import { BrandLink, PoweredByBant } from "@/components/Brand";
 
 export function Navbar() {
   const { user, role, signOut } = useAuth();
@@ -10,12 +10,11 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-accent text-primary-foreground shadow-glow">
-            <Briefcase className="h-4 w-4" />
-          </span>
-          <span>HireSpark</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <BrandLink />
+          <span className="hidden h-5 w-px bg-border md:block" />
+          <PoweredByBant className="hidden md:inline-flex" />
+        </div>
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
           <Link to="/projects" className="text-muted-foreground hover:text-foreground transition-colors">
@@ -26,6 +25,9 @@ export function Navbar() {
           </Link>
           <Link to="/pricing" className="text-muted-foreground hover:text-foreground transition-colors">
             Pricing
+          </Link>
+          <Link to="/faq" className="text-muted-foreground hover:text-foreground transition-colors">
+            FAQ
           </Link>
         </nav>
 

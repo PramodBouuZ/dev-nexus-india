@@ -1,29 +1,93 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
-import { Sparkles, Zap, ShieldCheck, Clock, IndianRupee, Code2, Users, ArrowRight } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { PoweredByBant } from "@/components/Brand";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Sparkles, Zap, ShieldCheck, Clock, IndianRupee, Code2, Users, ArrowRight,
+  CheckCircle2, MapPin, Briefcase,
+} from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "HireSpark — Hire part-time developers in India" },
-      { name: "description", content: "Post a project, match in minutes, hire vetted part-time developers across India. Fair pricing, structured contracts, fast delivery." },
+      { title: "Developer Connect — Hire part-time developers in India" },
+      { name: "description", content: "Post a project, match in minutes, hire vetted part-time developers across India. Powered by BANTConfirm." },
     ],
   }),
   component: Landing,
 });
 
+type DevCard = {
+  id: string;
+  headline: string | null;
+  bio: string | null;
+  location: string | null;
+  skills: string[] | null;
+  hourly_rate_inr: number | null;
+  is_verified: boolean;
+  full_name: string | null;
+};
+
+type ProjectCard = {
+  id: string;
+  title: string;
+  description: string;
+  budget_min_inr: number | null;
+  budget_max_inr: number | null;
+  hours_per_week: number | null;
+  tech_stack: string[] | null;
+  project_type: string;
+};
+
 function Landing() {
+  const { data: developers = [] } = useQuery<DevCard[]>({
+    queryKey: ["showcase-developers"],
+    queryFn: async () => {
+      const { data: devs } = await supabase
+        .from("developer_profiles")
+        .select("id, headline, bio, location, skills, hourly_rate_inr, is_verified")
+        .order("is_verified", { ascending: false })
+        .order("updated_at", { ascending: false })
+        .limit(6);
+      if (!devs?.length) return [];
+      const ids = devs.map((d) => d.id);
+      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
+      const nameMap = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
+      return devs.map((d) => ({ ...d, full_name: nameMap.get(d.id) ?? null }));
+    },
+  });
+
+  const { data: projects = [] } = useQuery<ProjectCard[]>({
+    queryKey: ["showcase-projects"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("id, title, description, budget_min_inr, budget_max_inr, hours_per_week, tech_stack, project_type")
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(6);
+      return (data ?? []) as ProjectCard[];
+    },
+  });
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1">
         {/* HERO */}
         <section className="relative overflow-hidden bg-gradient-hero text-primary-foreground">
-          <div className="absolute inset-0 opacity-30" style={{
-            backgroundImage: "radial-gradient(circle at 20% 30%, oklch(0.72 0.16 195 / 0.4), transparent 40%), radial-gradient(circle at 80% 70%, oklch(0.6 0.18 250 / 0.3), transparent 40%)"
-          }} />
+          <div
+            className="absolute inset-0 opacity-30"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 20% 30%, oklch(0.72 0.16 195 / 0.4), transparent 40%), radial-gradient(circle at 80% 70%, oklch(0.6 0.18 250 / 0.3), transparent 40%)",
+            }}
+          />
           <div className="relative mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
             <div className="mx-auto max-w-3xl text-center">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-4 py-1.5 text-xs font-medium backdrop-blur-sm">
@@ -34,7 +98,8 @@ function Landing() {
                 <span className="text-gradient-accent">in hours, not weeks.</span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-base text-white/80 sm:text-lg">
-                A structured marketplace built for fair pricing and fast hiring. Post your project, get matched with vetted Indian developers, and ship faster.
+                Developer Connect is a structured marketplace built for fair pricing and fast hiring.
+                Post your project, get matched with vetted Indian developers, and ship faster.
               </p>
               <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
                 <Button asChild size="lg" className="bg-gradient-accent text-primary-foreground shadow-glow hover:opacity-90">
@@ -45,6 +110,11 @@ function Landing() {
                 <Button asChild size="lg" variant="outline" className="border-white/30 bg-white/5 text-white hover:bg-white/10 hover:text-white">
                   <Link to="/auth">I'm a developer</Link>
                 </Button>
+              </div>
+              <div className="mt-6 flex justify-center">
+                <span className="rounded-full border border-white/20 bg-white/5 px-3 py-1 backdrop-blur-sm">
+                  <PoweredByBant className="text-white/90 [&_span:first-child]:text-white/70" />
+                </span>
               </div>
               <div className="mt-12 grid grid-cols-3 gap-6 text-center">
                 <Stat value="2,400+" label="Developers" />
@@ -58,9 +128,7 @@ function Landing() {
         {/* FEATURES */}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
-              Built for how India actually hires.
-            </h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Built for how India actually hires.</h2>
             <p className="mt-4 text-muted-foreground">
               No bidding wars. No bloat. Just a clean flow from project post to first commit.
             </p>
@@ -75,12 +143,63 @@ function Landing() {
           </div>
         </section>
 
+        {/* DEVELOPER SHOWCASE */}
+        <section className="bg-muted/30 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-accent">Featured developers</span>
+                <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">Top talent, ready to ship</h2>
+                <p className="mt-2 max-w-2xl text-muted-foreground">
+                  A glimpse of the developers building on Developer Connect right now.
+                </p>
+              </div>
+              <Button asChild variant="outline">
+                <Link to="/developers">
+                  Browse all <ArrowRight className="ml-1 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {(developers.length ? developers : sampleDevelopers).map((d) => (
+                <DeveloperShowcaseCard key={d.id} dev={d} />
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* PROJECT SHOWCASE */}
+        <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+            <div>
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Open projects</span>
+              <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">What teams are hiring for</h2>
+              <p className="mt-2 max-w-2xl text-muted-foreground">
+                Real projects posted by recruiters. Apply in one click once you sign up.
+              </p>
+            </div>
+            <Button asChild variant="outline">
+              <Link to="/projects">
+                See all projects <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {(projects.length ? projects : sampleProjects).map((p) => (
+              <ProjectShowcaseCard key={p.id} project={p} />
+            ))}
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-2xl bg-gradient-hero p-10 text-center text-primary-foreground shadow-elegant md:p-16">
-            <div className="absolute inset-0 opacity-30" style={{
-              backgroundImage: "radial-gradient(circle at 30% 50%, oklch(0.72 0.16 195 / 0.5), transparent 50%)"
-            }} />
+            <div
+              className="absolute inset-0 opacity-30"
+              style={{ backgroundImage: "radial-gradient(circle at 30% 50%, oklch(0.72 0.16 195 / 0.5), transparent 50%)" }}
+            />
             <div className="relative">
               <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Ready to ship faster?</h2>
               <p className="mx-auto mt-4 max-w-xl text-white/80">
@@ -118,3 +237,101 @@ function Feature({ icon: Icon, title, desc }: { icon: React.ComponentType<{ clas
     </div>
   );
 }
+
+function DeveloperShowcaseCard({ dev }: { dev: DevCard }) {
+  const initials = (dev.full_name || dev.headline || "DC")
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return (
+    <Card className="transition-all hover:border-accent/40 hover:shadow-elegant">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-accent font-display text-sm font-bold text-primary-foreground">
+            {initials}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <p className="truncate font-display font-semibold">{dev.full_name ?? "Developer"}</p>
+              {dev.is_verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />}
+            </div>
+            <p className="truncate text-sm text-muted-foreground">{dev.headline ?? "Full-stack developer"}</p>
+            {dev.location && (
+              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <MapPin className="h-3 w-3" /> {dev.location}
+              </p>
+            )}
+          </div>
+        </div>
+        {dev.bio && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{dev.bio}</p>}
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(dev.skills ?? []).slice(0, 4).map((s) => (
+            <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
+          <span className="font-display font-semibold">
+            {dev.hourly_rate_inr ? `₹${dev.hourly_rate_inr}/hr` : "Rate on request"}
+          </span>
+          <Link to="/developers" className="text-xs font-medium text-accent hover:underline">
+            View profile
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProjectShowcaseCard({ project }: { project: ProjectCard }) {
+  const budget =
+    project.budget_min_inr && project.budget_max_inr
+      ? `₹${(project.budget_min_inr / 1000).toFixed(0)}k–₹${(project.budget_max_inr / 1000).toFixed(0)}k`
+      : "Budget on request";
+  return (
+    <Card className="transition-all hover:border-accent/40 hover:shadow-elegant">
+      <CardContent className="p-5">
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="text-xs capitalize">
+            <Briefcase className="mr-1 h-3 w-3" /> {project.project_type.replace("_", " ")}
+          </Badge>
+          {project.hours_per_week && (
+            <Badge variant="secondary" className="text-xs">{project.hours_per_week} hrs/wk</Badge>
+          )}
+        </div>
+        <h3 className="mt-3 font-display text-lg font-semibold leading-tight">{project.title}</h3>
+        <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{project.description}</p>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(project.tech_stack ?? []).slice(0, 4).map((s) => (
+            <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
+          <span className="font-display font-semibold">{budget}</span>
+          <Link to="/projects" className="text-xs font-medium text-accent hover:underline">
+            View project
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+const sampleDevelopers: DevCard[] = [
+  { id: "s1", full_name: "Aarav Mehta", headline: "Senior React + Node engineer", bio: "8 years building SaaS platforms. Ex-Razorpay. Loves clean architecture.", location: "Bengaluru", skills: ["React", "Node.js", "PostgreSQL", "AWS"], hourly_rate_inr: 2200, is_verified: true },
+  { id: "s2", full_name: "Priya Sharma", headline: "Mobile lead — React Native & Flutter", bio: "Shipped 30+ apps across fintech and health. Pixel-perfect UI obsessive.", location: "Pune", skills: ["React Native", "Flutter", "TypeScript"], hourly_rate_inr: 1800, is_verified: true },
+  { id: "s3", full_name: "Rohit Iyer", headline: "Backend & DevOps specialist", bio: "Microservices, Kubernetes and observability. SRE mindset.", location: "Hyderabad", skills: ["Go", "Kubernetes", "Terraform", "GCP"], hourly_rate_inr: 2500, is_verified: false },
+  { id: "s4", full_name: "Ananya Roy", headline: "AI/ML engineer — LLMs & RAG", bio: "Builds production LLM apps. Deep PyTorch + LangChain experience.", location: "Delhi NCR", skills: ["Python", "PyTorch", "LangChain"], hourly_rate_inr: 3000, is_verified: true },
+  { id: "s5", full_name: "Karthik Nair", headline: "Full-stack — Next.js & Supabase", bio: "Goes from Figma to prod in a week. Indie-hacker turned consultant.", location: "Kochi", skills: ["Next.js", "Supabase", "Tailwind"], hourly_rate_inr: 1600, is_verified: false },
+  { id: "s6", full_name: "Neha Gupta", headline: "Frontend lead — design-system focused", bio: "Builds accessible component libraries used by 20+ teams.", location: "Mumbai", skills: ["React", "TypeScript", "Storybook", "a11y"], hourly_rate_inr: 2000, is_verified: true },
+];
+
+const sampleProjects: ProjectCard[] = [
+  { id: "p1", title: "Build a Razorpay-style admin dashboard", description: "We need a clean analytics dashboard with role-based access, payouts and reports. ~6 weeks of work.", budget_min_inr: 80000, budget_max_inr: 150000, hours_per_week: 25, tech_stack: ["React", "TypeScript", "PostgreSQL"], project_type: "fixed_price" },
+  { id: "p2", title: "Migrate legacy WordPress site to Next.js", description: "Marketing site migration with CMS in Sanity. SEO must be preserved.", budget_min_inr: 50000, budget_max_inr: 90000, hours_per_week: 20, tech_stack: ["Next.js", "Sanity", "Tailwind"], project_type: "fixed_price" },
+  { id: "p3", title: "iOS + Android app for D2C brand", description: "Cross-platform mobile app with auth, catalog, cart, and payments. Backend exists.", budget_min_inr: 120000, budget_max_inr: 200000, hours_per_week: 30, tech_stack: ["React Native", "TypeScript"], project_type: "hourly" },
+  { id: "p4", title: "Build an internal LLM-powered support tool", description: "RAG chatbot over our help docs and tickets. Must work with OpenAI + local embeddings.", budget_min_inr: 90000, budget_max_inr: 160000, hours_per_week: 25, tech_stack: ["Python", "LangChain", "pgvector"], project_type: "fixed_price" },
+  { id: "p5", title: "Stripe billing integration & invoicing", description: "Add subscriptions, proration, and PDF invoices to our SaaS app.", budget_min_inr: 40000, budget_max_inr: 70000, hours_per_week: 15, tech_stack: ["Node.js", "Stripe", "PostgreSQL"], project_type: "hourly" },
+  { id: "p6", title: "Design system + Storybook setup", description: "Refactor our component library and set up Storybook with visual regression tests.", budget_min_inr: 60000, budget_max_inr: 100000, hours_per_week: 20, tech_stack: ["React", "Storybook", "Chromatic"], project_type: "fixed_price" },
+];
