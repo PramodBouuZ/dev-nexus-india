@@ -10,7 +10,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ArrowLeft, Briefcase, Code2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "@tanstack/react-router";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
