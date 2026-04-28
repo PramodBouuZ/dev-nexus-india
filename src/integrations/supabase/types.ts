@@ -55,6 +55,39 @@ export type Database = {
           },
         ]
       }
+      contact_access_requests: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          requester_id: string
+          responded_at: string | null
+          status: Database["public"]["Enums"]["contact_access_status"]
+          target_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          requester_id: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["contact_access_status"]
+          target_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          requester_id?: string
+          responded_at?: string | null
+          status?: Database["public"]["Enums"]["contact_access_status"]
+          target_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       contracts: {
         Row: {
           agreed_rate_inr: number | null
@@ -112,50 +145,114 @@ export type Database = {
       developer_profiles: {
         Row: {
           availability_hours_per_week: number | null
+          available_days: string[] | null
           bio: string | null
           created_at: string
+          developer_type: Database["public"]["Enums"]["developer_type"] | null
           experience_years: number | null
           github_url: string | null
           headline: string | null
           hourly_rate_inr: number | null
+          hours_per_day: number | null
           id: string
           is_verified: boolean
           linkedin_url: string | null
           location: string | null
+          monthly_rate_inr: number | null
+          phone: string | null
           portfolio_url: string | null
+          project_min_inr: number | null
           skills: string[] | null
+          time_slots: string | null
           updated_at: string
+          weekly_rate_inr: number | null
+          work_preference: Database["public"]["Enums"]["work_preference"] | null
         }
         Insert: {
           availability_hours_per_week?: number | null
+          available_days?: string[] | null
           bio?: string | null
           created_at?: string
+          developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
           github_url?: string | null
           headline?: string | null
           hourly_rate_inr?: number | null
+          hours_per_day?: number | null
           id: string
           is_verified?: boolean
           linkedin_url?: string | null
           location?: string | null
+          monthly_rate_inr?: number | null
+          phone?: string | null
           portfolio_url?: string | null
+          project_min_inr?: number | null
           skills?: string[] | null
+          time_slots?: string | null
           updated_at?: string
+          weekly_rate_inr?: number | null
+          work_preference?:
+            | Database["public"]["Enums"]["work_preference"]
+            | null
         }
         Update: {
           availability_hours_per_week?: number | null
+          available_days?: string[] | null
           bio?: string | null
           created_at?: string
+          developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
           github_url?: string | null
           headline?: string | null
           hourly_rate_inr?: number | null
+          hours_per_day?: number | null
           id?: string
           is_verified?: boolean
           linkedin_url?: string | null
           location?: string | null
+          monthly_rate_inr?: number | null
+          phone?: string | null
           portfolio_url?: string | null
+          project_min_inr?: number | null
           skills?: string[] | null
+          time_slots?: string | null
+          updated_at?: string
+          weekly_rate_inr?: number | null
+          work_preference?:
+            | Database["public"]["Enums"]["work_preference"]
+            | null
+        }
+        Relationships: []
+      }
+      invites: {
+        Row: {
+          created_at: string
+          developer_id: string
+          id: string
+          message: string | null
+          project_id: string | null
+          recruiter_id: string
+          status: Database["public"]["Enums"]["invite_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          developer_id: string
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          recruiter_id: string
+          status?: Database["public"]["Enums"]["invite_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          developer_id?: string
+          id?: string
+          message?: string | null
+          project_id?: string | null
+          recruiter_id?: string
+          status?: Database["public"]["Enums"]["invite_status"]
           updated_at?: string
         }
         Relationships: []
@@ -192,6 +289,42 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          email_sent: boolean
+          id: string
+          link: string | null
+          read_at: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          email_sent?: boolean
+          id?: string
+          link?: string | null
+          read_at?: string | null
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -221,49 +354,64 @@ export type Database = {
       }
       projects: {
         Row: {
+          ai_suggestions: Json | null
           budget_max_inr: number | null
           budget_min_inr: number | null
           created_at: string
           description: string
+          developer_type: Database["public"]["Enums"]["developer_type"] | null
           duration_weeks: number | null
+          hiring_type: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week: number | null
           id: string
           project_type: Database["public"]["Enums"]["project_type"]
           recruiter_id: string
           status: Database["public"]["Enums"]["project_status"]
           tech_stack: string[] | null
+          timeline: string | null
           title: string
           updated_at: string
+          work_mode: Database["public"]["Enums"]["work_mode"] | null
         }
         Insert: {
+          ai_suggestions?: Json | null
           budget_max_inr?: number | null
           budget_min_inr?: number | null
           created_at?: string
           description: string
+          developer_type?: Database["public"]["Enums"]["developer_type"] | null
           duration_weeks?: number | null
+          hiring_type?: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week?: number | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"]
           recruiter_id: string
           status?: Database["public"]["Enums"]["project_status"]
           tech_stack?: string[] | null
+          timeline?: string | null
           title: string
           updated_at?: string
+          work_mode?: Database["public"]["Enums"]["work_mode"] | null
         }
         Update: {
+          ai_suggestions?: Json | null
           budget_max_inr?: number | null
           budget_min_inr?: number | null
           created_at?: string
           description?: string
+          developer_type?: Database["public"]["Enums"]["developer_type"] | null
           duration_weeks?: number | null
+          hiring_type?: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week?: number | null
           id?: string
           project_type?: Database["public"]["Enums"]["project_type"]
           recruiter_id?: string
           status?: Database["public"]["Enums"]["project_status"]
           tech_stack?: string[] | null
+          timeline?: string | null
           title?: string
           updated_at?: string
+          work_mode?: Database["public"]["Enums"]["work_mode"] | null
         }
         Relationships: []
       }
@@ -277,6 +425,7 @@ export type Database = {
           id: string
           industry: string | null
           location: string | null
+          phone: string | null
           updated_at: string
         }
         Insert: {
@@ -288,6 +437,7 @@ export type Database = {
           id: string
           industry?: string | null
           location?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Update: {
@@ -299,6 +449,7 @@ export type Database = {
           id?: string
           industry?: string | null
           location?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -412,6 +563,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_contact_access: { Args: { _a: string; _b: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -422,11 +574,44 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "developer" | "recruiter"
-      application_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      application_status:
+        | "pending"
+        | "accepted"
+        | "rejected"
+        | "withdrawn"
+        | "shortlisted"
+      contact_access_status: "pending" | "approved" | "rejected"
       contract_status: "active" | "completed" | "cancelled"
+      developer_type:
+        | "frontend"
+        | "backend"
+        | "fullstack"
+        | "mobile"
+        | "devops"
+        | "data"
+        | "ai_ml"
+        | "designer"
+        | "other"
+      hiring_type: "part_time" | "weekly" | "monthly" | "ongoing"
+      invite_status: "pending" | "accepted" | "rejected" | "withdrawn"
+      notification_type:
+        | "new_matching_project"
+        | "new_application"
+        | "application_accepted"
+        | "application_rejected"
+        | "recruiter_invite"
+        | "invite_accepted"
+        | "contact_request"
+        | "contact_approved"
+        | "contact_rejected"
+        | "project_update"
+        | "account_update"
+        | "welcome"
       project_status: "open" | "in_progress" | "completed" | "closed"
       project_type: "fixed" | "hourly"
       verification_status: "pending" | "approved" | "rejected"
+      work_mode: "remote" | "hybrid" | "onsite"
+      work_preference: "part_time" | "full_time" | "both"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -555,11 +740,47 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "developer", "recruiter"],
-      application_status: ["pending", "accepted", "rejected", "withdrawn"],
+      application_status: [
+        "pending",
+        "accepted",
+        "rejected",
+        "withdrawn",
+        "shortlisted",
+      ],
+      contact_access_status: ["pending", "approved", "rejected"],
       contract_status: ["active", "completed", "cancelled"],
+      developer_type: [
+        "frontend",
+        "backend",
+        "fullstack",
+        "mobile",
+        "devops",
+        "data",
+        "ai_ml",
+        "designer",
+        "other",
+      ],
+      hiring_type: ["part_time", "weekly", "monthly", "ongoing"],
+      invite_status: ["pending", "accepted", "rejected", "withdrawn"],
+      notification_type: [
+        "new_matching_project",
+        "new_application",
+        "application_accepted",
+        "application_rejected",
+        "recruiter_invite",
+        "invite_accepted",
+        "contact_request",
+        "contact_approved",
+        "contact_rejected",
+        "project_update",
+        "account_update",
+        "welcome",
+      ],
       project_status: ["open", "in_progress", "completed", "closed"],
       project_type: ["fixed", "hourly"],
       verification_status: ["pending", "approved", "rejected"],
+      work_mode: ["remote", "hybrid", "onsite"],
+      work_preference: ["part_time", "full_time", "both"],
     },
   },
 } as const

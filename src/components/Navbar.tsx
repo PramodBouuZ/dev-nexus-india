@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { BrandLink } from "@/components/Brand";
 import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export function Navbar() {
   const { user, role, signOut } = useAuth();
@@ -32,6 +33,7 @@ export function Navbar() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {user && <NotificationBell />}
           {/* Desktop auth area */}
           <div className="hidden items-center gap-2 md:flex">
             {user ? (
