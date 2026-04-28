@@ -11,7 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
+import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin } from "lucide-react";
+import { ContactAccess } from "@/components/ContactAccess";
 
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
@@ -92,8 +93,30 @@ function ProjectDetail() {
                   <dd className="font-medium">{project.duration_weeks} weeks</dd>
                 </div>
               )}
+              {project.timeline && (
+                <div className="flex items-center justify-between">
+                  <dt className="text-muted-foreground">Timeline</dt>
+                  <dd className="font-medium">{project.timeline}</dd>
+                </div>
+              )}
+              {project.work_mode && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-3.5 w-3.5" /> Work mode</dt>
+                  <dd className="font-medium capitalize">{project.work_mode}</dd>
+                </div>
+              )}
+              {project.hiring_type && (
+                <div className="flex items-center justify-between">
+                  <dt className="flex items-center gap-1.5 text-muted-foreground"><Briefcase className="h-3.5 w-3.5" /> Hiring</dt>
+                  <dd className="font-medium capitalize">{String(project.hiring_type).replace("_"," ")}</dd>
+                </div>
+              )}
             </dl>
           </div>
+
+          {user && user.id !== project.recruiter_id && (
+            <ContactAccess targetUserId={project.recruiter_id} targetName="The recruiter" />
+          )}
 
           {!user && (
             <div className="rounded-xl border border-border bg-card p-5 shadow-card text-sm">
