@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PoweredByBant } from "@/components/Brand";
+import { TrustedBy } from "@/components/TrustedBy";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sparkles, Zap, ShieldCheck, Clock, IndianRupee, Code2, Users, ArrowRight,
@@ -124,6 +125,8 @@ function Landing() {
             </div>
           </div>
         </section>
+
+        <TrustedBy />
 
         {/* FEATURES */}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
