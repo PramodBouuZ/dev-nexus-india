@@ -247,7 +247,9 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{a.profile?.full_name ?? "Developer"}</h3>
+                  <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent">
+                    {a.profile?.full_name ?? "Developer"}
+                  </Link>
                   {a.dev?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground">{a.dev?.headline}</p>
