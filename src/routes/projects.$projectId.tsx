@@ -119,7 +119,13 @@ function ProjectDetail() {
           </div>
 
           {user && user.id !== project.recruiter_id && (
-            <ContactAccess targetUserId={project.recruiter_id} targetName="The recruiter" />
+            <div className="space-y-3">
+              <Link to="/recruiters/$recId" params={{ recId: project.recruiter_id }}
+                className="block rounded-lg border border-border bg-card p-3 text-sm hover:border-accent/40">
+                View recruiter profile →
+              </Link>
+              <ContactAccess targetUserId={project.recruiter_id} targetName="The recruiter" />
+            </div>
           )}
 
           {!user && (
