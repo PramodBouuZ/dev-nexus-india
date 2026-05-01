@@ -69,10 +69,10 @@ function DevProfile() {
                 </Section>
               )}
 
-              {data.dev.skills?.length > 0 && (
+              {(data.dev.skills?.length ?? 0) > 0 && (
                 <Section title="Skills">
                   <div className="flex flex-wrap gap-2">
-                    {data.dev.skills.map((s: string) => <Badge key={s} variant="secondary">{s}</Badge>)}
+                    {(data.dev.skills ?? []).map((s: string) => <Badge key={s} variant="secondary">{s}</Badge>)}
                   </div>
                 </Section>
               )}
