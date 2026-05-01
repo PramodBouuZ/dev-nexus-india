@@ -21,8 +21,10 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as RecruitersRecIdRouteImport } from './routes/recruiters.$recId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
+import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
 
 const VerificationRoute = VerificationRouteImport.update({
@@ -85,6 +87,11 @@ const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RecruitersRecIdRoute = RecruitersRecIdRouteImport.update({
+  id: '/recruiters/$recId',
+  path: '/recruiters/$recId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsNewRoute = ProjectsNewRouteImport.update({
   id: '/projects/new',
   path: '/projects/new',
@@ -94,6 +101,11 @@ const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
   path: '/projects/$projectId',
   getParentRoute: () => rootRouteImport,
+} as any)
+const DevelopersDevIdRoute = DevelopersDevIdRouteImport.update({
+  id: '/$devId',
+  path: '/$devId',
+  getParentRoute: () => DevelopersRoute,
 } as any)
 const ApplicationsAppIdRoute = ApplicationsAppIdRouteImport.update({
   id: '/applications/$appId',
@@ -107,15 +119,17 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
-  '/developers': typeof DevelopersRoute
+  '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -124,15 +138,17 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
-  '/developers': typeof DevelopersRoute
+  '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects': typeof ProjectsIndexRoute
 }
 export interface FileRoutesById {
@@ -142,15 +158,17 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/contact': typeof ContactRoute
   '/dashboard': typeof DashboardRoute
-  '/developers': typeof DevelopersRoute
+  '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
+  '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
 }
 export interface FileRouteTypes {
@@ -168,8 +186,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
+    | '/recruiters/$recId'
     | '/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -185,8 +205,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
+    | '/recruiters/$recId'
     | '/projects'
   id:
     | '__root__'
@@ -202,8 +224,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
+    | '/recruiters/$recId'
     | '/projects/'
   fileRoutesById: FileRoutesById
 }
@@ -213,7 +237,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   ContactRoute: typeof ContactRoute
   DashboardRoute: typeof DashboardRoute
-  DevelopersRoute: typeof DevelopersRoute
+  DevelopersRoute: typeof DevelopersRouteWithChildren
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
@@ -222,6 +246,7 @@ export interface RootRouteChildren {
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
+  RecruitersRecIdRoute: typeof RecruitersRecIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
@@ -311,6 +336,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/recruiters/$recId': {
+      id: '/recruiters/$recId'
+      path: '/recruiters/$recId'
+      fullPath: '/recruiters/$recId'
+      preLoaderRoute: typeof RecruitersRecIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/new': {
       id: '/projects/new'
       path: '/projects/new'
@@ -325,6 +357,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/developers/$devId': {
+      id: '/developers/$devId'
+      path: '/$devId'
+      fullPath: '/developers/$devId'
+      preLoaderRoute: typeof DevelopersDevIdRouteImport
+      parentRoute: typeof DevelopersRoute
+    }
     '/applications/$appId': {
       id: '/applications/$appId'
       path: '/applications/$appId'
@@ -335,13 +374,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DevelopersRouteChildren {
+  DevelopersDevIdRoute: typeof DevelopersDevIdRoute
+}
+
+const DevelopersRouteChildren: DevelopersRouteChildren = {
+  DevelopersDevIdRoute: DevelopersDevIdRoute,
+}
+
+const DevelopersRouteWithChildren = DevelopersRoute._addFileChildren(
+  DevelopersRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
   AuthRoute: AuthRoute,
   ContactRoute: ContactRoute,
   DashboardRoute: DashboardRoute,
-  DevelopersRoute: DevelopersRoute,
+  DevelopersRoute: DevelopersRouteWithChildren,
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
@@ -350,6 +401,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
+  RecruitersRecIdRoute: RecruitersRecIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport
