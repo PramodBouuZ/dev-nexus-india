@@ -260,21 +260,24 @@ export type Database = {
       messages: {
         Row: {
           application_id: string
-          body: string
+          attachments: Json
+          body: string | null
           created_at: string
           id: string
           sender_id: string
         }
         Insert: {
           application_id: string
-          body: string
+          attachments?: Json
+          body?: string | null
           created_at?: string
           id?: string
           sender_id: string
         }
         Update: {
           application_id?: string
-          body?: string
+          attachments?: Json
+          body?: string | null
           created_at?: string
           id?: string
           sender_id?: string
@@ -349,6 +352,42 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      project_stages: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          name: string
+          position: number
+          project_id: string
+          status: Database["public"]["Enums"]["stage_status"]
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          project_id: string
+          status?: Database["public"]["Enums"]["stage_status"]
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          project_id?: string
+          status?: Database["public"]["Enums"]["stage_status"]
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -571,6 +610,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_application_party: {
+        Args: { _app_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_project_party: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "developer" | "recruiter"
@@ -607,8 +654,15 @@ export type Database = {
         | "project_update"
         | "account_update"
         | "welcome"
+        | "stage_update"
       project_status: "open" | "in_progress" | "completed" | "closed"
       project_type: "fixed" | "hourly"
+      stage_status:
+        | "planned"
+        | "in_progress"
+        | "under_review"
+        | "completed"
+        | "blocked"
       verification_status: "pending" | "approved" | "rejected"
       work_mode: "remote" | "hybrid" | "onsite"
       work_preference: "part_time" | "full_time" | "both"
@@ -775,9 +829,17 @@ export const Constants = {
         "project_update",
         "account_update",
         "welcome",
+        "stage_update",
       ],
       project_status: ["open", "in_progress", "completed", "closed"],
       project_type: ["fixed", "hourly"],
+      stage_status: [
+        "planned",
+        "in_progress",
+        "under_review",
+        "completed",
+        "blocked",
+      ],
       verification_status: ["pending", "approved", "rejected"],
       work_mode: ["remote", "hybrid", "onsite"],
       work_preference: ["part_time", "full_time", "both"],

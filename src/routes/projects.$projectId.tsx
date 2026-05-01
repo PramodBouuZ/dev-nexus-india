@@ -13,6 +13,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin } from "lucide-react";
 import { ContactAccess } from "@/components/ContactAccess";
+import { ProjectStages } from "@/components/ProjectStages";
 
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
@@ -69,6 +70,9 @@ function ProjectDetail() {
           </div>
 
           {isOwner && <ApplicantsList projectId={projectId} recruiterId={project.recruiter_id} />}
+          {(project.status === "in_progress" || project.status === "completed") && user && (
+            <ProjectStages projectId={projectId} />
+          )}
         </div>
 
         <aside className="space-y-4">
@@ -115,7 +119,13 @@ function ProjectDetail() {
           </div>
 
           {user && user.id !== project.recruiter_id && (
-            <ContactAccess targetUserId={project.recruiter_id} targetName="The recruiter" />
+            <div className="space-y-3">
+              <Link to="/recruiters/$recId" params={{ recId: project.recruiter_id }}
+                className="block rounded-lg border border-border bg-card p-3 text-sm hover:border-accent/40">
+                View recruiter profile →
+              </Link>
+              <ContactAccess targetUserId={project.recruiter_id} targetName="The recruiter" />
+            </div>
           )}
 
           {!user && (
@@ -243,7 +253,9 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{a.profile?.full_name ?? "Developer"}</h3>
+                  <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent">
+                    {a.profile?.full_name ?? "Developer"}
+                  </Link>
                   {a.dev?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
                 </div>
                 <p className="text-xs text-muted-foreground">{a.dev?.headline}</p>
