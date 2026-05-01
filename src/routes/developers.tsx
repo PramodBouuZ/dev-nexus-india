@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useQuery } from "@tanstack/react-query";
@@ -10,7 +10,7 @@ import { Search, Github, Globe, IndianRupee, Clock, MapPin, ShieldCheck } from "
 import { Stars } from "@/components/Stars";
 
 export const Route = createFileRoute("/developers")({
-  head: () => ({ meta: [{ title: "Find developers — HireSpark" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
+  head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
   component: DevList,
 });
 
@@ -60,7 +60,8 @@ function DevList() {
         <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered?.length === 0 && <p className="col-span-full text-sm text-muted-foreground">No developers found.</p>}
           {filtered?.map(d => (
-            <div key={d.id} className="rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+            <Link key={d.id} to="/developers/$devId" params={{ devId: d.id }}
+              className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
                   {d.profile?.full_name?.[0] ?? "?"}
@@ -88,12 +89,12 @@ function DevList() {
                 {d.availability_hours_per_week && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{d.availability_hours_per_week} hrs/wk</span>}
               </div>
               {(d.github_url || d.portfolio_url) && (
-                <div className="mt-3 flex gap-2">
+                <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
                   {d.github_url && <a href={d.github_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><Github className="h-4 w-4" /></a>}
                   {d.portfolio_url && <a href={d.portfolio_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><Globe className="h-4 w-4" /></a>}
                 </div>
               )}
-            </div>
+            </Link>
           ))}
         </div>
       </main>
