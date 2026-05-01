@@ -13,6 +13,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin } from "lucide-react";
 import { ContactAccess } from "@/components/ContactAccess";
+import { ProjectStages } from "@/components/ProjectStages";
 
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
@@ -69,6 +70,9 @@ function ProjectDetail() {
           </div>
 
           {isOwner && <ApplicantsList projectId={projectId} recruiterId={project.recruiter_id} />}
+          {(project.status === "in_progress" || project.status === "completed") && user && (
+            <ProjectStages projectId={projectId} />
+          )}
         </div>
 
         <aside className="space-y-4">
