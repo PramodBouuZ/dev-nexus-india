@@ -57,10 +57,29 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
 
   const isApproved = req?.status === "approved";
 
+  // Check if target developer made contact public
+  const { data: publicInfo } = useQuery({
+    queryKey: ["dev-public-contact", targetUserId],
+    enabled: !!user && user.id !== targetUserId,
+    queryFn: async () => {
+      const { data: dev } = await supabase
+        .from("developer_profiles")
+        .select("contact_public, phone")
+        .eq("id", targetUserId)
+        .maybeSingle();
+      if (!dev || !(dev as any).contact_public) return null;
+      const { data: prof } = await supabase
+        .from("profiles").select("email").eq("id", targetUserId).maybeSingle();
+      return { email: prof?.email ?? null, phone: (dev as any).phone ?? null };
+    },
+  });
+
+  const showContact = isApproved || !!publicInfo;
+
   // Fetch contact details only when approved
   const { data: contactInfo } = useQuery({
     queryKey: ["contact-info", targetUserId, isApproved],
-    enabled: isApproved,
+    enabled: isApproved && !publicInfo,
     queryFn: async () => {
       const [{ data: prof }, { data: dev }, { data: rec }] = await Promise.all([
         supabase.from("profiles").select("email").eq("id", targetUserId).maybeSingle(),
