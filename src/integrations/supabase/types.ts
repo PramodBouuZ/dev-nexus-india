@@ -557,6 +557,7 @@ export type Database = {
           admin_notes: string | null
           created_at: string
           developer_id: string
+          documents: Json
           github_url: string | null
           id: string
           linkedin_url: string | null
@@ -565,12 +566,14 @@ export type Database = {
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["verification_status"]
+          status_history: Json
           updated_at: string
         }
         Insert: {
           admin_notes?: string | null
           created_at?: string
           developer_id: string
+          documents?: Json
           github_url?: string | null
           id?: string
           linkedin_url?: string | null
@@ -579,12 +582,14 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["verification_status"]
+          status_history?: Json
           updated_at?: string
         }
         Update: {
           admin_notes?: string | null
           created_at?: string
           developer_id?: string
+          documents?: Json
           github_url?: string | null
           id?: string
           linkedin_url?: string | null
@@ -593,6 +598,7 @@ export type Database = {
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["verification_status"]
+          status_history?: Json
           updated_at?: string
         }
         Relationships: []
