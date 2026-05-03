@@ -15,6 +15,8 @@ import {
 import { ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { useState } from "react";
+import { DocumentChecklist } from "@/components/DocumentChecklist";
+import { StatusTimeline } from "@/components/StatusTimeline";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({ meta: [{ title: "Admin — HireSpark" }] }),
