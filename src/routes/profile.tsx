@@ -202,6 +202,18 @@ function DeveloperForm({ userId }: { userId: string }) {
       </Section>
 
       <Section title="Contact & links (kept private until you approve)">
+        <label className="flex items-start gap-3 rounded-lg border border-border p-3 text-sm">
+          <Checkbox
+            checked={form.contact_public}
+            onCheckedChange={(v) => setForm({ ...form, contact_public: !!v })}
+          />
+          <span>
+            <span className="font-medium">Make my contact public to all recruiters</span>
+            <span className="block text-xs text-muted-foreground">
+              When enabled, any signed-in recruiter can view your email and phone without sending a request.
+            </span>
+          </span>
+        </label>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
           <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
