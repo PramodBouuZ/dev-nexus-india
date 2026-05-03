@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ShieldCheck, Clock, XCircle, CheckCircle2, Info } from "lucide-react";
+import { DocumentChecklist, type VerificationDoc } from "@/components/DocumentChecklist";
+import { StatusTimeline } from "@/components/StatusTimeline";
 
 export const Route = createFileRoute("/verification")({
   head: () => ({ meta: [{ title: "Get verified — HireSpark" }] }),
@@ -93,6 +95,15 @@ function VerificationContent({ userId }: { userId: string }) {
           {latest && <StatusBadge status={latest.status} />}
         </div>
       </div>
+
+      {latest && (
+        <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+          <h2 className="font-display text-lg font-semibold">Status timeline</h2>
+          <div className="mt-4">
+            <StatusTimeline history={(latest as any).status_history ?? []} />
+          </div>
+        </section>
+      )}
 
       {latest?.status === "pending" && <PendingNotice request={latest} userId={userId} onUpdated={() => qc.invalidateQueries({ queryKey: ["my-verification", userId] })} />}
       {latest?.status === "rejected" && <RejectedNotice request={latest} />}
@@ -176,11 +187,11 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
     linkedin_url: "",
     notes: "",
   });
+  const [docs, setDocs] = useState<VerificationDoc[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
-      // Prefill from developer_profiles or last rejected request
       const { data: dev } = await supabase.from("developer_profiles").select("github_url, portfolio_url, linkedin_url").eq("id", userId).maybeSingle();
       setForm({
         github_url: existing?.github_url ?? dev?.github_url ?? "",
@@ -188,6 +199,7 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
         linkedin_url: existing?.linkedin_url ?? dev?.linkedin_url ?? "",
         notes: existing?.notes ?? "",
       });
+      setDocs(Array.isArray(existing?.documents) ? existing.documents : []);
     })();
   }, [userId, existing]);
 
@@ -197,6 +209,12 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       toast.error("Please provide at least one link (GitHub, portfolio, or LinkedIn).");
       return;
     }
+    const hasGovId = docs.some(d => d.type === "government_id");
+    const hasWork = docs.some(d => d.type === "work_proof");
+    if (!hasGovId || !hasWork) {
+      toast.error("Please add the required documents: Government ID and Work / Employment proof.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.from("verification_requests").insert({
       developer_id: userId,
@@ -204,6 +222,7 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       portfolio_url: form.portfolio_url || null,
       linkedin_url: form.linkedin_url || null,
       notes: form.notes || null,
+      documents: docs as any,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
@@ -231,6 +250,11 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       <div className="space-y-1.5">
         <Label htmlFor="linkedin_url">LinkedIn</Label>
         <Input id="linkedin_url" type="url" placeholder="https://linkedin.com/in/yourname" value={form.linkedin_url} onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })} />
+      </div>
+      <div className="space-y-2">
+        <Label>Verification documents</Label>
+        <p className="text-xs text-muted-foreground">Upload to a service (Google Drive, Dropbox, etc.) and paste shareable links. Government ID and Work proof are required.</p>
+        <DocumentChecklist value={docs} onChange={setDocs} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="notes">Tell us about your experience (optional)</Label>
