@@ -1,0 +1,1 @@
+ALTER TABLE public.developer_profiles ADD COLUMN IF NOT EXISTS contact_public boolean NOT NULL DEFAULT false;

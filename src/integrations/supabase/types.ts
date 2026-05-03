@@ -147,6 +147,7 @@ export type Database = {
           availability_hours_per_week: number | null
           available_days: string[] | null
           bio: string | null
+          contact_public: boolean
           created_at: string
           developer_type: Database["public"]["Enums"]["developer_type"] | null
           experience_years: number | null
@@ -172,6 +173,7 @@ export type Database = {
           availability_hours_per_week?: number | null
           available_days?: string[] | null
           bio?: string | null
+          contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
@@ -199,6 +201,7 @@ export type Database = {
           availability_hours_per_week?: number | null
           available_days?: string[] | null
           bio?: string | null
+          contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
