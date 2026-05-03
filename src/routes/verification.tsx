@@ -12,6 +12,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ShieldCheck, Clock, XCircle, CheckCircle2, Info } from "lucide-react";
+import { DocumentChecklist, type VerificationDoc } from "@/components/DocumentChecklist";
+import { StatusTimeline } from "@/components/StatusTimeline";
 
 export const Route = createFileRoute("/verification")({
   head: () => ({ meta: [{ title: "Get verified — HireSpark" }] }),
