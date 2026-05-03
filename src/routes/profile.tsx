@@ -63,6 +63,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     developer_type: "fullstack",
     phone: "",
     available_days: [] as string[],
+    contact_public: false,
   });
   const [busy, setBusy] = useState(false);
 
