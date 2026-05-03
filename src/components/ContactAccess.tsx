@@ -131,14 +131,15 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
   }
 
   // ====== UI States ======
-  if (isApproved) {
+  const info = publicInfo ?? contactInfo;
+  if (showContact) {
     return (
       <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm">
         <div className="flex items-center gap-2 font-medium text-success-foreground">
-          <ShieldCheck className="h-4 w-4" /> Contact access approved
+          <ShieldCheck className="h-4 w-4" /> {publicInfo ? "Contact details (public)" : "Contact access approved"}
         </div>
         <div className="mt-3 space-y-1.5 text-sm">
-          {contactInfo?.email && (
+          {info?.email && (
             <div className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-muted-foreground" />
               <a href={`mailto:${contactInfo.email}`} className="hover:underline">
