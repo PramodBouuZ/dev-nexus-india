@@ -176,6 +176,21 @@ function RequestCard({ request, adminId, onChange, compact = false }: { request:
               {request.dev.skills.slice(0, 8).map((s: string) => <Badge key={s} variant="secondary">{s}</Badge>)}
             </div>
           )}
+          {Array.isArray(request.documents) && request.documents.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Documents checklist</p>
+              <div className="mt-2">
+                <DocumentChecklist value={request.documents} readOnly />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Status timeline</p>
+            <div className="mt-3">
+              <StatusTimeline history={request.status_history ?? []} />
+            </div>
+          </div>
         </>
       )}
 
