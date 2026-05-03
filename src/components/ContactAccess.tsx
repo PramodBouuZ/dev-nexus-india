@@ -142,20 +142,20 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
           {info?.email && (
             <div className="flex items-center gap-2">
               <Mail className="h-3.5 w-3.5 text-muted-foreground" />
-              <a href={`mailto:${contactInfo.email}`} className="hover:underline">
-                {contactInfo.email}
+              <a href={`mailto:${info.email}`} className="hover:underline">
+                {info.email}
               </a>
             </div>
           )}
-          {contactInfo?.phone && (
+          {info?.phone && (
             <div className="flex items-center gap-2">
               <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-              <a href={`tel:${contactInfo.phone}`} className="hover:underline">
-                {contactInfo.phone}
+              <a href={`tel:${info.phone}`} className="hover:underline">
+                {info.phone}
               </a>
             </div>
           )}
-          {!contactInfo?.email && !contactInfo?.phone && (
+          {!info?.email && !info?.phone && (
             <p className="text-muted-foreground">The other user has not added contact details yet.</p>
           )}
         </div>
