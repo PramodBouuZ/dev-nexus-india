@@ -135,7 +135,8 @@ function DeveloperForm({ userId }: { userId: string }) {
         developer_type: form.developer_type as any,
         phone: form.phone || null,
         available_days: form.available_days,
-      }),
+        contact_public: form.contact_public,
+      } as any),
     ]);
     setBusy(false);
     if (e1 || e2) { toast.error((e1 || e2)!.message); return; }
