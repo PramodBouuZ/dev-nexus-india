@@ -96,6 +96,15 @@ function VerificationContent({ userId }: { userId: string }) {
         </div>
       </div>
 
+      {latest && (
+        <section className="rounded-xl border border-border bg-card p-5 shadow-card">
+          <h2 className="font-display text-lg font-semibold">Status timeline</h2>
+          <div className="mt-4">
+            <StatusTimeline history={(latest as any).status_history ?? []} />
+          </div>
+        </section>
+      )}
+
       {latest?.status === "pending" && <PendingNotice request={latest} userId={userId} onUpdated={() => qc.invalidateQueries({ queryKey: ["my-verification", userId] })} />}
       {latest?.status === "rejected" && <RejectedNotice request={latest} />}
       {(!latest || latest.status === "rejected") && (
