@@ -251,6 +251,11 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
         <Label htmlFor="linkedin_url">LinkedIn</Label>
         <Input id="linkedin_url" type="url" placeholder="https://linkedin.com/in/yourname" value={form.linkedin_url} onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })} />
       </div>
+      <div className="space-y-2">
+        <Label>Verification documents</Label>
+        <p className="text-xs text-muted-foreground">Upload to a service (Google Drive, Dropbox, etc.) and paste shareable links. Government ID and Work proof are required.</p>
+        <DocumentChecklist value={docs} onChange={setDocs} />
+      </div>
       <div className="space-y-1.5">
         <Label htmlFor="notes">Tell us about your experience (optional)</Label>
         <Textarea id="notes" rows={4} maxLength={1000} placeholder="Notable projects, years of experience, specialties..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
