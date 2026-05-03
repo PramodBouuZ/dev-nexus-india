@@ -187,11 +187,11 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
     linkedin_url: "",
     notes: "",
   });
+  const [docs, setDocs] = useState<VerificationDoc[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     (async () => {
-      // Prefill from developer_profiles or last rejected request
       const { data: dev } = await supabase.from("developer_profiles").select("github_url, portfolio_url, linkedin_url").eq("id", userId).maybeSingle();
       setForm({
         github_url: existing?.github_url ?? dev?.github_url ?? "",
@@ -199,6 +199,7 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
         linkedin_url: existing?.linkedin_url ?? dev?.linkedin_url ?? "",
         notes: existing?.notes ?? "",
       });
+      setDocs(Array.isArray(existing?.documents) ? existing.documents : []);
     })();
   }, [userId, existing]);
 
@@ -208,6 +209,12 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       toast.error("Please provide at least one link (GitHub, portfolio, or LinkedIn).");
       return;
     }
+    const hasGovId = docs.some(d => d.type === "government_id");
+    const hasWork = docs.some(d => d.type === "work_proof");
+    if (!hasGovId || !hasWork) {
+      toast.error("Please add the required documents: Government ID and Work / Employment proof.");
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.from("verification_requests").insert({
       developer_id: userId,
@@ -215,6 +222,7 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       portfolio_url: form.portfolio_url || null,
       linkedin_url: form.linkedin_url || null,
       notes: form.notes || null,
+      documents: docs as any,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
