@@ -94,6 +94,7 @@ function DeveloperForm({ userId }: { userId: string }) {
         developer_type: (dev?.developer_type as any) ?? "fullstack",
         phone: dev?.phone ?? "",
         available_days: dev?.available_days ?? [],
+        contact_public: (dev as any)?.contact_public ?? false,
       });
     })();
   }, [userId]);
