@@ -47,9 +47,21 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
+  // Mark messages I received as read
+  useEffect(() => {
+    if (!messages?.length) return;
+    const unread = messages.filter((m) => m.sender_id !== userId && !m.read_at).map((m) => m.id);
+    if (!unread.length) return;
+    supabase.from("messages").update({ read_at: new Date().toISOString() }).in("id", unread).then(({ error }) => {
+      if (!error) qc.invalidateQueries({ queryKey: ["msgs", appId] });
+    });
+  }, [messages, userId, appId, qc]);
+
   useEffect(() => {
     const ch = supabase.channel(`msgs-${appId}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `application_id=eq.${appId}` },
+        () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `application_id=eq.${appId}` },
         () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -128,8 +140,9 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
                     })}
                   </div>
                 )}
-                <div className={`mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                  {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                <div className={`mt-1 flex items-center gap-1.5 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                  <span>{new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  {mine && <span>· {m.read_at ? "Seen" : "Sent"}</span>}
                 </div>
               </div>
             </div>
