@@ -41,6 +41,9 @@ export function Navbar() {
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/dashboard">Dashboard</Link>
                 </Button>
+                <Button asChild variant="ghost" size="sm">
+                  <Link to="/saved">Saved</Link>
+                </Button>
                 {role === "developer" && (
                   <Button asChild variant="ghost" size="sm">
                     <Link to="/verification">Get verified</Link>
@@ -107,6 +110,11 @@ export function Navbar() {
                     <SheetClose asChild>
                       <Button asChild variant="ghost" className="justify-start">
                         <Link to="/dashboard">Dashboard</Link>
+                      </Button>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Button asChild variant="ghost" className="justify-start">
+                        <Link to="/saved">Saved</Link>
                       </Button>
                     </SheetClose>
                     {role === "developer" && (
