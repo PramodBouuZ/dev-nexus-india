@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SavedRouteImport } from './routes/saved'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -35,6 +36,11 @@ const VerificationRoute = VerificationRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SavedRoute = SavedRouteImport.update({
+  id: '/saved',
+  path: '/saved',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileRoute = ProfileRouteImport.update({
@@ -123,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/pricing': typeof PricingRoute
   '/profile': typeof ProfileRoute
+  '/saved': typeof SavedRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/pricing'
     | '/profile'
+    | '/saved'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/pricing'
     | '/profile'
+    | '/saved'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -221,6 +232,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/pricing'
     | '/profile'
+    | '/saved'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -241,6 +253,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   PricingRoute: typeof PricingRoute
   ProfileRoute: typeof ProfileRoute
+  SavedRoute: typeof SavedRoute
   TermsRoute: typeof TermsRoute
   VerificationRoute: typeof VerificationRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
@@ -264,6 +277,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/saved': {
+      id: '/saved'
+      path: '/saved'
+      fullPath: '/saved'
+      preLoaderRoute: typeof SavedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/profile': {
@@ -396,6 +416,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   PricingRoute: PricingRoute,
   ProfileRoute: ProfileRoute,
+  SavedRoute: SavedRoute,
   TermsRoute: TermsRoute,
   VerificationRoute: VerificationRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
