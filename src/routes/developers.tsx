@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Search, Github, Globe, IndianRupee, Clock, MapPin, ShieldCheck } from "lucide-react";
 import { Stars } from "@/components/Stars";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 export const Route = createFileRoute("/developers")({
   head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
@@ -60,8 +61,10 @@ function DevList() {
         <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered?.length === 0 && <p className="col-span-full text-sm text-muted-foreground">No developers found.</p>}
           {filtered?.map(d => (
-            <Link key={d.id} to="/developers/$devId" params={{ devId: d.id }}
-              className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+            <div key={d.id} className="relative">
+              <div className="absolute right-3 top-3 z-10"><FavoriteButton kind="developer" targetId={d.id} /></div>
+              <Link to="/developers/$devId" params={{ devId: d.id }}
+                className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
                   {d.profile?.full_name?.[0] ?? "?"}
@@ -94,7 +97,8 @@ function DevList() {
                   {d.portfolio_url && <a href={d.portfolio_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><Globe className="h-4 w-4" /></a>}
                 </div>
               )}
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       </main>

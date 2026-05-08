@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ContactAccess } from "@/components/ContactAccess";
 import { Stars } from "@/components/Stars";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import {
   ArrowLeft, Github, Globe, Linkedin, IndianRupee, Clock, MapPin, ShieldCheck, Calendar, Briefcase,
 } from "lucide-react";
@@ -50,6 +51,7 @@ function DevProfile() {
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="font-display text-2xl font-bold">{data.prof.full_name ?? "Developer"}</h1>
                       {data.dev.is_verified && <Badge className="bg-success text-success-foreground gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>}
+                      <FavoriteButton kind="developer" targetId={devId} variant="outline" size="sm" />
                     </div>
                     {data.dev.headline && <p className="text-muted-foreground">{data.dev.headline}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">

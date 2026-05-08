@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin } from "lucide-react";
 import { ContactAccess } from "@/components/ContactAccess";
 import { ProjectStages } from "@/components/ProjectStages";
+import { TopMatches } from "@/components/TopMatches";
+import { FavoriteButton } from "@/components/FavoriteButton";
 
 export const Route = createFileRoute("/projects/$projectId")({
   head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
@@ -56,7 +58,12 @@ function ProjectDetail() {
               <Badge variant={project.project_type === "hourly" ? "secondary" : "outline"}>{project.project_type}</Badge>
               <h1 className="mt-2 font-display text-3xl font-bold tracking-tight">{project.title}</h1>
             </div>
-            <Badge variant={project.status === "open" ? "default" : "outline"}>{project.status}</Badge>
+            <div className="flex items-center gap-2">
+              {user && user.id !== project.recruiter_id && (
+                <FavoriteButton kind="project" targetId={projectId} variant="outline" />
+              )}
+              <Badge variant={project.status === "open" ? "default" : "outline"}>{project.status}</Badge>
+            </div>
           </div>
           <div className="mt-6 whitespace-pre-wrap rounded-xl border border-border bg-card p-6 text-sm leading-relaxed shadow-card">
             {project.description}
@@ -69,6 +76,7 @@ function ProjectDetail() {
             </div>
           </div>
 
+          {isOwner && <TopMatches project={project} projectId={projectId} />}
           {isOwner && <ApplicantsList projectId={projectId} recruiterId={project.recruiter_id} />}
           {(project.status === "in_progress" || project.status === "completed") && user && (
             <ProjectStages projectId={projectId} />
