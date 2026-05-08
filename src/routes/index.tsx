@@ -154,15 +154,39 @@ function Landing() {
                 </span>
               </div>
               <div className="mt-12 grid grid-cols-3 gap-6 text-center">
-                <Stat value="2,400+" label="Developers" />
-                <Stat value="850+" label="Projects shipped" />
-                <Stat value="48hr" label="Avg. time to hire" />
+                <Stat value={`${(stats?.developers ?? 0).toLocaleString()}+`} label="Developers" />
+                <Stat value={`${(stats?.projects ?? 0).toLocaleString()}+`} label="Projects posted" />
+                <Stat value={`${(stats?.contracts ?? 0).toLocaleString()}+`} label="Engagements" />
               </div>
             </div>
           </div>
         </section>
 
         <TrustedBy />
+
+        {/* TRENDING SKILLS */}
+        {trendingSkills.length > 0 && (
+          <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
+            <div className="text-center">
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Trending right now</span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Skills companies are hiring for</h2>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
+              {trendingSkills.map(([skill, count]) => (
+                <Link
+                  key={skill}
+                  to="/developers"
+                  className="group inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium shadow-card transition-all hover:border-accent/40 hover:shadow-elegant"
+                >
+                  <span>{skill}</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground group-hover:bg-accent/15 group-hover:text-accent">
+                    {count}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* FEATURES */}
         <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
