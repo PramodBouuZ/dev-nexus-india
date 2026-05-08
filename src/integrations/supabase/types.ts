@@ -227,6 +227,30 @@ export type Database = {
         }
         Relationships: []
       }
+      favorites: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["favorite_kind"]
+          target_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["favorite_kind"]
+          target_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["favorite_kind"]
+          target_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       invites: {
         Row: {
           created_at: string
@@ -267,6 +291,7 @@ export type Database = {
           body: string | null
           created_at: string
           id: string
+          read_at: string | null
           sender_id: string
         }
         Insert: {
@@ -275,6 +300,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          read_at?: string | null
           sender_id: string
         }
         Update: {
@@ -283,6 +309,7 @@ export type Database = {
           body?: string | null
           created_at?: string
           id?: string
+          read_at?: string | null
           sender_id?: string
         }
         Relationships: [
@@ -648,6 +675,7 @@ export type Database = {
         | "ai_ml"
         | "designer"
         | "other"
+      favorite_kind: "developer" | "project"
       hiring_type: "part_time" | "weekly" | "monthly" | "ongoing"
       invite_status: "pending" | "accepted" | "rejected" | "withdrawn"
       notification_type:
@@ -823,6 +851,7 @@ export const Constants = {
         "designer",
         "other",
       ],
+      favorite_kind: ["developer", "project"],
       hiring_type: ["part_time", "weekly", "monthly", "ongoing"],
       invite_status: ["pending", "accepted", "rejected", "withdrawn"],
       notification_type: [
