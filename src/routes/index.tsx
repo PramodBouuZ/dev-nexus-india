@@ -76,6 +76,42 @@ function Landing() {
     },
   });
 
+  const { data: stats } = useQuery({
+    queryKey: ["platform-stats"],
+    queryFn: async () => {
+      const [devs, projs, contracts] = await Promise.all([
+        supabase.from("developer_profiles").select("*", { count: "exact", head: true }),
+        supabase.from("projects").select("*", { count: "exact", head: true }),
+        supabase.from("contracts").select("*", { count: "exact", head: true }),
+      ]);
+      return {
+        developers: devs.count ?? 0,
+        projects: projs.count ?? 0,
+        contracts: contracts.count ?? 0,
+      };
+    },
+  });
+
+  const { data: trendingSkills = [] } = useQuery({
+    queryKey: ["trending-skills"],
+    queryFn: async () => {
+      const { data: ps } = await supabase
+        .from("projects")
+        .select("tech_stack, created_at")
+        .order("created_at", { ascending: false })
+        .limit(80);
+      const counts = new Map<string, number>();
+      for (const p of ps ?? []) {
+        for (const s of (p.tech_stack ?? []) as string[]) {
+          const k = s.trim();
+          if (!k) continue;
+          counts.set(k, (counts.get(k) ?? 0) + 1);
+        }
+      }
+      return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12);
+    },
+  });
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
