@@ -97,7 +97,8 @@ function DevList() {
                   {d.portfolio_url && <a href={d.portfolio_url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-foreground"><Globe className="h-4 w-4" /></a>}
                 </div>
               )}
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       </main>
