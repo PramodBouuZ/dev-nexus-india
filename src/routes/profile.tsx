@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
