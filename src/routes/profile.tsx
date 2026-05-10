@@ -65,6 +65,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     phone: "",
     available_days: [] as string[],
     contact_public: false,
+    avatar_url: null as string | null,
   });
   const [busy, setBusy] = useState(false);
 
