@@ -12,6 +12,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
@@ -64,6 +65,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     phone: "",
     available_days: [] as string[],
     contact_public: false,
+    avatar_url: null as string | null,
   });
   const [busy, setBusy] = useState(false);
 
@@ -95,6 +97,7 @@ function DeveloperForm({ userId }: { userId: string }) {
         phone: dev?.phone ?? "",
         available_days: dev?.available_days ?? [],
         contact_public: (dev as any)?.contact_public ?? false,
+        avatar_url: prof?.avatar_url ?? null,
       });
     })();
   }, [userId]);
@@ -113,7 +116,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     setBusy(true);
     const skills = form.skills.split(",").map(s => s.trim()).filter(Boolean);
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("profiles").update({ full_name: form.full_name }).eq("id", userId),
+      supabase.from("profiles").update({ full_name: form.full_name, avatar_url: form.avatar_url }).eq("id", userId),
       supabase.from("developer_profiles").upsert({
         id: userId,
         headline: form.headline,
@@ -146,6 +149,15 @@ function DeveloperForm({ userId }: { userId: string }) {
   return (
     <form onSubmit={save} className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
       <Section title="Basics">
+        <ImageUpload
+          userId={userId}
+          value={form.avatar_url}
+          onChange={(url) => setForm({ ...form, avatar_url: url })}
+          shape="circle"
+          fallback="user"
+          folder="avatar"
+          label="Profile photo (shown to recruiters)"
+        />
         <Field label="Full name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
         <Field label="Headline"><Input value={form.headline} onChange={e => setForm({ ...form, headline: e.target.value })} placeholder="Full-stack engineer · React, Node, Postgres" maxLength={140} /></Field>
         <Field label="Bio"><Textarea rows={4} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} maxLength={2000} /></Field>
@@ -232,6 +244,8 @@ function RecruiterForm({ userId }: { userId: string }) {
   const [form, setForm] = useState({
     full_name: "", company_name: "", company_website: "", company_description: "",
     company_size: "", industry: "", location: "", phone: "",
+    avatar_url: null as string | null,
+    logo_url: null as string | null,
   });
   const [busy, setBusy] = useState(false);
 
@@ -250,6 +264,8 @@ function RecruiterForm({ userId }: { userId: string }) {
         industry: rec?.industry ?? "",
         location: rec?.location ?? "",
         phone: rec?.phone ?? "",
+        avatar_url: prof?.avatar_url ?? null,
+        logo_url: (rec as any)?.logo_url ?? null,
       });
     })();
   }, [userId]);
@@ -258,7 +274,7 @@ function RecruiterForm({ userId }: { userId: string }) {
     e.preventDefault();
     setBusy(true);
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("profiles").update({ full_name: form.full_name }).eq("id", userId),
+      supabase.from("profiles").update({ full_name: form.full_name, avatar_url: form.avatar_url }).eq("id", userId),
       supabase.from("recruiter_profiles").upsert({
         id: userId,
         company_name: form.company_name,
@@ -268,7 +284,8 @@ function RecruiterForm({ userId }: { userId: string }) {
         industry: form.industry || null,
         location: form.location || null,
         phone: form.phone || null,
-      }),
+        logo_url: form.logo_url,
+      } as any),
     ]);
     setBusy(false);
     if (e1 || e2) { toast.error((e1 || e2)!.message); return; }
@@ -277,18 +294,40 @@ function RecruiterForm({ userId }: { userId: string }) {
 
   return (
     <form onSubmit={save} className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
-      <Field label="Your name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
-      <Field label="Company name"><Input required value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} /></Field>
-      <Field label="Company website"><Input type="url" value={form.company_website} onChange={e => setForm({ ...form, company_website: e.target.value })} /></Field>
-      <Field label="About the company"><Textarea rows={3} value={form.company_description} onChange={e => setForm({ ...form, company_description: e.target.value })} maxLength={1000} /></Field>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Industry"><Input value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })} placeholder="Fintech" /></Field>
-        <Field label="Size"><Input value={form.company_size} onChange={e => setForm({ ...form, company_size: e.target.value })} placeholder="10–50" /></Field>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
-        <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
-      </div>
+      <Section title="Your profile">
+        <ImageUpload
+          userId={userId}
+          value={form.avatar_url}
+          onChange={(url) => setForm({ ...form, avatar_url: url })}
+          shape="circle"
+          fallback="user"
+          folder="avatar"
+          label="Your photo"
+        />
+        <Field label="Your name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
+      </Section>
+      <Section title="Company">
+        <ImageUpload
+          userId={userId}
+          value={form.logo_url}
+          onChange={(url) => setForm({ ...form, logo_url: url })}
+          shape="square"
+          fallback="company"
+          folder="logo"
+          label="Company logo (shown to developers)"
+        />
+        <Field label="Company name"><Input required value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} /></Field>
+        <Field label="Company website"><Input type="url" value={form.company_website} onChange={e => setForm({ ...form, company_website: e.target.value })} /></Field>
+        <Field label="About the company"><Textarea rows={3} value={form.company_description} onChange={e => setForm({ ...form, company_description: e.target.value })} maxLength={1000} /></Field>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Industry"><Input value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })} placeholder="Fintech" /></Field>
+          <Field label="Size"><Input value={form.company_size} onChange={e => setForm({ ...form, company_size: e.target.value })} placeholder="10–50" /></Field>
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
+          <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
+        </div>
+      </Section>
       <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Saving..." : "Save profile"}</Button>
     </form>
   );
