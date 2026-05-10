@@ -1,12 +1,15 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { useState, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FavoriteButton } from "@/components/FavoriteButton";
-import { ShieldCheck, MapPin, IndianRupee, Briefcase, Heart } from "lucide-react";
+import { ShieldCheck, MapPin, IndianRupee, Briefcase, Heart, Search } from "lucide-react";
 
 export const Route = createFileRoute("/saved")({
   head: () => ({ meta: [{ title: "Saved — Developer Connect" }] }),
@@ -15,6 +18,8 @@ export const Route = createFileRoute("/saved")({
 
 function SavedPage() {
   const { user, loading } = useAuth();
+  const [devQuery, setDevQuery] = useState("");
+  const [projQuery, setProjQuery] = useState("");
 
   const { data } = useQuery({
     queryKey: ["my-favorites", user?.id],
@@ -45,12 +50,31 @@ function SavedPage() {
     },
   });
 
-  if (loading) return null;
-  if (!user) return <Navigate to="/auth" />;
-
   const developers = data?.developers ?? [];
   const projects = data?.projects ?? [];
-  const empty = developers.length === 0 && projects.length === 0;
+
+  const filteredDevs = useMemo(() => {
+    const q = devQuery.trim().toLowerCase();
+    if (!q) return developers;
+    return developers.filter((d: any) =>
+      [d.full_name, d.headline, d.location, ...(d.skills ?? [])]
+        .filter(Boolean)
+        .some((v: string) => String(v).toLowerCase().includes(q)),
+    );
+  }, [developers, devQuery]);
+
+  const filteredProjs = useMemo(() => {
+    const q = projQuery.trim().toLowerCase();
+    if (!q) return projects;
+    return projects.filter((p: any) =>
+      [p.title, p.description, p.project_type, ...(p.tech_stack ?? [])]
+        .filter(Boolean)
+        .some((v: string) => String(v).toLowerCase().includes(q)),
+    );
+  }, [projects, projQuery]);
+
+  if (loading) return null;
+  if (!user) return <Navigate to="/auth" />;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -62,66 +86,95 @@ function SavedPage() {
         </div>
         <p className="mt-1 text-muted-foreground">Your shortlisted developers and bookmarked projects.</p>
 
-        {empty && (
-          <div className="mt-12 rounded-xl border border-dashed border-border p-10 text-center">
-            <p className="text-sm text-muted-foreground">Nothing saved yet. Tap the heart on a developer or project to shortlist them.</p>
-          </div>
-        )}
+        <Tabs defaultValue="developers" className="mt-6">
+          <TabsList>
+            <TabsTrigger value="developers">Developers ({developers.length})</TabsTrigger>
+            <TabsTrigger value="projects">Projects ({projects.length})</TabsTrigger>
+          </TabsList>
 
-        {developers.length > 0 && (
-          <section className="mt-8">
-            <h2 className="font-display text-xl font-semibold">Developers ({developers.length})</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {developers.map((d: any) => (
-                <div key={d.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
-                  <div className="absolute right-3 top-3"><FavoriteButton kind="developer" targetId={d.id} /></div>
-                  <Link to="/developers/$devId" params={{ devId: d.id }} className="block">
-                    <div className="flex items-center gap-1.5 pr-8">
-                      <h3 className="truncate font-semibold">{d.full_name ?? "Developer"}</h3>
-                      {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
-                    </div>
-                    {d.headline && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>}
-                    {d.location && (
-                      <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.location}</p>
-                    )}
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {(d.skills ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
-                    </div>
-                    {d.hourly_rate_inr && (
-                      <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{d.hourly_rate_inr}/hr</p>
-                    )}
-                  </Link>
-                </div>
-              ))}
+          <TabsContent value="developers" className="mt-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={devQuery}
+                onChange={(e) => setDevQuery(e.target.value)}
+                placeholder="Search by name, skill, location…"
+                className="pl-9"
+              />
             </div>
-          </section>
-        )}
+            {filteredDevs.length === 0 ? (
+              <EmptyState text={developers.length === 0 ? "No developers saved yet. Tap the heart on a developer to shortlist them." : "No developers match your search."} />
+            ) : (
+              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredDevs.map((d: any) => (
+                  <div key={d.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
+                    <div className="absolute right-3 top-3"><FavoriteButton kind="developer" targetId={d.id} /></div>
+                    <Link to="/developers/$devId" params={{ devId: d.id }} className="block">
+                      <div className="flex items-center gap-1.5 pr-8">
+                        <h3 className="truncate font-semibold">{d.full_name ?? "Developer"}</h3>
+                        {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
+                      </div>
+                      {d.headline && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>}
+                      {d.location && (
+                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.location}</p>
+                      )}
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {(d.skills ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
+                      </div>
+                      {d.hourly_rate_inr && (
+                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{d.hourly_rate_inr}/hr</p>
+                      )}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        {projects.length > 0 && (
-          <section className="mt-10">
-            <h2 className="font-display text-xl font-semibold">Projects ({projects.length})</h2>
-            <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {projects.map((p: any) => (
-                <div key={p.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
-                  <div className="absolute right-3 top-3"><FavoriteButton kind="project" targetId={p.id} /></div>
-                  <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">
-                    <Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" />{p.project_type}</Badge>
-                    <h3 className="mt-2 line-clamp-2 pr-8 font-semibold">{p.title}</h3>
-                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{p.description}</p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {(p.tech_stack ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
-                    </div>
-                    {p.budget_min_inr && (
-                      <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{p.budget_min_inr.toLocaleString()}{p.budget_max_inr ? `–${p.budget_max_inr.toLocaleString()}` : ""}</p>
-                    )}
-                  </Link>
-                </div>
-              ))}
+          <TabsContent value="projects" className="mt-4">
+            <div className="relative max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={projQuery}
+                onChange={(e) => setProjQuery(e.target.value)}
+                placeholder="Search by title, tech, type…"
+                className="pl-9"
+              />
             </div>
-          </section>
-        )}
+            {filteredProjs.length === 0 ? (
+              <EmptyState text={projects.length === 0 ? "No projects saved yet. Tap the heart on a project to bookmark it." : "No projects match your search."} />
+            ) : (
+              <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {filteredProjs.map((p: any) => (
+                  <div key={p.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
+                    <div className="absolute right-3 top-3"><FavoriteButton kind="project" targetId={p.id} /></div>
+                    <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">
+                      <Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" />{p.project_type}</Badge>
+                      <h3 className="mt-2 line-clamp-2 pr-8 font-semibold">{p.title}</h3>
+                      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{p.description}</p>
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {(p.tech_stack ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
+                      </div>
+                      {p.budget_min_inr && (
+                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{p.budget_min_inr.toLocaleString()}{p.budget_max_inr ? `–${p.budget_max_inr.toLocaleString()}` : ""}</p>
+                      )}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div className="mt-6 rounded-xl border border-dashed border-border p-10 text-center">
+      <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   );
 }
