@@ -97,6 +97,7 @@ function DeveloperForm({ userId }: { userId: string }) {
         phone: dev?.phone ?? "",
         available_days: dev?.available_days ?? [],
         contact_public: (dev as any)?.contact_public ?? false,
+        avatar_url: prof?.avatar_url ?? null,
       });
     })();
   }, [userId]);
