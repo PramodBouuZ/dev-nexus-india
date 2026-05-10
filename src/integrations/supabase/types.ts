@@ -494,6 +494,7 @@ export type Database = {
           id: string
           industry: string | null
           location: string | null
+          logo_url: string | null
           phone: string | null
           updated_at: string
         }
@@ -506,6 +507,7 @@ export type Database = {
           id: string
           industry?: string | null
           location?: string | null
+          logo_url?: string | null
           phone?: string | null
           updated_at?: string
         }
@@ -518,6 +520,7 @@ export type Database = {
           id?: string
           industry?: string | null
           location?: string | null
+          logo_url?: string | null
           phone?: string | null
           updated_at?: string
         }
