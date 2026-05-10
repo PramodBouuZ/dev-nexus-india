@@ -149,6 +149,15 @@ function DeveloperForm({ userId }: { userId: string }) {
   return (
     <form onSubmit={save} className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
       <Section title="Basics">
+        <ImageUpload
+          userId={userId}
+          value={form.avatar_url}
+          onChange={(url) => setForm({ ...form, avatar_url: url })}
+          shape="circle"
+          fallback="user"
+          folder="avatar"
+          label="Profile photo (shown to recruiters)"
+        />
         <Field label="Full name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
         <Field label="Headline"><Input value={form.headline} onChange={e => setForm({ ...form, headline: e.target.value })} placeholder="Full-stack engineer · React, Node, Postgres" maxLength={140} /></Field>
         <Field label="Bio"><Textarea rows={4} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} maxLength={2000} /></Field>
