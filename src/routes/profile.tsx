@@ -116,7 +116,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     setBusy(true);
     const skills = form.skills.split(",").map(s => s.trim()).filter(Boolean);
     const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("profiles").update({ full_name: form.full_name }).eq("id", userId),
+      supabase.from("profiles").update({ full_name: form.full_name, avatar_url: form.avatar_url }).eq("id", userId),
       supabase.from("developer_profiles").upsert({
         id: userId,
         headline: form.headline,
