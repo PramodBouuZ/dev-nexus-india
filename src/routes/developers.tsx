@@ -19,6 +19,7 @@ export const Route = createFileRoute("/developers")({
 });
 
 function DevList() {
+  const { role } = useAuth();
   const [q, setQ] = useState("");
   const { data } = useQuery({
     queryKey: ["devs"],
