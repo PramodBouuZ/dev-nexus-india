@@ -58,21 +58,26 @@ function RecruiterDashboard({ userId }: { userId: string }) {
     queryFn: async () => {
       const { data: invs } = await supabase
         .from("invites")
-        .select("id, message, status, created_at, developer_id, project_id, projects(title)")
+        .select("id, message, status, created_at, developer_id, project_id")
         .eq("recruiter_id", userId)
         .order("created_at", { ascending: false })
         .limit(20);
       const list = invs ?? [];
       if (!list.length) return [];
       const devIds = Array.from(new Set(list.map(i => i.developer_id)));
-      const [{ data: profs }, { data: devs }] = await Promise.all([
+      const projIds = Array.from(new Set(list.map(i => i.project_id).filter(Boolean) as string[]));
+      const [{ data: profs }, { data: devs }, { data: projs }] = await Promise.all([
         supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
         supabase.from("developer_profiles").select("id, headline, skills, is_verified, location").in("id", devIds),
+        projIds.length
+          ? supabase.from("projects").select("id, title").in("id", projIds)
+          : Promise.resolve({ data: [] as { id: string; title: string }[] }),
       ]);
       return list.map(i => ({
         ...i,
         profile: profs?.find(p => p.id === i.developer_id) ?? null,
         dev: devs?.find(d => d.id === i.developer_id) ?? null,
+        project: i.project_id ? (projs?.find(p => p.id === i.project_id) ?? null) : null,
       }));
     },
   });
