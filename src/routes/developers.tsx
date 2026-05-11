@@ -9,6 +9,9 @@ import { useState } from "react";
 import { Search, Github, Globe, IndianRupee, Clock, MapPin, ShieldCheck } from "lucide-react";
 import { Stars } from "@/components/Stars";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/developers")({
   head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
