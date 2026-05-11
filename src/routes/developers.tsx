@@ -9,6 +9,9 @@ import { useState } from "react";
 import { Search, Github, Globe, IndianRupee, Clock, MapPin, ShieldCheck } from "lucide-react";
 import { Stars } from "@/components/Stars";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/developers")({
   head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
@@ -16,6 +19,7 @@ export const Route = createFileRoute("/developers")({
 });
 
 function DevList() {
+  const { role } = useAuth();
   const [q, setQ] = useState("");
   const { data } = useQuery({
     queryKey: ["devs"],
@@ -66,9 +70,12 @@ function DevList() {
               <Link to="/developers/$devId" params={{ devId: d.id }}
                 className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                  {d.profile?.full_name?.[0] ?? "?"}
-                </div>
+                <Avatar className="h-12 w-12">
+                  {d.profile?.avatar_url && <AvatarImage src={d.profile.avatar_url} alt={d.profile?.full_name ?? "Developer"} />}
+                  <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                    {d.profile?.full_name?.[0] ?? "?"}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <h3 className="truncate font-semibold">{d.profile?.full_name ?? "Developer"}</h3>
@@ -98,6 +105,11 @@ function DevList() {
                 </div>
               )}
               </Link>
+              {role === "recruiter" && (
+                <div className="absolute bottom-3 right-3">
+                  <InviteDeveloperDialog developerId={d.id} developerName={d.profile?.full_name ?? "this developer"} size="sm" />
+                </div>
+              )}
             </div>
           ))}
         </div>

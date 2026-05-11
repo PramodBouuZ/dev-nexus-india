@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ContactAccess } from "@/components/ContactAccess";
 import { Stars } from "@/components/Stars";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
 import {
   ArrowLeft, Github, Globe, Linkedin, IndianRupee, Clock, MapPin, ShieldCheck, Calendar, Briefcase,
 } from "lucide-react";
@@ -44,9 +46,12 @@ function DevProfile() {
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start gap-4">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-accent text-2xl font-display font-bold text-primary-foreground">
-                    {data.prof.full_name?.[0] ?? "D"}
-                  </div>
+                  <Avatar className="h-16 w-16">
+                    {data.prof.avatar_url && <AvatarImage src={data.prof.avatar_url} alt={data.prof.full_name ?? "Developer"} />}
+                    <AvatarFallback className="bg-gradient-accent text-2xl font-display font-bold text-primary-foreground">
+                      {data.prof.full_name?.[0] ?? "D"}
+                    </AvatarFallback>
+                  </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <h1 className="font-display text-2xl font-bold">{data.prof.full_name ?? "Developer"}</h1>
@@ -60,6 +65,9 @@ function DevProfile() {
                       {data.revs.length > 0 && (
                         <span className="inline-flex items-center gap-1"><Stars value={data.avg} size={12} /> {data.avg.toFixed(1)} ({data.revs.length})</span>
                       )}
+                    </div>
+                    <div className="mt-4">
+                      <InviteDeveloperDialog developerId={devId} developerName={data.prof.full_name ?? "this developer"} />
                     </div>
                   </div>
                 </div>

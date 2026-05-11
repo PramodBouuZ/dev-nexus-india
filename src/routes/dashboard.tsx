@@ -6,8 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck } from "lucide-react";
+import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck, Search, UserCog } from "lucide-react";
 import { ContractsList } from "@/components/ContractsList";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — HireSpark" }] }),
@@ -52,9 +53,40 @@ function RecruiterDashboard({ userId }: { userId: string }) {
     },
   });
 
+  const { data: invites } = useQuery({
+    queryKey: ["sent-invites", userId],
+    queryFn: async () => {
+      const { data: invs } = await supabase
+        .from("invites")
+        .select("id, message, status, created_at, developer_id, project_id")
+        .eq("recruiter_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const list = invs ?? [];
+      if (!list.length) return [];
+      const devIds = Array.from(new Set(list.map(i => i.developer_id)));
+      const projIds = Array.from(new Set(list.map(i => i.project_id).filter(Boolean) as string[]));
+      const [{ data: profs }, { data: devs }, { data: projs }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
+        supabase.from("developer_profiles").select("id, headline, skills, is_verified, location").in("id", devIds),
+        projIds.length
+          ? supabase.from("projects").select("id, title").in("id", projIds)
+          : Promise.resolve({ data: [] as { id: string; title: string }[] }),
+      ]);
+      return list.map(i => ({
+        ...i,
+        profile: profs?.find(p => p.id === i.developer_id) ?? null,
+        dev: devs?.find(d => d.id === i.developer_id) ?? null,
+        project: i.project_id ? (projs?.find(p => p.id === i.project_id) ?? null) : null,
+      }));
+    },
+  });
+
   return (
     <>
       <DashboardHeader title="Recruiter dashboard" subtitle="Manage your projects and hires.">
+        <Button asChild variant="outline"><Link to="/profile"><UserCog className="mr-1 h-4 w-4" /> Edit profile</Link></Button>
+        <Button asChild variant="outline"><Link to="/developers"><Search className="mr-1 h-4 w-4" /> Find developers</Link></Button>
         <Button asChild className="bg-gradient-accent text-primary-foreground hover:opacity-90">
           <Link to="/projects/new"><Plus className="mr-1 h-4 w-4" /> Post project</Link>
         </Button>
@@ -85,6 +117,52 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                 <Badge variant={p.status === "open" ? "default" : "outline"}>{p.status}</Badge>
               </div>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-semibold">Developers you invited</h2>
+          <Button asChild variant="ghost" size="sm"><Link to="/developers"><Search className="mr-1 h-3.5 w-3.5" /> Find more</Link></Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {!invites || invites.length === 0 ? (
+            <div className="md:col-span-2">
+              <EmptyState title="No invites sent yet" desc="Browse developers and invite them to work with you." actionLabel="Find developers" actionTo="/developers" />
+            </div>
+          ) : invites.map(i => (
+            <div key={i.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+              <div className="flex items-start gap-3">
+                <Link to="/developers/$devId" params={{ devId: i.developer_id }}>
+                  <Avatar className="h-12 w-12">
+                    {i.profile?.avatar_url && <AvatarImage src={i.profile.avatar_url} alt={i.profile?.full_name ?? "Developer"} />}
+                    <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                      {i.profile?.full_name?.[0] ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="font-semibold hover:text-accent">
+                      {i.profile?.full_name ?? "Developer"}
+                    </Link>
+                    {i.dev?.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}
+                    <Badge variant={i.status === "accepted" ? "default" : i.status === "rejected" ? "destructive" : "secondary"} className="capitalize">
+                      {i.status}
+                    </Badge>
+                  </div>
+                  {i.dev?.headline && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{i.dev.headline}</p>}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {i.dev?.skills?.slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
+                  </div>
+                  {i.project?.title && (
+                    <p className="mt-2 text-xs text-muted-foreground">For: <span className="font-medium text-foreground">{i.project.title}</span></p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">Sent {new Date(i.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </section>
