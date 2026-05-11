@@ -156,8 +156,8 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                   <div className="mt-2 flex flex-wrap gap-1">
                     {i.dev?.skills?.slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
                   </div>
-                  {i.projects?.title && (
-                    <p className="mt-2 text-xs text-muted-foreground">For: <span className="font-medium text-foreground">{i.projects.title}</span></p>
+                  {i.project?.title && (
+                    <p className="mt-2 text-xs text-muted-foreground">For: <span className="font-medium text-foreground">{i.project.title}</span></p>
                   )}
                   <p className="mt-1 text-[11px] text-muted-foreground">Sent {new Date(i.created_at).toLocaleDateString()}</p>
                 </div>
