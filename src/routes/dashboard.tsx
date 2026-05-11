@@ -116,6 +116,52 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         </div>
       </section>
 
+      <section className="mt-10">
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-xl font-semibold">Developers you invited</h2>
+          <Button asChild variant="ghost" size="sm"><Link to="/developers"><Search className="mr-1 h-3.5 w-3.5" /> Find more</Link></Button>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {!invites || invites.length === 0 ? (
+            <div className="md:col-span-2">
+              <EmptyState title="No invites sent yet" desc="Browse developers and invite them to work with you." actionLabel="Find developers" actionTo="/developers" />
+            </div>
+          ) : invites.map(i => (
+            <div key={i.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+              <div className="flex items-start gap-3">
+                <Link to="/developers/$devId" params={{ devId: i.developer_id }}>
+                  <Avatar className="h-12 w-12">
+                    {i.profile?.avatar_url && <AvatarImage src={i.profile.avatar_url} alt={i.profile?.full_name ?? "Developer"} />}
+                    <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                      {i.profile?.full_name?.[0] ?? "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="font-semibold hover:text-accent">
+                      {i.profile?.full_name ?? "Developer"}
+                    </Link>
+                    {i.dev?.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}
+                    <Badge variant={i.status === "accepted" ? "default" : i.status === "rejected" ? "destructive" : "secondary"} className="capitalize">
+                      {i.status}
+                    </Badge>
+                  </div>
+                  {i.dev?.headline && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{i.dev.headline}</p>}
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {i.dev?.skills?.slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
+                  </div>
+                  {i.projects?.title && (
+                    <p className="mt-2 text-xs text-muted-foreground">For: <span className="font-medium text-foreground">{i.projects.title}</span></p>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">Sent {new Date(i.created_at).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       <ContractsList userId={userId} role="recruiter" />
     </>
   );
