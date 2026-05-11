@@ -6,8 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck } from "lucide-react";
+import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck, Search, UserCog } from "lucide-react";
 import { ContractsList } from "@/components/ContractsList";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — HireSpark" }] }),
