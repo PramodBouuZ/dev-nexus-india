@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { ContactAccess } from "@/components/ContactAccess";
 import { Stars } from "@/components/Stars";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
 import {
   ArrowLeft, Github, Globe, Linkedin, IndianRupee, Clock, MapPin, ShieldCheck, Calendar, Briefcase,
 } from "lucide-react";
