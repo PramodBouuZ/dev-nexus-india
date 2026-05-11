@@ -53,9 +53,35 @@ function RecruiterDashboard({ userId }: { userId: string }) {
     },
   });
 
+  const { data: invites } = useQuery({
+    queryKey: ["sent-invites", userId],
+    queryFn: async () => {
+      const { data: invs } = await supabase
+        .from("invites")
+        .select("id, message, status, created_at, developer_id, project_id, projects(title)")
+        .eq("recruiter_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const list = invs ?? [];
+      if (!list.length) return [];
+      const devIds = Array.from(new Set(list.map(i => i.developer_id)));
+      const [{ data: profs }, { data: devs }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
+        supabase.from("developer_profiles").select("id, headline, skills, is_verified, location").in("id", devIds),
+      ]);
+      return list.map(i => ({
+        ...i,
+        profile: profs?.find(p => p.id === i.developer_id) ?? null,
+        dev: devs?.find(d => d.id === i.developer_id) ?? null,
+      }));
+    },
+  });
+
   return (
     <>
       <DashboardHeader title="Recruiter dashboard" subtitle="Manage your projects and hires.">
+        <Button asChild variant="outline"><Link to="/profile"><UserCog className="mr-1 h-4 w-4" /> Edit profile</Link></Button>
+        <Button asChild variant="outline"><Link to="/developers"><Search className="mr-1 h-4 w-4" /> Find developers</Link></Button>
         <Button asChild className="bg-gradient-accent text-primary-foreground hover:opacity-90">
           <Link to="/projects/new"><Plus className="mr-1 h-4 w-4" /> Post project</Link>
         </Button>
