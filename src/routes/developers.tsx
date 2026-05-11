@@ -70,9 +70,12 @@ function DevList() {
               <Link to="/developers/$devId" params={{ devId: d.id }}
                 className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
               <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                  {d.profile?.full_name?.[0] ?? "?"}
-                </div>
+                <Avatar className="h-12 w-12">
+                  {d.profile?.avatar_url && <AvatarImage src={d.profile.avatar_url} alt={d.profile?.full_name ?? "Developer"} />}
+                  <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                    {d.profile?.full_name?.[0] ?? "?"}
+                  </AvatarFallback>
+                </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
                     <h3 className="truncate font-semibold">{d.profile?.full_name ?? "Developer"}</h3>
