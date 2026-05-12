@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck, Search, UserCog } from "lucide-react";
 import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { InviteActions } from "@/components/InviteActions";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — HireSpark" }] }),
