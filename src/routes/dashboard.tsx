@@ -161,6 +161,9 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                     <p className="mt-2 text-xs text-muted-foreground">For: <span className="font-medium text-foreground">{i.project.title}</span></p>
                   )}
                   <p className="mt-1 text-[11px] text-muted-foreground">Sent {new Date(i.created_at).toLocaleDateString()}</p>
+                  {i.status === "pending" && (
+                    <InviteActions inviteId={i.id} developerName={i.profile?.full_name ?? "Developer"} currentMessage={i.message} />
+                  )}
                 </div>
               </div>
             </div>
