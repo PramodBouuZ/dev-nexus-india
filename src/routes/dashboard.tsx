@@ -1,8 +1,10 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
