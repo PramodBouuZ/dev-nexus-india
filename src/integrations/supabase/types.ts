@@ -695,6 +695,7 @@ export type Database = {
         | "account_update"
         | "welcome"
         | "stage_update"
+        | "invite_rejected"
       project_status: "open" | "in_progress" | "completed" | "closed"
       project_type: "fixed" | "hourly"
       stage_status:
@@ -871,6 +872,7 @@ export const Constants = {
         "account_update",
         "welcome",
         "stage_update",
+        "invite_rejected",
       ],
       project_status: ["open", "in_progress", "completed", "closed"],
       project_type: ["fixed", "hourly"],
