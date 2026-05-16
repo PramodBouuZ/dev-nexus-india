@@ -38,6 +38,35 @@ function FullPageSpinner() {
 }
 
 function RecruiterDashboard({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    const ch = supabase
+      .channel(`invites-rec-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "invites", filter: `recruiter_id=eq.${userId}` },
+        async (payload) => {
+          const next = payload.new as { developer_id: string; status: string };
+          const prev = payload.old as { status: string };
+          if (next.status !== prev.status && (next.status === "accepted" || next.status === "rejected")) {
+            const { data: prof } = await supabase
+              .from("profiles").select("full_name").eq("id", next.developer_id).maybeSingle();
+            const name = prof?.full_name ?? "A developer";
+            if (next.status === "accepted") {
+              toast.success(`${name} accepted your invite`);
+            } else {
+              toast(`${name} declined your invite`);
+            }
+            qc.invalidateQueries({ queryKey: ["sent-invites", userId] });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [userId, qc]);
+
   const { data: projects } = useQuery({
     queryKey: ["my-projects", userId],
     queryFn: async () => {
