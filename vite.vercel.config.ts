@@ -13,7 +13,7 @@ export default defineConfig({
     viteTsConfigPaths(),
     tailwindcss(),
     tanstackStart(),
-    nitro(),
+    nitro({ preset: "vercel" }),
     viteReact(),
   ],
 });
