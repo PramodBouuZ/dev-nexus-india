@@ -4,7 +4,15 @@ import { Footer } from "@/components/Footer";
 import { CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/pricing")({
-  head: () => ({ meta: [{ title: "Pricing — HireSpark" }, { name: "description", content: "Simple, transparent pricing for recruiters and developers on HireSpark." }] }),
+  head: () => ({
+    meta: [
+      { title: "Affordable Pricing for Hiring Developers in India | DeveloperConnect" },
+      { name: "description", content: "Simple and transparent pricing. Free for developers. Affordable hiring plans for startups to find top tech talent in India." },
+      { property: "og:title", content: "Affordable Pricing for Hiring Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "Simple and transparent pricing. Free for developers. Affordable hiring plans for startups to find top tech talent in India." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/pricing" },
+    ],
+  }),
   component: Pricing,
 });
 

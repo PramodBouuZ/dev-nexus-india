@@ -16,8 +16,11 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Developer Connect — Hire part-time developers in India" },
-      { name: "description", content: "Post a project, match in minutes, hire vetted part-time developers across India. Powered by BANTConfirm." },
+      { title: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { name: "description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { property: "og:title", content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in" },
     ],
   }),
   component: Landing,
@@ -253,6 +256,59 @@ function Landing() {
             {(projects.length ? projects : sampleProjects).map((p) => (
               <ProjectShowcaseCard key={p.id} project={p} />
             ))}
+          </div>
+        </section>
+
+        {/* SEO CONTENT SECTION */}
+        <section className="bg-muted/50 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-2">
+              <div>
+                <h2 className="font-display text-3xl font-bold tracking-tight">Why hire developers from DeveloperConnect?</h2>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  Finding the right tech talent in India shouldn't take weeks. DeveloperConnect is a specialized <strong>developer marketplace platform</strong> designed to connect startups with vetted <strong>freelance developers in India</strong> and <strong>full-time developers</strong>.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span><strong>Hire React developers</strong> and <strong>Node.js developers</strong> with proven track records.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span>Access a curated pool of <strong>full stack developers</strong> and <strong>backend developers</strong> ready to ship.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span>Flexible hiring: Choose from <strong>part-time developers</strong> or dedicated remote talent.</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h2 className="font-display text-3xl font-bold tracking-tight">Benefits for Startups</h2>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  As a leading <strong>startup hiring platform</strong>, we understand the need for speed and quality. Our <strong>software developers marketplace</strong> ensures you get matched with <strong>affordable developers in India</strong> without compromising on technical excellence.
+                </p>
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <h4 className="font-bold text-accent">Remote First</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Hire top <strong>remote developers</strong> from anywhere in India.</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <h4 className="font-bold text-accent">Vetted Quality</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Only the top 1% of <strong>web developers in India</strong> make the cut.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-20">
+              <h3 className="text-center font-display text-2xl font-bold">Popular Hiring Categories</h3>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {["Frontend Developers", "Backend Developers", "Full Stack Developers", "Mobile App Developers", "DevOps Engineers", "UI/UX Designers", "React Native Developers", "Python Developers"].map(cat => (
+                  <Badge key={cat} variant="outline" className="px-4 py-2 text-sm">{cat}</Badge>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 

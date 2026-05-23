@@ -14,7 +14,16 @@ import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/developers")({
-  head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
+  head: () => ({
+    meta: [
+      { title: "Browse Skilled Developers in India | DeveloperConnect" },
+      { name: "description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
+      { name: "keywords", content: "hire developers India, freelance developers, part-time developers India, remote developers, react developers, nodejs developers" },
+      { property: "og:title", content: "Browse Skilled Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/developers" },
+    ],
+  }),
   component: DevList,
 });
 
