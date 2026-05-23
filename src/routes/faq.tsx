@@ -7,8 +7,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
-      { title: "FAQ — Developer Connect" },
-      { name: "description", content: "Frequently asked questions for developers and recruiters using Developer Connect." },
+      { title: "DeveloperConnect FAQ | Common Questions About Hiring Developers" },
+      { name: "description", content: "Find answers to frequently asked questions about hiring freelance and part-time developers in India on DeveloperConnect." },
+      { property: "og:title", content: "DeveloperConnect FAQ | Common Questions About Hiring Developers" },
+      { property: "og:description", content: "Find answers to frequently asked questions about hiring freelance and part-time developers in India on DeveloperConnect." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/faq" },
     ],
   }),
   component: FaqPage,

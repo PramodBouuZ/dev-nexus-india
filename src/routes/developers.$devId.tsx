@@ -14,7 +14,73 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/developers/$devId")({
-  head: () => ({ meta: [{ title: "Developer profile — Developer Connect" }] }),
+  loader: async ({ params }) => {
+    const { devId } = params;
+    const [{ data: prof }, { data: dev }] = await Promise.all([
+      supabase.from("profiles").select("full_name").eq("id", devId).maybeSingle(),
+      supabase.from("developer_profiles").select("headline, bio, skills").eq("id", devId).maybeSingle(),
+    ]);
+    return { prof, dev, devId };
+  },
+  head: ({ loaderData }) => {
+    const name = loaderData?.prof?.full_name || "Developer";
+    const headline = loaderData?.dev?.headline || "Software Developer";
+    const bio = loaderData?.dev?.bio || "Expert developer available for hire on DeveloperConnect.";
+    const title = `${name} | ${headline} in India | DeveloperConnect`;
+    const description = `${name} is a skilled ${headline} in India. ${bio.slice(0, 150)}...`;
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { name: "keywords", content: `${loaderData?.dev?.skills?.join(", ") || ""}, hire ${name}, developer India, part-time developer` },
+        { tag: "link", rel: "canonical", href: `https://developerconnect.in/developers/${loaderData?.devId}` },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "name": name,
+            "jobTitle": headline,
+            "description": bio,
+            "url": `https://developerconnect.in/developers/${loaderData?.devId}`,
+            "knowsAbout": loaderData?.dev?.skills || []
+          })
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://developerconnect.in"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Developers",
+                "item": "https://developerconnect.in/developers"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": name,
+                "item": `https://developerconnect.in/developers/${loaderData?.devId}`
+              }
+            ]
+          })
+        }
+      ]
+    };
+  },
   component: DevProfile,
 });
 

@@ -18,7 +18,79 @@ import { TopMatches } from "@/components/TopMatches";
 import { FavoriteButton } from "@/components/FavoriteButton";
 
 export const Route = createFileRoute("/projects/$projectId")({
-  head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
+  loader: async ({ params }) => {
+    const { projectId } = params;
+    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).maybeSingle();
+    return { project, projectId };
+  },
+  head: ({ loaderData }) => {
+    const title = loaderData?.project ? `${loaderData.project.title} | DeveloperConnect` : "Project | DeveloperConnect";
+    const description = loaderData?.project
+      ? `${loaderData.project.description.slice(0, 160)}...`
+      : "View project details on DeveloperConnect.";
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { tag: "link", rel: "canonical", href: `https://developerconnect.in/projects/${loaderData?.projectId}` },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "JobPosting",
+            "title": loaderData?.project?.title,
+            "description": loaderData?.project?.description,
+            "datePosted": loaderData?.project?.created_at,
+            "employmentType": loaderData?.project?.project_type === "hourly" ? "PART_TIME" : "CONTRACTOR",
+            "hiringOrganization": {
+              "@type": "Organization",
+              "name": "DeveloperConnect",
+              "sameAs": "https://developerconnect.in"
+            },
+            "jobLocation": {
+              "@type": "Place",
+              "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "IN"
+              }
+            }
+          })
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://developerconnect.in"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Projects",
+                "item": "https://developerconnect.in/projects"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": loaderData?.project?.title || "Project",
+                "item": `https://developerconnect.in/projects/${loaderData?.projectId}`
+              }
+            ]
+          })
+        }
+      ]
+    };
+  },
   component: ProjectDetail,
 });
 
