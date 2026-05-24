@@ -12,7 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShieldCheck, MapPin, IndianRupee, Briefcase, Heart, Search } from "lucide-react";
 
 export const Route = createFileRoute("/saved")({
-  head: () => ({ meta: [{ title: "Saved — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Saved | DeveloperConnect" }] }),
   component: SavedPage,
 });
 

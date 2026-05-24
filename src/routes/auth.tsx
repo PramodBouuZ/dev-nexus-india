@@ -14,8 +14,8 @@ import { Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in or create account — HireSpark" },
-      { name: "description", content: "Join HireSpark to post projects or apply as a part-time developer." },
+      { title: "Sign in or create account | DeveloperConnect" },
+      { name: "description", content: "Join DeveloperConnect to post projects or apply as a part-time developer." },
     ],
   }),
   component: AuthPage,
