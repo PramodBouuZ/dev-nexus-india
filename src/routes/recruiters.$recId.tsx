@@ -8,7 +8,7 @@ import { ContactAccess } from "@/components/ContactAccess";
 import { ArrowLeft, Globe, MapPin, Building2, Briefcase, ShieldCheck, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
-  head: () => ({ meta: [{ title: "Recruiter profile — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Recruiter Profile | DeveloperConnect" }] }),
   component: RecProfile,
 });
 

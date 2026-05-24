@@ -9,7 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { ChatThread } from "@/components/ChatThread";
 
 export const Route = createFileRoute("/applications/$appId")({
-  head: () => ({ meta: [{ title: "Application — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Application | DeveloperConnect" }] }),
   component: AppPage,
 });
 

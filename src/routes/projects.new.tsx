@@ -16,7 +16,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { analyzeProjectRequirement } from "@/utils/ai-analysis.functions";
 
 export const Route = createFileRoute("/projects/new")({
-  head: () => ({ meta: [{ title: "Post a project — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Post a project | DeveloperConnect" }] }),
   component: NewProject,
 });
 

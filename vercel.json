@@ -3,5 +3,8 @@
   "buildCommand": "npm run build:vercel",
   "outputDirectory": ".vercel/output",
   "framework": "tanstack-start",
-  "installCommand": "npm install"
+  "installCommand": "npm install",
+  "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" }
+  ]
 }

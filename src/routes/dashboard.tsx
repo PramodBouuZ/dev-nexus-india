@@ -14,7 +14,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — HireSpark" }] }),
+  head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
   component: Dashboard,
 });
 

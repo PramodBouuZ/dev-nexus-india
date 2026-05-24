@@ -16,7 +16,7 @@ import { ImageUpload } from "@/components/ImageUpload";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/profile")({
-  head: () => ({ meta: [{ title: "My profile — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "My Profile | DeveloperConnect" }] }),
   component: ProfilePage,
 });
 
