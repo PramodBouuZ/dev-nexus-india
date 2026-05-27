@@ -16,14 +16,11 @@ import {
 export const Route = createFileRoute("/developers/$devId")({
   loader: async ({ params }) => {
     const { devId } = params;
-    const [{ data: prof }, { data: dev }] = await Promise.all([
-      supabase.from("profiles").select("full_name").eq("id", devId).maybeSingle(),
-      supabase.from("developer_profiles").select("headline, bio, skills").eq("id", devId).maybeSingle(),
-    ]);
-    return { prof, dev, devId };
+    const { data: dev } = await supabase.from("developer_profiles").select("full_name, headline, bio, skills").eq("id", devId).maybeSingle();
+    return { dev, devId };
   },
   head: ({ loaderData }) => {
-    const name = loaderData?.prof?.full_name || "Developer";
+    const name = loaderData?.dev?.full_name || "Developer";
     const headline = loaderData?.dev?.headline || "Software Developer";
     const bio = loaderData?.dev?.bio || "Expert developer available for hire on DeveloperConnect.";
     const title = `${name} | ${headline} in India | DeveloperConnect`;
@@ -90,13 +87,12 @@ function DevProfile() {
   const { data, isLoading } = useQuery({
     queryKey: ["dev-profile", devId],
     queryFn: async () => {
-      const [{ data: prof }, { data: dev }, { data: revs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").eq("id", devId).maybeSingle(),
+      const [{ data: dev }, { data: revs }] = await Promise.all([
         supabase.from("developer_profiles").select("*").eq("id", devId).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at, reviewer_id").eq("reviewee_id", devId).order("created_at", { ascending: false }),
       ]);
       const avg = revs?.length ? revs.reduce((s, r) => s + r.rating, 0) / revs.length : 0;
-      return { prof, dev, revs: revs ?? [], avg };
+      return { dev, revs: revs ?? [], avg };
     },
   });
 
@@ -106,21 +102,21 @@ function DevProfile() {
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <Link to="/developers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Back to developers</Link>
         {isLoading && <p className="mt-8 text-sm text-muted-foreground">Loading...</p>}
-        {!isLoading && (!data?.prof || !data?.dev) && <p className="mt-8 text-sm text-muted-foreground">Developer not found.</p>}
-        {data?.prof && data?.dev && (
+        {!isLoading && !data?.dev && <p className="mt-8 text-sm text-muted-foreground">Developer not found.</p>}
+        {data?.dev && (
           <div className="mt-6 grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
-                    {data.prof.avatar_url && <AvatarImage src={data.prof.avatar_url} alt={data.prof.full_name ?? "Developer"} />}
+                    {data.dev.avatar_url && <AvatarImage src={data.dev.avatar_url} alt={data.dev.full_name ?? "Developer"} />}
                     <AvatarFallback className="bg-gradient-accent text-2xl font-display font-bold text-primary-foreground">
-                      {data.prof.full_name?.[0] ?? "D"}
+                      {data.dev.full_name?.[0] ?? "D"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="font-display text-2xl font-bold">{data.prof.full_name ?? "Developer"}</h1>
+                      <h1 className="font-display text-2xl font-bold">{data.dev.full_name ?? "Developer"}</h1>
                       {data.dev.is_verified && <Badge className="bg-success text-success-foreground gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>}
                       <FavoriteButton kind="developer" targetId={devId} variant="outline" size="sm" />
                     </div>
@@ -133,7 +129,7 @@ function DevProfile() {
                       )}
                     </div>
                     <div className="mt-4">
-                      <InviteDeveloperDialog developerId={devId} developerName={data.prof.full_name ?? "this developer"} />
+                      <InviteDeveloperDialog developerId={devId} developerName={data.dev.full_name ?? "this developer"} />
                     </div>
                   </div>
                 </div>
@@ -200,7 +196,7 @@ function DevProfile() {
                 </div>
               )}
 
-              <ContactAccess targetUserId={devId} targetName={data.prof.full_name ?? "this developer"} />
+              <ContactAccess targetUserId={devId} targetName={data.dev.full_name ?? "this developer"} />
             </aside>
           </div>
         )}

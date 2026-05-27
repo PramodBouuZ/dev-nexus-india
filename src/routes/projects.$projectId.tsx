@@ -287,13 +287,10 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
         .select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       if (!appRows?.length) return [];
       const devIds = [...new Set(appRows.map(a => a.developer_id))];
-      const [{ data: profs }, { data: devs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
-        supabase.from("developer_profiles").select("id, headline, hourly_rate_inr, skills, is_verified").in("id", devIds),
-      ]);
+      const { data: devs } = await supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, hourly_rate_inr, skills, is_verified").in("id", devIds);
+
       return appRows.map(a => ({
         ...a,
-        profile: profs?.find(p => p.id === a.developer_id) ?? null,
         dev: devs?.find(d => d.id === a.developer_id) ?? null,
       }));
     },
@@ -334,7 +331,7 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent">
-                    {a.profile?.full_name ?? "Developer"}
+                    {a.dev?.full_name ?? "Developer"}
                   </Link>
                   {a.dev?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
                 </div>

@@ -71,34 +71,33 @@ function DeveloperForm({ userId }: { userId: string }) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: prof }, { data: dev }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-        supabase.from("developer_profiles").select("*").eq("id", userId).maybeSingle(),
-      ]);
-      setForm({
-        full_name: prof?.full_name ?? "",
-        headline: dev?.headline ?? "",
-        bio: dev?.bio ?? "",
-        skills: dev?.skills?.join(", ") ?? "",
-        hourly_rate_inr: dev?.hourly_rate_inr?.toString() ?? "",
-        weekly_rate_inr: dev?.weekly_rate_inr?.toString() ?? "",
-        monthly_rate_inr: dev?.monthly_rate_inr?.toString() ?? "",
-        project_min_inr: dev?.project_min_inr?.toString() ?? "",
-        availability_hours_per_week: dev?.availability_hours_per_week?.toString() ?? "",
-        hours_per_day: dev?.hours_per_day?.toString() ?? "",
-        time_slots: dev?.time_slots ?? "",
-        experience_years: dev?.experience_years?.toString() ?? "",
-        github_url: dev?.github_url ?? "",
-        portfolio_url: dev?.portfolio_url ?? "",
-        linkedin_url: dev?.linkedin_url ?? "",
-        location: dev?.location ?? "",
-        work_preference: (dev?.work_preference as any) ?? "both",
-        developer_type: (dev?.developer_type as any) ?? "fullstack",
-        phone: dev?.phone ?? "",
-        available_days: dev?.available_days ?? [],
-        contact_public: (dev as any)?.contact_public ?? false,
-        avatar_url: prof?.avatar_url ?? null,
-      });
+      const { data: dev } = await supabase.from("developer_profiles").select("*").eq("id", userId).maybeSingle();
+      if (dev) {
+        setForm({
+          full_name: dev.full_name ?? "",
+          headline: dev.headline ?? "",
+          bio: dev.bio ?? "",
+          skills: dev.skills?.join(", ") ?? "",
+          hourly_rate_inr: dev.hourly_rate_inr?.toString() ?? "",
+          weekly_rate_inr: dev.weekly_rate_inr?.toString() ?? "",
+          monthly_rate_inr: dev.monthly_rate_inr?.toString() ?? "",
+          project_min_inr: dev.project_min_inr?.toString() ?? "",
+          availability_hours_per_week: dev.availability_hours_per_week?.toString() ?? "",
+          hours_per_day: dev.hours_per_day?.toString() ?? "",
+          time_slots: dev.time_slots ?? "",
+          experience_years: dev.experience_years?.toString() ?? "",
+          github_url: dev.github_url ?? "",
+          portfolio_url: dev.portfolio_url ?? "",
+          linkedin_url: dev.linkedin_url ?? "",
+          location: dev.location ?? "",
+          work_preference: (dev.work_preference as any) ?? "both",
+          developer_type: (dev.developer_type as any) ?? "fullstack",
+          phone: dev.phone ?? "",
+          available_days: dev.available_days ?? [],
+          contact_public: dev.contact_public ?? false,
+          avatar_url: dev.avatar_url ?? null,
+        });
+      }
     })();
   }, [userId]);
 
@@ -115,34 +114,33 @@ function DeveloperForm({ userId }: { userId: string }) {
     e.preventDefault();
     setBusy(true);
     const skills = form.skills.split(",").map(s => s.trim()).filter(Boolean);
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("profiles").update({ full_name: form.full_name, avatar_url: form.avatar_url }).eq("id", userId),
-      supabase.from("developer_profiles").upsert({
-        id: userId,
-        headline: form.headline,
-        bio: form.bio,
-        skills,
-        hourly_rate_inr: form.hourly_rate_inr ? Number(form.hourly_rate_inr) : null,
-        weekly_rate_inr: form.weekly_rate_inr ? Number(form.weekly_rate_inr) : null,
-        monthly_rate_inr: form.monthly_rate_inr ? Number(form.monthly_rate_inr) : null,
-        project_min_inr: form.project_min_inr ? Number(form.project_min_inr) : null,
-        availability_hours_per_week: form.availability_hours_per_week ? Number(form.availability_hours_per_week) : null,
-        hours_per_day: form.hours_per_day ? Number(form.hours_per_day) : null,
-        time_slots: form.time_slots || null,
-        experience_years: form.experience_years ? Number(form.experience_years) : null,
-        github_url: form.github_url || null,
-        portfolio_url: form.portfolio_url || null,
-        linkedin_url: form.linkedin_url || null,
-        location: form.location || null,
-        work_preference: form.work_preference,
-        developer_type: form.developer_type as any,
-        phone: form.phone || null,
-        available_days: form.available_days,
-        contact_public: form.contact_public,
-      } as any),
-    ]);
+    const { error } = await supabase.from("developer_profiles").upsert({
+      id: userId,
+      full_name: form.full_name,
+      avatar_url: form.avatar_url,
+      headline: form.headline,
+      bio: form.bio,
+      skills,
+      hourly_rate_inr: form.hourly_rate_inr ? Number(form.hourly_rate_inr) : null,
+      weekly_rate_inr: form.weekly_rate_inr ? Number(form.weekly_rate_inr) : null,
+      monthly_rate_inr: form.monthly_rate_inr ? Number(form.monthly_rate_inr) : null,
+      project_min_inr: form.project_min_inr ? Number(form.project_min_inr) : null,
+      availability_hours_per_week: form.availability_hours_per_week ? Number(form.availability_hours_per_week) : null,
+      hours_per_day: form.hours_per_day ? Number(form.hours_per_day) : null,
+      time_slots: form.time_slots || null,
+      experience_years: form.experience_years ? Number(form.experience_years) : null,
+      github_url: form.github_url || null,
+      portfolio_url: form.portfolio_url || null,
+      linkedin_url: form.linkedin_url || null,
+      location: form.location || null,
+      work_preference: form.work_preference,
+      developer_type: form.developer_type as any,
+      phone: form.phone || null,
+      available_days: form.available_days,
+      contact_public: form.contact_public,
+    });
     setBusy(false);
-    if (e1 || e2) { toast.error((e1 || e2)!.message); return; }
+    if (error) { toast.error(error.message); return; }
     toast.success("Profile saved!");
   }
 
@@ -251,44 +249,42 @@ function RecruiterForm({ userId }: { userId: string }) {
 
   useEffect(() => {
     (async () => {
-      const [{ data: prof }, { data: rec }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
-        supabase.from("recruiter_profiles").select("*").eq("id", userId).maybeSingle(),
-      ]);
-      setForm({
-        full_name: prof?.full_name ?? "",
-        company_name: rec?.company_name ?? "",
-        company_website: rec?.company_website ?? "",
-        company_description: rec?.company_description ?? "",
-        company_size: rec?.company_size ?? "",
-        industry: rec?.industry ?? "",
-        location: rec?.location ?? "",
-        phone: rec?.phone ?? "",
-        avatar_url: prof?.avatar_url ?? null,
-        logo_url: (rec as any)?.logo_url ?? null,
-      });
+      const { data: rec } = await supabase.from("recruiter_profiles").select("*").eq("id", userId).maybeSingle();
+      if (rec) {
+        setForm({
+          full_name: rec.full_name ?? "",
+          company_name: rec.company_name ?? "",
+          company_website: rec.company_website ?? "",
+          company_description: rec.company_description ?? "",
+          company_size: rec.company_size ?? "",
+          industry: rec.industry ?? "",
+          location: rec.location ?? "",
+          phone: rec.phone ?? "",
+          avatar_url: rec.avatar_url ?? null,
+          logo_url: (rec as any).logo_url ?? null,
+        });
+      }
     })();
   }, [userId]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      supabase.from("profiles").update({ full_name: form.full_name, avatar_url: form.avatar_url }).eq("id", userId),
-      supabase.from("recruiter_profiles").upsert({
-        id: userId,
-        company_name: form.company_name,
-        company_website: form.company_website || null,
-        company_description: form.company_description || null,
-        company_size: form.company_size || null,
-        industry: form.industry || null,
-        location: form.location || null,
-        phone: form.phone || null,
-        logo_url: form.logo_url,
-      } as any),
-    ]);
+    const { error } = await supabase.from("recruiter_profiles").upsert({
+      id: userId,
+      full_name: form.full_name,
+      avatar_url: form.avatar_url,
+      company_name: form.company_name,
+      company_website: form.company_website || null,
+      company_description: form.company_description || null,
+      company_size: form.company_size || null,
+      industry: form.industry || null,
+      location: form.location || null,
+      phone: form.phone || null,
+      logo_url: form.logo_url,
+    });
     setBusy(false);
-    if (e1 || e2) { toast.error((e1 || e2)!.message); return; }
+    if (error) { toast.error(error.message); return; }
     toast.success("Profile saved!");
   }
 
