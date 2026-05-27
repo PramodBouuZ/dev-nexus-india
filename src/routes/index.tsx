@@ -54,15 +54,11 @@ function Landing() {
     queryFn: async () => {
       const { data: devs } = await supabase
         .from("developer_profiles")
-        .select("id, headline, bio, location, skills, hourly_rate_inr, is_verified")
+        .select("id, headline, bio, location, skills, hourly_rate_inr, is_verified, full_name")
         .order("is_verified", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(6);
-      if (!devs?.length) return [];
-      const ids = devs.map((d) => d.id);
-      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-      const nameMap = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
-      return devs.map((d) => ({ ...d, full_name: nameMap.get(d.id) ?? null }));
+      return (devs ?? []) as DevCard[];
     },
   });
 

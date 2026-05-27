@@ -18,17 +18,16 @@ function RecProfile() {
   const { data, isLoading } = useQuery({
     queryKey: ["rec-profile", recId],
     queryFn: async () => {
-      const [{ data: prof }, { data: rec }, { data: projs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url, created_at").eq("id", recId).maybeSingle(),
+      const [{ data: rec }, { data: projs }] = await Promise.all([
         supabase.from("recruiter_profiles").select("*").eq("id", recId).maybeSingle(),
         supabase.from("projects").select("id, title, status, project_type, hours_per_week, tech_stack, created_at").eq("recruiter_id", recId).order("created_at", { ascending: false }).limit(10),
       ]);
-      return { prof, rec: rec as any, projs: projs ?? [] };
+      return { rec: rec as any, projs: projs ?? [] };
     },
   });
 
   const openCount = (data?.projs ?? []).filter((p: any) => p.status === "open").length;
-  const memberSince = data?.prof?.created_at ? new Date(data.prof.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short" }) : null;
+  const memberSince = data?.rec?.created_at ? new Date(data.rec.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short" }) : null;
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -36,8 +35,8 @@ function RecProfile() {
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <Link to="/projects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Back</Link>
         {isLoading && <p className="mt-8 text-sm text-muted-foreground">Loading...</p>}
-        {!isLoading && (!data?.prof || !data?.rec) && <p className="mt-8 text-sm text-muted-foreground">Recruiter not found.</p>}
-        {data?.prof && data?.rec && (
+        {!isLoading && !data?.rec && <p className="mt-8 text-sm text-muted-foreground">Recruiter not found.</p>}
+        {data?.rec && (
           <div className="mt-6 grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-xl border border-border bg-card p-6 shadow-card">
@@ -51,14 +50,14 @@ function RecProfile() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="font-display text-2xl font-bold truncate">{data.rec.company_name ?? data.prof.full_name ?? "Company"}</h1>
+                      <h1 className="font-display text-2xl font-bold truncate">{data.rec.company_name ?? data.rec.full_name ?? "Company"}</h1>
                       <Badge variant="secondary" className="text-xs"><ShieldCheck className="mr-1 h-3 w-3" />Recruiter</Badge>
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      {data.prof.avatar_url ? (
-                        <img src={data.prof.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      {data.rec.avatar_url ? (
+                        <img src={data.rec.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
                       ) : null}
-                      <span>Posted by {data.prof.full_name ?? "—"}</span>
+                      <span>Posted by {data.rec.full_name ?? "—"}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                       {data.rec.industry && <span>{data.rec.industry}</span>}

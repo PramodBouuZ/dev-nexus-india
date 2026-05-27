@@ -49,9 +49,9 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           const next = payload.new as { developer_id: string; status: string };
           const prev = payload.old as { status: string };
           if (next.status !== prev.status && (next.status === "accepted" || next.status === "rejected")) {
-            const { data: prof } = await supabase
-              .from("profiles").select("full_name").eq("id", next.developer_id).maybeSingle();
-            const name = prof?.full_name ?? "A developer";
+            const { data: dev } = await supabase
+              .from("developer_profiles").select("full_name").eq("id", next.developer_id).maybeSingle();
+            const name = dev?.full_name ?? "A developer";
             if (next.status === "accepted") {
               toast.success(`${name} accepted your invite`);
             } else {
@@ -98,16 +98,14 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       if (!list.length) return [];
       const devIds = Array.from(new Set(list.map(i => i.developer_id)));
       const projIds = Array.from(new Set(list.map(i => i.project_id).filter(Boolean) as string[]));
-      const [{ data: profs }, { data: devs }, { data: projs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
-        supabase.from("developer_profiles").select("id, headline, skills, is_verified, location").in("id", devIds),
+      const [{ data: devs }, { data: projs }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, skills, is_verified, location").in("id", devIds),
         projIds.length
           ? supabase.from("projects").select("id, title").in("id", projIds)
           : Promise.resolve({ data: [] as { id: string; title: string }[] }),
       ]);
       return list.map(i => ({
         ...i,
-        profile: profs?.find(p => p.id === i.developer_id) ?? null,
         dev: devs?.find(d => d.id === i.developer_id) ?? null,
         project: i.project_id ? (projs?.find(p => p.id === i.project_id) ?? null) : null,
       }));
@@ -168,16 +166,16 @@ function RecruiterDashboard({ userId }: { userId: string }) {
               <div className="flex items-start gap-3">
                 <Link to="/developers/$devId" params={{ devId: i.developer_id }}>
                   <Avatar className="h-12 w-12">
-                    {i.profile?.avatar_url && <AvatarImage src={i.profile.avatar_url} alt={i.profile?.full_name ?? "Developer"} />}
+                    {i.dev?.avatar_url && <AvatarImage src={i.dev.avatar_url} alt={i.dev?.full_name ?? "Developer"} />}
                     <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                      {i.profile?.full_name?.[0] ?? "?"}
+                      {i.dev?.full_name?.[0] ?? "?"}
                     </AvatarFallback>
                   </Avatar>
                 </Link>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="font-semibold hover:text-accent">
-                      {i.profile?.full_name ?? "Developer"}
+                      {i.dev?.full_name ?? "Developer"}
                     </Link>
                     {i.dev?.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}
                     <Badge variant={i.status === "accepted" ? "default" : i.status === "rejected" ? "destructive" : "secondary"} className="capitalize">
@@ -193,7 +191,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                   )}
                   <p className="mt-1 text-[11px] text-muted-foreground">Sent {new Date(i.created_at).toLocaleDateString()}</p>
                   {i.status === "pending" && (
-                    <InviteActions inviteId={i.id} developerName={i.profile?.full_name ?? "Developer"} currentMessage={i.message} />
+                    <InviteActions inviteId={i.id} developerName={i.dev?.full_name ?? "Developer"} currentMessage={i.message} />
                   )}
                 </div>
               </div>

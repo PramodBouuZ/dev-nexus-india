@@ -221,20 +221,25 @@ function UserManagement() {
     queryFn: async () => {
       const { data: profs } = await supabase
         .from("profiles")
-        .select("id, full_name, email, role, created_at, is_suspended")
+        .select("id, email, role, created_at, is_suspended")
         .order("created_at", { ascending: false });
 
       const ids = profs?.map(p => p.id) ?? [];
       const [devs, recs] = await Promise.all([
-        supabase.from("developer_profiles").select("id, is_verified, headline, phone, skills").in("id", ids),
-        supabase.from("recruiter_profiles").select("id, is_verified, company_name, industry").in("id", ids),
+        supabase.from("developer_profiles").select("id, is_verified, headline, phone, skills, full_name").in("id", ids),
+        supabase.from("recruiter_profiles").select("id, is_verified, company_name, industry, full_name").in("id", ids),
       ]);
 
-      return profs?.map(p => ({
-        ...p,
-        developer: devs?.find(d => d.id === p.id) || null,
-        recruiter: recs?.find(r => r.id === p.id) || null,
-      })) || [];
+      return profs?.map(p => {
+        const dev = devs?.find(d => d.id === p.id);
+        const rec = recs?.find(r => r.id === p.id);
+        return {
+          ...p,
+          full_name: dev?.full_name || rec?.full_name || "N/A",
+          developer: dev || null,
+          recruiter: rec || null,
+        };
+      }) || [];
     }
   });
 
@@ -285,7 +290,7 @@ function UserManagement() {
   async function toggleSuspension(id: string, current: boolean) {
     const { error } = await supabase
       .from("profiles")
-      .update({ is_suspended: !current })
+      .update({ is_suspended: !current } as any)
       .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(current ? "User account reinstated" : "User account suspended");
@@ -420,13 +425,10 @@ function VerificationQueue({ adminId }: { adminId: string }) {
         .order("created_at", { ascending: true });
       if (!reqs?.length) return [];
       const ids = [...new Set(reqs.map(r => r.developer_id))];
-      const [{ data: profs }, { data: devs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, email, avatar_url").in("id", ids),
-        supabase.from("developer_profiles").select("id, headline, skills, experience_years").in("id", ids),
-      ]);
+      const { data: devs } = await supabase.from("developer_profiles").select("id, headline, skills, experience_years, full_name").in("id", ids);
+
       return reqs.map(r => ({
         ...r,
-        profile: profs?.find(p => p.id === r.developer_id) ?? null,
         dev: devs?.find(d => d.id === r.developer_id) ?? null,
       }));
     },
@@ -490,10 +492,9 @@ function RequestCard({ request, adminId, onChange, compact = false }: { request:
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold">{request.profile?.full_name ?? "Unnamed"}</h3>
+            <h3 className="font-semibold">{request.dev?.full_name ?? "Unnamed"}</h3>
             <StatusPill status={request.status} />
           </div>
-          <p className="text-xs text-muted-foreground">{request.profile?.email}</p>
           {request.dev?.headline && <p className="mt-1 text-sm text-muted-foreground">{request.dev.headline}</p>}
           <p className="mt-1 text-xs text-muted-foreground">
             Submitted {new Date(request.created_at).toLocaleDateString()}
@@ -567,6 +568,7 @@ function RequestCard({ request, adminId, onChange, compact = false }: { request:
 
 function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; user: any; onUpdate: () => void }) {
   const [form, setForm] = useState({
+    full_name: developer.full_name || user.full_name || "",
     headline: developer.headline || "",
     skills: (developer.skills || []).join(", "),
     is_verified: developer.is_verified || false,
@@ -580,6 +582,7 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
     const { error } = await supabase
       .from("developer_profiles")
       .update({
+        full_name: form.full_name,
         headline: form.headline,
         skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
         is_verified: form.is_verified,
@@ -603,6 +606,10 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
           <DialogTitle>Moderate Developer Profile</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Full Name</Label>
+            <Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} />
+          </div>
           <div className="space-y-2">
             <Label>Headline</Label>
             <Input value={form.headline} onChange={e => setForm({...form, headline: e.target.value})} />
@@ -631,6 +638,7 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
 
 function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; user: any; onUpdate: () => void }) {
   const [form, setForm] = useState({
+    full_name: recruiter.full_name || user.full_name || "",
     company_name: recruiter.company_name || "",
     industry: recruiter.industry || "",
     is_verified: recruiter.is_verified || false,
@@ -643,6 +651,7 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
     const { error } = await supabase
       .from("recruiter_profiles")
       .update({
+        full_name: form.full_name,
         company_name: form.company_name,
         industry: form.industry,
         is_verified: form.is_verified,
@@ -665,6 +674,10 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
           <DialogTitle>Moderate Recruiter Profile</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Full Name</Label>
+            <Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} />
+          </div>
           <div className="space-y-2">
             <Label>Company Name</Label>
             <Input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} />

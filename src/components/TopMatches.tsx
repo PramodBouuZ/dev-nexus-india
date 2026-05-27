@@ -11,13 +11,10 @@ export function TopMatches({ project, projectId }: { project: ProjectForMatch; p
     queryFn: async () => {
       const { data: devs } = await supabase
         .from("developer_profiles")
-        .select("id, skills, hourly_rate_inr, availability_hours_per_week, work_preference, is_verified, headline");
+        .select("id, skills, hourly_rate_inr, availability_hours_per_week, work_preference, is_verified, headline, full_name");
       if (!devs?.length) return [];
       const ids = devs.map((d) => d.id);
-      const [{ data: profs }, { data: revs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name").in("id", ids),
-        supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", ids),
-      ]);
+      const { data: revs } = await supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", ids);
       const ratingMap = new Map<string, { avg: number; count: number }>();
       for (const id of ids) {
         const mine = (revs ?? []).filter((r) => r.reviewee_id === id);
@@ -30,8 +27,7 @@ export function TopMatches({ project, projectId }: { project: ProjectForMatch; p
         .map((d) => {
           const r = ratingMap.get(d.id) ?? { avg: 0, count: 0 };
           const { score, reasons } = scoreMatch(d as DevForMatch, project, r.avg, r.count);
-          const prof = profs?.find((p) => p.id === d.id);
-          return { ...d, full_name: prof?.full_name ?? "Developer", score, reasons };
+          return { ...d, full_name: d.full_name ?? "Developer", score, reasons };
         })
         .filter((d) => d.score >= 30)
         .sort((a, b) => b.score - a.score)
