@@ -13,6 +13,38 @@ export const Route = createFileRoute("/faq")({
       { property: "og:description", content: "Find answers to frequently asked questions about hiring freelance and part-time developers in India on DeveloperConnect." },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/faq" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          "mainEntity": [
+            ...developerFaq.map(f => ({
+              "@type": "Question",
+              "name": f.q,
+              "acceptedAnswer": { "@type": "Answer", "text": f.a }
+            })),
+            ...recruiterFaq.map(f => ({
+              "@type": "Question",
+              "name": f.q,
+              "acceptedAnswer": { "@type": "Answer", "text": f.a }
+            }))
+          ]
+        })
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "FAQ", "item": "https://developerconnect.in/faq" }
+          ]
+        })
+      }
+    ]
   }),
   component: FaqPage,
 });

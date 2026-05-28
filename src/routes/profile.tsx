@@ -66,6 +66,7 @@ function DeveloperForm({ userId }: { userId: string }) {
     available_days: [] as string[],
     contact_public: false,
     avatar_url: null as string | null,
+    is_available: true,
   });
   const [busy, setBusy] = useState(false);
 
@@ -96,6 +97,7 @@ function DeveloperForm({ userId }: { userId: string }) {
           available_days: dev.available_days ?? [],
           contact_public: dev.contact_public ?? false,
           avatar_url: dev.avatar_url ?? null,
+        is_available: dev.is_available ?? true,
         });
       }
     })();
@@ -138,6 +140,7 @@ function DeveloperForm({ userId }: { userId: string }) {
       phone: form.phone || null,
       available_days: form.available_days,
       contact_public: form.contact_public,
+      is_available: form.is_available,
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
@@ -200,6 +203,10 @@ function DeveloperForm({ userId }: { userId: string }) {
           </div>
         </div>
         <Field label="Time slots (optional)"><Input value={form.time_slots} onChange={e => setForm({ ...form, time_slots: e.target.value })} placeholder="e.g. 6 PM – 10 PM IST" /></Field>
+        <label className="flex items-center gap-2 pt-2">
+          <Checkbox checked={form.is_available} onCheckedChange={v => setForm({...form, is_available: !!v})} />
+          <span className="text-sm font-medium">Available for new projects</span>
+        </label>
       </Section>
 
       <Section title="Pricing (set your minimums)">
@@ -244,6 +251,7 @@ function RecruiterForm({ userId }: { userId: string }) {
     company_size: "", industry: "", location: "", phone: "",
     avatar_url: null as string | null,
     logo_url: null as string | null,
+    hiring_status: true,
   });
   const [busy, setBusy] = useState(false);
 
@@ -262,6 +270,7 @@ function RecruiterForm({ userId }: { userId: string }) {
           phone: rec.phone ?? "",
           avatar_url: rec.avatar_url ?? null,
           logo_url: (rec as any).logo_url ?? null,
+        hiring_status: (rec as any).hiring_status ?? true,
         });
       }
     })();
@@ -282,6 +291,7 @@ function RecruiterForm({ userId }: { userId: string }) {
       location: form.location || null,
       phone: form.phone || null,
       logo_url: form.logo_url,
+      hiring_status: form.hiring_status,
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
@@ -323,6 +333,10 @@ function RecruiterForm({ userId }: { userId: string }) {
           <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
           <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
         </div>
+        <label className="flex items-center gap-2 pt-2">
+          <Checkbox checked={form.hiring_status} onCheckedChange={v => setForm({...form, hiring_status: !!v})} />
+          <span className="text-sm font-medium">Currently hiring developers</span>
+        </label>
       </Section>
       <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Saving..." : "Save profile"}</Button>
     </form>

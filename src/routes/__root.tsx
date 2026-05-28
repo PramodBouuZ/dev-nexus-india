@@ -48,6 +48,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "twitter:card", content: "summary_large_image" },
       { name: "robots", content: "index, follow" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in" },
+      { name: "author", content: "DeveloperConnect" },
+      { name: "theme-color", content: "#0f172a" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
