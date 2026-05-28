@@ -22,11 +22,23 @@ function Dashboard() {
   const { user, role, loading } = useAuth();
   if (loading) return <FullPageSpinner />;
   if (!user) return <Navigate to="/auth" />;
+
+  console.log("Dashboard Role:", role);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        {role === "recruiter" ? <RecruiterDashboard userId={user.id} /> : <DeveloperDashboard userId={user.id} />}
+        {role === "recruiter" ? (
+          <RecruiterDashboard userId={user.id} />
+        ) : role === "developer" ? (
+          <DeveloperDashboard userId={user.id} />
+        ) : (
+          <div className="flex flex-col items-center justify-center py-20">
+            <h1 className="text-2xl font-bold">Unauthorized</h1>
+            <p className="text-muted-foreground">You do not have a valid role assigned.</p>
+          </div>
+        )}
       </main>
       <Footer />
     </div>

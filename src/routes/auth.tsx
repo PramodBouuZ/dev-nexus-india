@@ -74,11 +74,17 @@ function SignInForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
+
+    const role = data.user?.user_metadata?.role;
+    console.log("Saved Role:", role);
+
     toast.success("Welcome back!");
-    navigate({ to: "/dashboard" });
+
+    if (role === 'admin') navigate({ to: '/admin' });
+    else navigate({ to: "/dashboard" });
   }
 
   return (
@@ -110,15 +116,34 @@ function SignUpForm() {
     e.preventDefault();
     if (password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
     setBusy(true);
-    const { error } = await supabase.auth.signUp({
+
+    const selectedRole = role;
+    console.log("Selected Role:", selectedRole);
+
+    const { data, error } = await supabase.auth.signUp({
       email, password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
-        data: { full_name: fullName, role },
+        data: { full_name: fullName, role: selectedRole },
       },
     });
+
+    if (error) {
+      setBusy(false);
+      toast.error(error.message);
+      return;
+    }
+
+    if (data.user) {
+      // Explicitly upsert to users table as requested
+      await supabase.from('users').upsert({
+        user_id: data.user.id,
+        email: data.user.email!,
+        role: selectedRole
+      } as any);
+    }
+
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
     toast.success("Account created! Welcome aboard.");
     navigate({ to: "/dashboard" });
   }
