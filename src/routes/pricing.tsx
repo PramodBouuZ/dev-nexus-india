@@ -12,6 +12,19 @@ export const Route = createFileRoute("/pricing")({
       { property: "og:description", content: "Simple and transparent pricing. Free for developers. Affordable hiring plans for startups to find top tech talent in India." },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/pricing" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Pricing", "item": "https://developerconnect.in/pricing" }
+          ]
+        })
+      }
+    ]
   }),
   component: Pricing,
 });

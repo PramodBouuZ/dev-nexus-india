@@ -23,6 +23,19 @@ export const Route = createFileRoute("/developers")({
       { property: "og:description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/developers" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Developers", "item": "https://developerconnect.in/developers" }
+          ]
+        })
+      }
+    ]
   }),
   component: DevList,
 });

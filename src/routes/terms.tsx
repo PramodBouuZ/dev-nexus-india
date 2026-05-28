@@ -5,9 +5,25 @@ import { Footer } from "@/components/Footer";
 export const Route = createFileRoute("/terms")({
   head: () => ({
     meta: [
-      { title: "Terms & Conditions — Developer Connect" },
-      { name: "description", content: "Terms and conditions for using Developer Connect, the marketplace for hiring part-time developers in India." },
+      { title: "Terms & Conditions | DeveloperConnect India" },
+      { name: "description", content: "Terms and conditions for using DeveloperConnect, the marketplace for hiring part-time and full-time developers in India." },
+      { property: "og:title", content: "Terms & Conditions | DeveloperConnect India" },
+      { property: "og:description", content: "Terms and conditions for using DeveloperConnect, the marketplace for hiring part-time and full-time developers in India." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/terms" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Terms", "item": "https://developerconnect.in/terms" }
+          ]
+        })
+      }
+    ]
   }),
   component: TermsPage,
 });

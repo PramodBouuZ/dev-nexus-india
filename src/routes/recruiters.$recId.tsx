@@ -8,7 +8,37 @@ import { ContactAccess } from "@/components/ContactAccess";
 import { ArrowLeft, Globe, MapPin, Building2, Briefcase, ShieldCheck, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
-  head: () => ({ meta: [{ title: "Recruiter Profile | DeveloperConnect" }] }),
+  head: ({ loaderData, params }) => {
+    const title = `${loaderData?.rec?.company_name || "Recruiter"} | Hiring on DeveloperConnect`;
+    const description = `Hire developers from ${loaderData?.rec?.company_name || "this recruiter"} on DeveloperConnect. Top Indian tech talent for part-time and full-time roles.`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { tag: "link", rel: "canonical", href: `https://developerconnect.in/recruiters/${params.recId}` },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+              { "@type": "ListItem", "position": 2, "name": "Recruiters", "item": "https://developerconnect.in/projects" },
+              { "@type": "ListItem", "position": 3, "name": loaderData?.rec?.company_name || "Recruiter", "item": `https://developerconnect.in/recruiters/${params.recId}` }
+            ]
+          })
+        }
+      ]
+    };
+  },
+  loader: async ({ params }) => {
+    const { data: rec } = await supabase.from("recruiter_profiles").select("company_name").eq("id", params.recId).maybeSingle();
+    return { rec };
+  },
   component: RecProfile,
 });
 
@@ -17,6 +47,7 @@ function RecProfile() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["rec-profile", recId],
+    staleTime: 1000 * 60 * 10, // 10 minutes
     queryFn: async () => {
       const [{ data: rec }, { data: projs }] = await Promise.all([
         supabase.from("recruiter_profiles").select("*").eq("id", recId).maybeSingle(),
@@ -26,17 +57,19 @@ function RecProfile() {
     },
   });
 
+  if (isLoading) return <RecruiterSkeleton />;
+  if (!data?.rec) return <RecruiterNotFound />;
+
+  const { rec } = data;
   const openCount = (data?.projs ?? []).filter((p: any) => p.status === "open").length;
-  const memberSince = data?.rec?.created_at ? new Date(data.rec.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short" }) : null;
+  const memberSince = rec.created_at ? new Date(rec.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short" }) : null;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <Link to="/projects" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Back</Link>
-        {isLoading && <p className="mt-8 text-sm text-muted-foreground">Loading...</p>}
-        {!isLoading && !data?.rec && <p className="mt-8 text-sm text-muted-foreground">Recruiter not found.</p>}
-        {data?.rec && (
+        {rec && (
           <div className="mt-6 grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-xl border border-border bg-card p-6 shadow-card">
@@ -50,27 +83,32 @@ function RecProfile() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="font-display text-2xl font-bold truncate">{data.rec.company_name ?? data.rec.full_name ?? "Company"}</h1>
-                      <Badge variant="secondary" className="text-xs"><ShieldCheck className="mr-1 h-3 w-3" />Recruiter</Badge>
+                      <h1 className="font-display text-2xl font-bold truncate">{rec.company_name ?? rec.full_name ?? "Company"}</h1>
+                      {rec.is_verified && <Badge className="bg-success text-success-foreground gap-1"><ShieldCheck className="h-3 w-3" /> Verified Recruiter</Badge>}
+                      {rec.hiring_status ? (
+                        <Badge variant="outline" className="text-success border-success/30">Hiring</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">Not hiring</Badge>
+                      )}
                     </div>
                     <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      {data.rec.avatar_url ? (
-                        <img src={data.rec.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
+                      {rec.avatar_url ? (
+                        <img src={rec.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
                       ) : null}
-                      <span>Posted by {data.rec.full_name ?? "—"}</span>
+                      <span>Posted by {rec.full_name ?? "—"}</span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                      {data.rec.industry && <span>{data.rec.industry}</span>}
-                      {data.rec.company_size && <span>{data.rec.company_size} people</span>}
-                      {data.rec.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{data.rec.location}</span>}
+                      {rec.industry && <span>{rec.industry}</span>}
+                      {rec.company_size && <span>{rec.company_size} people</span>}
+                      {rec.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" />{rec.location}</span>}
                       {memberSince && <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" />Member since {memberSince}</span>}
-                      {data.rec.company_website && <a className="inline-flex items-center gap-1 hover:text-accent" href={data.rec.company_website} target="_blank" rel="noreferrer"><Globe className="h-3 w-3" />Website</a>}
+                      {rec.company_website && <a className="inline-flex items-center gap-1 hover:text-accent" href={rec.company_website} target="_blank" rel="noreferrer"><Globe className="h-3 w-3" />Website</a>}
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <Badge variant={openCount > 0 ? "default" : "outline"} className="text-xs">
-                        {openCount > 0 ? `${openCount} open project${openCount > 1 ? "s" : ""}` : "No open projects"}
+                        {openCount > 0 ? `${openCount} active project${openCount > 1 ? "s" : ""}` : "No active projects"}
                       </Badge>
-                      <Badge variant="outline" className="text-xs">Account: Recruiter</Badge>
+                      <Badge variant="outline" className="text-xs">Active Company</Badge>
                     </div>
                   </div>
                 </div>
@@ -104,7 +142,7 @@ function RecProfile() {
             </div>
 
             <aside className="space-y-4">
-              <ContactAccess targetUserId={recId} targetName={data.rec.company_name ?? "this recruiter"} />
+              <ContactAccess targetUserId={recId} targetName={rec.company_name ?? "this recruiter"} />
             </aside>
           </div>
         )}
@@ -114,3 +152,35 @@ function RecProfile() {
   );
 }
 
+function RecruiterSkeleton() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="mt-6 grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-48 animate-pulse rounded-xl bg-muted" />
+            <div className="h-64 animate-pulse rounded-xl bg-muted" />
+          </div>
+          <div className="h-48 animate-pulse rounded-xl bg-muted" />
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function RecruiterNotFound() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+        <h1 className="text-4xl font-bold">404</h1>
+        <p className="mt-2 text-muted-foreground">Recruiter profile not found.</p>
+        <Button asChild className="mt-6"><Link to="/projects">Browse all projects</Link></Button>
+      </main>
+      <Footer />
+    </div>
+  );
+}

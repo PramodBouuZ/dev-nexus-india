@@ -41,6 +41,7 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
   const { data: req } = useQuery({
     queryKey: ["contact-req", user?.id, targetUserId],
     enabled: !!user && !!targetUserId && user.id !== targetUserId,
+    staleTime: 1000 * 60,
     queryFn: async () => {
       const { data } = await supabase
         .from("contact_access_requests")
@@ -61,6 +62,7 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
   const { data: publicInfo } = useQuery({
     queryKey: ["dev-public-contact", targetUserId],
     enabled: !!user && user.id !== targetUserId,
+    staleTime: 1000 * 60 * 10,
     queryFn: async () => {
       const { data: dev } = await supabase
         .from("developer_profiles")
@@ -80,6 +82,7 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
   const { data: contactInfo } = useQuery({
     queryKey: ["contact-info", targetUserId, isApproved],
     enabled: isApproved && !publicInfo,
+    staleTime: 1000 * 60 * 60,
     queryFn: async () => {
       const [{ data: prof }, { data: dev }, { data: rec }] = await Promise.all([
         supabase.from("profiles").select("email").eq("id", targetUserId).maybeSingle(),
@@ -130,13 +133,37 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
     qc.invalidateQueries({ queryKey: ["contact-req", user!.id, targetUserId] });
   }
 
+  async function revoke() {
+    if (!req) return;
+    if (!confirm("Are you sure you want to revoke contact access?")) return;
+    setBusy(true);
+    const { error } = await supabase
+      .from("contact_access_requests")
+      .delete()
+      .eq("id", req.id);
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Access revoked");
+    qc.invalidateQueries({ queryKey: ["contact-req", user!.id, targetUserId] });
+  }
+
   // ====== UI States ======
   const info = publicInfo ?? contactInfo;
   if (showContact) {
     return (
       <div className="rounded-lg border border-success/30 bg-success/5 p-4 text-sm">
-        <div className="flex items-center gap-2 font-medium text-success-foreground">
-          <ShieldCheck className="h-4 w-4" /> {publicInfo ? "Contact details (public)" : "Contact access approved"}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 font-medium text-success-foreground">
+            <ShieldCheck className="h-4 w-4" /> {publicInfo ? "Contact details (public)" : "Contact access approved"}
+          </div>
+          {isApproved && (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive" onClick={revoke} disabled={busy}>
+              Revoke
+            </Button>
+          )}
         </div>
         <div className="mt-3 space-y-1.5 text-sm">
           {info?.email && (

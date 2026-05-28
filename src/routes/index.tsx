@@ -18,6 +18,7 @@ export const Route = createFileRoute("/")({
     meta: [
       { title: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
       { name: "description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { name: "keywords", content: "hire developers in India, part-time developers, freelance developers India, full stack developers, React developers, Node.js developers, remote developers, startup hiring platform, software developers marketplace, web developers India, hire React developer, hire backend developers, freelance marketplace India, developer hiring platform, hire remote developers, startup tech hiring, affordable developers India, developers for startups, developer marketplace platform" },
       { property: "og:title", content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
       { property: "og:description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in" },
@@ -130,8 +131,8 @@ function Landing() {
                 <Sparkles className="h-3.5 w-3.5" /> Built for India's developer economy
               </span>
               <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                Hire part-time developers <br />
-                <span className="text-gradient-accent">in hours, not weeks.</span>
+                Hire developers in India <br />
+                <span className="text-gradient-accent">part-time or full-time.</span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-base text-white/80 sm:text-lg">
                 Developer Connect is a structured marketplace built for fair pricing and fast hiring.
@@ -163,12 +164,12 @@ function Landing() {
 
         <TrustedBy />
 
-        {/* TRENDING SKILLS */}
+        {/* TRENDING SKILLS / POPULAR TECHNOLOGIES */}
         {trendingSkills.length > 0 && (
           <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
             <div className="text-center">
-              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Trending right now</span>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Skills companies are hiring for</h2>
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Popular technologies</span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Hire developers for top skills</h2>
             </div>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
               {trendingSkills.map(([skill, count]) => (

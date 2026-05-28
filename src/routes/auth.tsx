@@ -14,9 +14,25 @@ import { Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in or create account | DeveloperConnect" },
-      { name: "description", content: "Join DeveloperConnect to post projects or apply as a part-time developer." },
+      { title: "Sign in or Create Account | DeveloperConnect" },
+      { name: "description", content: "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup." },
+      { property: "og:title", content: "Sign in or Create Account | DeveloperConnect" },
+      { property: "og:description", content: "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/auth" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Auth", "item": "https://developerconnect.in/auth" }
+          ]
+        })
+      }
+    ]
   }),
   component: AuthPage,
 });

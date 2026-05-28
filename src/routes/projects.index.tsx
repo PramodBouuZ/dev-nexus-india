@@ -20,6 +20,19 @@ export const Route = createFileRoute("/projects/")({
       { property: "og:description", content: "Find the best freelance and part-time development projects in India. React, Node.js, and Full Stack opportunities for developers." },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/projects" },
     ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Projects", "item": "https://developerconnect.in/projects" }
+          ]
+        })
+      }
+    ]
   }),
   component: ProjectsList,
 });
