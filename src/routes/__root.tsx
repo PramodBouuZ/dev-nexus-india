@@ -47,11 +47,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "robots", content: "index, follow" },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in" },
       { name: "author", content: "DeveloperConnect" },
       { name: "theme-color", content: "#0f172a" },
     ],
     links: [
-      { rel: "canonical", href: "https://developerconnect.in" },
       { rel: "stylesheet", href: appCss },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
