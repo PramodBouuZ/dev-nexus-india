@@ -56,6 +56,22 @@ export function ProjectStages({ projectId }: { projectId: string }) {
     setName(""); setComment("");
     qc.invalidateQueries({ queryKey: ["stages", projectId] });
     toast.success("Stage added");
+
+    // Notify other party
+    const { data: project } = await supabase.from("projects").select("recruiter_id, title, applications(developer_id, status)").eq("id", projectId).maybeSingle();
+    if (project) {
+      const acceptedApp = (project.applications as any)?.find((a: any) => a.status === 'accepted');
+      if (acceptedApp) {
+        const targetId = user.id === project.recruiter_id ? acceptedApp.developer_id : project.recruiter_id;
+        await supabase.from("notifications").insert({
+          user_id: targetId,
+          title: "New project stage",
+          body: `A new milestone "${name.trim()}" was added to ${project.title}`,
+          type: "stage_update",
+          link: `/projects/${projectId}`
+        });
+      }
+    }
   }
 
   async function setStatus(id: string, status: StageStatus) {
@@ -64,6 +80,23 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       .update({ status, updated_by: user.id }).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["stages", projectId] });
+
+    // Notify other party
+    const { data: stage } = await supabase.from("project_stages").select("name").eq("id", id).maybeSingle();
+    const { data: project } = await supabase.from("projects").select("recruiter_id, title, applications(developer_id, status)").eq("id", projectId).maybeSingle();
+    if (project && stage) {
+      const acceptedApp = (project.applications as any)?.find((a: any) => a.status === 'accepted');
+      if (acceptedApp) {
+        const targetId = user.id === project.recruiter_id ? acceptedApp.developer_id : project.recruiter_id;
+        await supabase.from("notifications").insert({
+          user_id: targetId,
+          title: "Stage updated",
+          body: `Milestone "${stage.name}" is now ${STATUS_META[status].label} for ${project.title}`,
+          type: "stage_update",
+          link: `/projects/${projectId}`
+        });
+      }
+    }
   }
 
   async function remove(id: string) {

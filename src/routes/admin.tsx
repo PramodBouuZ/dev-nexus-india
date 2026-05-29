@@ -295,8 +295,17 @@ function DevelopersTab() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const qc = useQueryClient();
-  const { data: devs, isLoading } = useQuery({ queryKey: ["admin-developers"], queryFn: async () => { const { data } = await supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = devs?.filter(d => (!search || d.full_name?.toLowerCase().includes(search.toLowerCase())) && (filter === "all" || (filter === "verified" && d.is_verified) || (filter === "unverified" && !d.is_verified)));
+  const { data: devs, isLoading } = useQuery({
+    queryKey: ["admin-developers"],
+    queryFn: async () => {
+      const { data } = await supabase.from("developer_profiles").select("*, profiles(email)").order("created_at", { ascending: false });
+      return (data || []).map((d: any) => ({
+        ...d,
+        email: d.profiles?.email
+      }));
+    }
+  });
+  const filtered = devs?.filter(d => (!search || d.full_name?.toLowerCase().includes(search.toLowerCase()) || d.email?.toLowerCase().includes(search.toLowerCase())) && (filter === "all" || (filter === "verified" && d.is_verified) || (filter === "unverified" && !d.is_verified)));
 
   async function toggleVerify(id: string, current: boolean) {
     const { error } = await supabase.from("developer_profiles").update({ is_verified: !current } as any).eq("id", id);
@@ -326,10 +335,16 @@ function DevelopersTab() {
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="mr-2 h-4 w-4" /> Export</Button>
         </div>
       </div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Developer</th><th className="p-4">Status</th><th className="p-4">Location</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={4} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> : filtered?.map(d => (
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Developer</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Location</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> : filtered?.map(d => (
           <tr key={d.id} className="hover:bg-muted/30">
             <td className="p-4"><div><p className="font-bold">{d.full_name || "Anonymous"}</p><p className="text-xs text-muted-foreground truncate max-w-[250px]">{d.headline}</p></div></td>
+            <td className="p-4">
+              <div className="flex flex-col gap-1 text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {d.email || 'No Email'}</div>
+                <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" /> {d.phone || 'No Phone'}</div>
+              </div>
+            </td>
             <td className="p-4">
               <button onClick={() => toggleVerify(d.id, d.is_verified)}>
                 {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
@@ -348,8 +363,17 @@ function DevelopersTab() {
 function RecruitersTab() {
   const [search, setSearch] = useState("");
   const qc = useQueryClient();
-  const { data: recs, isLoading } = useQuery({ queryKey: ["admin-recruiters"], queryFn: async () => { const { data } = await supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = recs?.filter(r => !search || r.company_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: recs, isLoading } = useQuery({
+    queryKey: ["admin-recruiters"],
+    queryFn: async () => {
+      const { data } = await supabase.from("recruiter_profiles").select("*, profiles(email)").order("created_at", { ascending: false });
+      return (data || []).map((r: any) => ({
+        ...r,
+        email: r.profiles?.email
+      }));
+    }
+  });
+  const filtered = recs?.filter(r => !search || r.company_name?.toLowerCase().includes(search.toLowerCase()) || r.email?.toLowerCase().includes(search.toLowerCase()));
 
   async function toggleVerify(id: string, current: boolean) {
     const { error } = await supabase.from("recruiter_profiles").update({ is_verified: !current } as any).eq("id", id);
@@ -363,10 +387,16 @@ function RecruitersTab() {
   return (
     <div className="space-y-4">
       <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search recruiters..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading partners...</td></tr> : filtered?.map(r => (
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading partners...</td></tr> : filtered?.map(r => (
           <tr key={r.id}>
             <td className="p-4"><div className="font-bold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.full_name}</div></td>
+            <td className="p-4">
+              <div className="flex flex-col gap-1 text-xs">
+                <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {r.email || 'No Email'}</div>
+                <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" /> {r.phone || 'No Phone'}</div>
+              </div>
+            </td>
             <td className="p-4">
               <button onClick={() => toggleVerify(r.id, r.is_verified)}>
                 {r.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
@@ -440,7 +470,8 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
     bio: developer.bio || "",
     location: developer.location || "",
     hourly_rate_inr: developer.hourly_rate_inr || 0,
-    experience_years: developer.experience_years || 0
+    experience_years: developer.experience_years || 0,
+    phone: developer.phone || ""
   });
   const [open, setOpen] = useState(false);
   async function handleSave() {
@@ -452,7 +483,8 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
       bio: form.bio,
       location: form.location,
       hourly_rate_inr: form.hourly_rate_inr,
-      experience_years: form.experience_years
+      experience_years: form.experience_years,
+      phone: form.phone
     }).eq("id", user.id);
     if (error) toast.error(error.message);
     else { toast.success("Profile Updated"); setOpen(false); onUpdate(); }
@@ -472,6 +504,7 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
             <div className="space-y-1"><Label>Hourly Rate (INR)</Label><Input type="number" value={form.hourly_rate_inr} onChange={e => setForm({...form, hourly_rate_inr: parseInt(e.target.value) || 0})} /></div>
             <div className="space-y-1"><Label>Exp. Years</Label><Input type="number" value={form.experience_years} onChange={e => setForm({...form, experience_years: parseInt(e.target.value) || 0})} /></div>
           </div>
+          <div className="space-y-1"><Label>Phone Number</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+91 ..." /></div>
           <div className="space-y-1"><Label>Skills (comma separated)</Label><Input value={form.skills} onChange={e => setForm({...form, skills: e.target.value})} /></div>
           <div className="space-y-1"><Label>Bio</Label><Textarea className="h-32" value={form.bio} onChange={e => setForm({...form, bio: e.target.value})} /></div>
           <div className="flex items-center space-x-2 pt-2"><Checkbox id="v" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="v" className="font-bold text-success">Verified Badge Active</Label></div>
@@ -489,7 +522,8 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
     industry: recruiter.industry || "",
     location: recruiter.location || "",
     company_description: recruiter.company_description || "",
-    company_website: recruiter.company_website || ""
+    company_website: recruiter.company_website || "",
+    phone: recruiter.phone || ""
   });
   const [open, setOpen] = useState(false);
   async function handleSave() {
@@ -499,7 +533,8 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
       industry: form.industry,
       location: form.location,
       company_description: form.company_description,
-      company_website: form.company_website
+      company_website: form.company_website,
+      phone: form.phone
     }).eq("id", user.id);
     if (error) toast.error(error.message);
     else { toast.success("Company Updated"); setOpen(false); onUpdate(); }
@@ -515,7 +550,10 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
             <div className="space-y-1"><Label>Industry</Label><Input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} /></div>
           </div>
           <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
-          <div className="space-y-1"><Label>Website</Label><Input value={form.company_website} onChange={e => setForm({...form, company_website: e.target.value})} /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1"><Label>Website</Label><Input value={form.company_website} onChange={e => setForm({...form, company_website: e.target.value})} /></div>
+            <div className="space-y-1"><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+          </div>
           <div className="space-y-1"><Label>Description</Label><Textarea className="h-24" value={form.company_description} onChange={e => setForm({...form, company_description: e.target.value})} /></div>
           <div className="flex items-center space-x-2 pt-2"><Checkbox id="rv" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="rv" className="font-bold text-success">Verified Company Badge</Label></div>
         </div>

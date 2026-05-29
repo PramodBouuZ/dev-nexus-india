@@ -261,6 +261,19 @@ function ApplyForm({ projectId }: { projectId: string }) {
     });
     setBusy(false);
     if (error) { toast.error(error.message); return; }
+
+    // Notify recruiter
+    const { data: proj } = await supabase.from("projects").select("recruiter_id, title").eq("id", projectId).maybeSingle();
+    if (proj) {
+      await supabase.from("notifications").insert({
+        user_id: proj.recruiter_id,
+        title: "New application",
+        body: `A developer applied for ${proj.title}`,
+        type: "new_application",
+        link: `/projects/${projectId}`
+      });
+    }
+
     toast.success("Application submitted!");
     qc.invalidateQueries({ queryKey: ["my-app", projectId] });
   }
@@ -297,9 +310,20 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
   });
 
   async function decide(appId: string, developerId: string, action: "accept" | "reject") {
+    const { data: proj } = await supabase.from("projects").select("title").eq("id", projectId).maybeSingle();
+
     if (action === "reject") {
       const { error } = await supabase.from("applications").update({ status: "rejected" }).eq("id", appId);
       if (error) return toast.error(error.message);
+
+      await supabase.from("notifications").insert({
+        user_id: developerId,
+        title: "Application update",
+        body: `Your application for ${proj?.title || "a project"} was declined.`,
+        type: "application_rejected",
+        link: `/applications/${appId}`
+      });
+
       toast.success("Rejected");
     } else {
       const { error: e1 } = await supabase.from("applications").update({ status: "accepted" }).eq("id", appId);
@@ -314,6 +338,15 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
       });
       if (e2) return toast.error(e2.message);
       await supabase.from("projects").update({ status: "in_progress" }).eq("id", projectId);
+
+      await supabase.from("notifications").insert({
+        user_id: developerId,
+        title: "Application accepted!",
+        body: `You have been hired for ${proj?.title || "the project"}!`,
+        type: "application_accepted",
+        link: `/applications/${appId}`
+      });
+
       toast.success("Hired! Contract created.");
     }
     qc.invalidateQueries({ queryKey: ["project-apps", projectId] });
