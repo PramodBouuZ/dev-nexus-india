@@ -44,9 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function fetchRole(uid: string) {
-    // 1. Try auth metadata first for speed and session consistency
-    const { data: { user } } = await supabase.auth.getUser();
-    const metaRole = user?.user_metadata?.role as AppRole;
+    // 1. Hardcode superadmin check for specific email
+    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    if (currentUser?.email === 'info.bouuz@gmail.com') {
+      setRole("admin");
+      return;
+    }
+
+    // 2. Try auth metadata first for speed and session consistency
+    const metaRole = currentUser?.user_metadata?.role as AppRole;
 
     if (metaRole) {
       console.log("Saved Role (from meta):", metaRole);
