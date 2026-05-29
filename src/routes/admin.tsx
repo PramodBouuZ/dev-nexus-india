@@ -37,6 +37,33 @@ type TabView = "overview" | "developers" | "recruiters" | "projects" | "applicat
 function AdminPage() {
   const { user, role, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabView>("overview");
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (role !== "admin") return;
+
+    const tables = [
+      "profiles", "developer_profiles", "recruiter_profiles",
+      "projects", "applications", "invites",
+      "contact_access_requests", "messages"
+    ];
+
+    const channels = tables.map(table =>
+      supabase.channel(`admin-${table}`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+          console.log(`Realtime update for ${table}`);
+          qc.invalidateQueries({ queryKey: ["admin-stats-full"] });
+          qc.invalidateQueries({ queryKey: [`admin-${table}`] });
+          if (table === "developer_profiles") qc.invalidateQueries({ queryKey: ["admin-developers"] });
+          if (table === "recruiter_profiles") qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
+        })
+        .subscribe()
+    );
+
+    return () => {
+      channels.forEach(ch => supabase.removeChannel(ch));
+    };
+  }, [role, qc]);
 
   if (loading) return <div className="flex h-screen items-center justify-center font-display font-medium text-muted-foreground animate-pulse">Initializing Admin...</div>;
   if (!user) return <Navigate to="/auth" />;
@@ -124,19 +151,30 @@ function OverviewTab() {
   const { data: stats } = useQuery({
     queryKey: ["admin-stats-full"],
     queryFn: async () => {
-      const [devs, recs, projs, apps, invites, contacts] = await Promise.all([
+      const [devs, recs, projs, apps, invites, contacts, msgs] = await Promise.all([
         supabase.from("developer_profiles").select("id", { count: "exact", head: true }),
         supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }),
         supabase.from("projects").select("id", { count: "exact", head: true }),
         supabase.from("applications").select("id", { count: "exact", head: true }),
         supabase.from("invites").select("id", { count: "exact", head: true }),
         supabase.from("contact_access_requests").select("id", { count: "exact", head: true }),
+        supabase.from("messages").select("id", { count: "exact", head: true }),
       ]);
       const [vDevs, vRecs] = await Promise.all([
         supabase.from("developer_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
         supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
       ]);
-      return { devs: devs.count || 0, recs: recs.count || 0, projs: projs.count || 0, apps: apps.count || 0, invites: invites.count || 0, contacts: contacts.count || 0, vDevs: vDevs.count || 0, vRecs: vRecs.count || 0 };
+      return {
+        devs: devs.count || 0,
+        recs: recs.count || 0,
+        projs: projs.count || 0,
+        apps: apps.count || 0,
+        invites: invites.count || 0,
+        contacts: contacts.count || 0,
+        vDevs: vDevs.count || 0,
+        vRecs: vRecs.count || 0,
+        msgs: msgs.count || 0
+      };
     }
   });
 
@@ -145,10 +183,10 @@ function OverviewTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Developers" value={stats?.devs || 0} sub={`${stats?.vDevs} verified`} icon={UserRound} trend="+12%" />
-        <StatCard label="Total Recruiters" value={stats?.recs || 0} sub={`${stats?.vRecs} verified`} icon={Briefcase} trend="+5%" />
+        <StatCard label="Total Developers" value={stats?.devs || 0} sub={`${stats?.vDevs} verified`} icon={UserRound} />
+        <StatCard label="Total Recruiters" value={stats?.recs || 0} sub={`${stats?.vRecs} verified`} icon={Briefcase} />
         <StatCard label="Active Projects" value={stats?.projs || 0} sub="Open for hire" icon={FileText} color="text-success" />
-        <StatCard label="Pending Tasks" value={(stats?.devs || 0) - (stats?.vDevs || 0)} sub="Verification required" icon={AlertTriangle} color="text-amber-500" />
+        <StatCard label="Total Messages" value={stats?.msgs || 0} sub="Platform-wide chats" icon={MessageSquare} color="text-accent" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -259,12 +297,24 @@ function VisitorFlow() {
 }
 
 function RecentActivity() {
-  const activities = [
-    { user: "Sarah K.", action: "applied for", target: "React Lead", time: "2m ago", type: "app" },
-    { user: "TechFlow", action: "posted", target: "Backend Dev", time: "15m ago", type: "proj" },
-    { user: "Rahul M.", action: "verified as", target: "Developer", time: "1h ago", type: "verif" },
-    { user: "CloudScale", action: "requested", target: "Contact Access", time: "3h ago", type: "contact" },
-  ];
+  const { data: activities, isLoading } = useQuery({
+    queryKey: ["admin-recent-activity"],
+    queryFn: async () => {
+      const [apps, projs, msgs] = await Promise.all([
+        supabase.from("applications").select("id, created_at, developer_profiles(full_name), projects(title)").order("created_at", { ascending: false }).limit(3),
+        supabase.from("projects").select("id, created_at, title, recruiter_profiles(company_name)").order("created_at", { ascending: false }).limit(3),
+        supabase.from("messages").select("id, created_at, body, sender_id").order("created_at", { ascending: false }).limit(3),
+      ]);
+
+      const formatted = [
+        ...(apps.data || []).map(a => ({ user: (a.developer_profiles as any)?.full_name || "Someone", action: "applied for", target: (a.projects as any)?.title, time: a.created_at, type: "app" })),
+        ...(projs.data || []).map(p => ({ user: (p.recruiter_profiles as any)?.company_name || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
+        ...(msgs.data || []).map(m => ({ user: m.sender_id.slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
+      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8);
+
+      return formatted;
+    }
+  });
 
   return (
     <Card>
@@ -274,13 +324,15 @@ function RecentActivity() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {activities.map((a, i) => (
+          {isLoading ? <p className="text-center animate-pulse text-sm">Loading activity...</p> :
+           !activities?.length ? <p className="text-center text-sm text-muted-foreground">No recent activity.</p> :
+           activities.map((a, i) => (
             <div key={i} className="flex items-center gap-3 text-sm">
-              <div className={`h-2 w-2 rounded-full ${a.type === 'app' ? 'bg-blue-500' : a.type === 'proj' ? 'bg-success' : a.type === 'verif' ? 'bg-accent' : 'bg-amber-500'}`} />
+              <div className={`h-2 w-2 rounded-full ${a.type === 'app' ? 'bg-blue-500' : a.type === 'proj' ? 'bg-success' : a.type === 'msg' ? 'bg-accent' : 'bg-amber-500'}`} />
               <div className="flex-1">
                 <span className="font-bold">{a.user}</span> {a.action} <span className="font-medium text-muted-foreground">{a.target}</span>
               </div>
-              <div className="text-[10px] text-muted-foreground uppercase">{a.time}</div>
+              <div className="text-[10px] text-muted-foreground uppercase">{new Date(a.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           ))}
           <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground mt-2">View Full Audit Log</Button>
@@ -298,10 +350,11 @@ function DevelopersTab() {
   const { data: devs, isLoading } = useQuery({
     queryKey: ["admin-developers"],
     queryFn: async () => {
-      const { data } = await supabase.from("developer_profiles").select("*, profiles(email)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("developer_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
       return (data || []).map((d: any) => ({
         ...d,
-        email: d.profiles?.email
+        email: d.profiles?.email,
+        is_suspended: d.profiles?.is_suspended
       }));
     }
   });
@@ -316,6 +369,15 @@ function DevelopersTab() {
     }
   }
 
+  async function toggleSuspend(id: string, current: boolean) {
+    const { error } = await supabase.from("profiles").update({ is_suspended: !current } as any).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(current ? "Unsuspended" : "Suspended");
+      qc.invalidateQueries({ queryKey: ["admin-developers"] });
+    }
+  }
+
   const exportCSV = () => {
     const headers = ["Name", "Email", "Headline", "Skills", "Exp", "Location", "Verified", "Joined"];
     const rows = filtered?.map(d => [d.full_name, d.email || 'N/A', d.headline, (d.skills || []).join("|"), d.experience_years, d.location, d.is_verified, d.created_at]) || [];
@@ -326,19 +388,33 @@ function DevelopersTab() {
     link.click();
   };
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const paginated = filtered?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil((filtered?.length || 0) / itemsPerPage);
+
+  async function deleteDev(id: string) {
+    if (!confirm("Delete this developer?")) return;
+    const { error } = await supabase.from("developer_profiles").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success("Deleted");
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search developers by name..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+        <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search developers by name or email..." className="pl-9 bg-card" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} /></div>
         <div className="flex gap-2">
-          <Select value={filter} onValueChange={setFilter}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="verified">Verified</SelectItem><SelectItem value="unverified">Unverified</SelectItem></SelectContent></Select>
+          <Select value={filter} onValueChange={v => { setFilter(v); setCurrentPage(1); }}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="verified">Verified</SelectItem><SelectItem value="unverified">Unverified</SelectItem></SelectContent></Select>
           <Button variant="outline" size="sm" onClick={exportCSV}><Download className="mr-2 h-4 w-4" /> Export</Button>
         </div>
       </div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Developer</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Location</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> : filtered?.map(d => (
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Developer</th><th className="p-4">Contact Info</th><th className="p-4">Skills</th><th className="p-4">Status</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> :
+         !paginated?.length ? <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No developers found.</td></tr> :
+         paginated?.map(d => (
           <tr key={d.id} className="hover:bg-muted/30">
-            <td className="p-4"><div><p className="font-bold">{d.full_name || "Anonymous"}</p><p className="text-xs text-muted-foreground truncate max-w-[250px]">{d.headline}</p></div></td>
+            <td className="p-4"><div><p className="font-bold">{d.full_name || "Anonymous"}</p><p className="text-xs text-muted-foreground truncate max-w-[200px]">{d.headline}</p></div></td>
             <td className="p-4">
               <div className="flex flex-col gap-1 text-xs">
                 <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {d.email || 'No Email'}</div>
@@ -350,11 +426,24 @@ function DevelopersTab() {
                 {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
               </button>
             </td>
-            <td className="p-4 text-muted-foreground">{d.location || "Remote"}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/developers/" params={{ devId: d.id }}><Eye className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile"><Trash2 className="h-4 w-4" /></Button></div></td>
+            <td className="p-4"><div className="flex flex-wrap gap-1 max-w-[200px]">{d.skills?.slice(0, 3).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}{d.skills?.length > 3 && <span className="text-[10px] text-muted-foreground">+{d.skills.length - 3}</span>}</div></td>
+            <td className="p-4">
+              <button onClick={() => toggleVerify(d.id, d.is_verified)}>
+                {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
+              </button>
+            </td>
+            <td className="p-4 text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString()}</td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/developers/$devId" params={{ devId: d.id }}><Eye className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className={d.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={d.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(d.id, d.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteDev(d.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+          <span className="flex items-center px-3 text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -366,10 +455,11 @@ function RecruitersTab() {
   const { data: recs, isLoading } = useQuery({
     queryKey: ["admin-recruiters"],
     queryFn: async () => {
-      const { data } = await supabase.from("recruiter_profiles").select("*, profiles(email)").order("created_at", { ascending: false });
+      const { data } = await supabase.from("recruiter_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
       return (data || []).map((r: any) => ({
         ...r,
-        email: r.profiles?.email
+        email: r.profiles?.email,
+        is_suspended: r.profiles?.is_suspended
       }));
     }
   });
@@ -384,12 +474,35 @@ function RecruitersTab() {
     }
   }
 
+  async function toggleSuspend(id: string, current: boolean) {
+    const { error } = await supabase.from("profiles").update({ is_suspended: !current } as any).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(current ? "Unsuspended" : "Suspended");
+      qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
+    }
+  }
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const paginated = filtered?.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.ceil((filtered?.length || 0) / itemsPerPage);
+
+  async function deleteRec(id: string) {
+    if (!confirm("Delete this recruiter?")) return;
+    const { error } = await supabase.from("recruiter_profiles").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success("Deleted");
+  }
+
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search recruiters..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading partners...</td></tr> : filtered?.map(r => (
-          <tr key={r.id}>
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search recruiters by name or email..." className="pl-9 bg-card" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} /></div>
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading partners...</td></tr> :
+         !paginated?.length ? <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No recruiters found.</td></tr> :
+         paginated?.map(r => (
+          <tr key={r.id} className="hover:bg-muted/30 transition-colors">
             <td className="p-4"><div className="font-bold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.full_name}</div></td>
             <td className="p-4">
               <div className="flex flex-col gap-1 text-xs">
@@ -403,10 +516,18 @@ function RecruitersTab() {
               </button>
             </td>
             <td className="p-4 text-muted-foreground">{r.industry || 'Tech'}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></td>
+            <td className="p-4 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/recruiters/$recId" params={{ recId: r.id }}><Eye className="h-4 w-4" /></Link></Button><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className={r.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={r.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(r.id, r.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteRec(r.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
+      {totalPages > 1 && (
+        <div className="flex justify-center gap-2 mt-4">
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
+          <span className="flex items-center px-3 text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
+          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+        </div>
+      )}
     </div>
   );
 }
@@ -414,44 +535,134 @@ function RecruitersTab() {
 // --- PROJECTS ---
 function ProjectsTab() {
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
   const { data: projs, isLoading } = useQuery({ queryKey: ["admin-projects"], queryFn: async () => { const { data } = await supabase.from("projects").select("*, recruiter_profiles(company_name)").order("created_at", { ascending: false }); return data || []; } });
+  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || (p.recruiter_profiles as any)?.company_name?.toLowerCase().includes(search.toLowerCase()));
+
   async function toggleFeatured(id: string, current: boolean) { const { error } = await supabase.from("projects").update({ is_featured: !current } as any).eq("id", id); if (error) toast.error(error.message); else { toast.success("Featured status updated"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
+  async function deleteProj(id: string) { if (!confirm("Delete project?")) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) toast.error(error.message); else toast.success("Deleted"); }
+
   return (
-    <div className="grid gap-4 md:grid-cols-2">{isLoading ? <p>Loading projects...</p> : projs.map(p => (
-      <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
-        <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)}><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{(p.recruiter_profiles as any)?.company_name}</CardDescription></CardHeader>
-        <CardContent className="p-4 pt-0 flex justify-between items-center mt-2"><span className="text-xs font-bold text-accent">Budget: ₹{p.budget_min_inr?.toLocaleString()}</span><Button variant="link" size="sm" asChild className="p-0 h-auto"><Link to="/projects/" params={{ projectId: p.id }}>Details →</Link></Button></CardContent>
-      </Card>
-    ))}</div>
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search projects or companies..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="grid gap-4 md:grid-cols-2">
+        {isLoading ? <p className="p-12 text-center animate-pulse col-span-full">Loading projects...</p> :
+         !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No projects found.</p> :
+         filtered.map(p => (
+          <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
+            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)}><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)}><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{(p.recruiter_profiles as any)?.company_name}</CardDescription></CardHeader>
+            <CardContent className="p-4 pt-0 flex justify-between items-center mt-2"><span className="text-xs font-bold text-accent">Budget: ₹{p.budget_min_inr?.toLocaleString()}</span><Button variant="link" size="sm" asChild className="p-0 h-auto"><Link to="/projects/$projectId" params={{ projectId: p.id }}>Details →</Link></Button></CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   );
 }
 
 // --- APPLICATIONS ---
 function ApplicationsTab() {
+  const [search, setSearch] = useState("");
   const { data: apps, isLoading } = useQuery({ queryKey: ["admin-applications"], queryFn: async () => { const { data } = await supabase.from("applications").select("*, projects(title), developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
+  const filtered = apps?.filter(a => !search || (a.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (a.developer_profiles as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+
   return (
-    <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Developer</th><th className="p-4">Status</th></tr></thead><tbody className="divide-y">{isLoading ? <tr><td colSpan={3} className="p-10 text-center animate-pulse">Loading...</td></tr> : apps.map(a => (
-      <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{(a.projects as any)?.title}</td><td className="p-4">{(a.developer_profiles as any)?.full_name}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td></tr>
-    ))}</tbody></table></div>
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by project or developer..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Developer</th><th className="p-4">Status</th><th className="p-4">Created</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
+         !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No applications found.</td></tr> :
+         filtered.map(a => (
+          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{(a.projects as any)?.title}</td><td className="p-4">{(a.developer_profiles as any)?.full_name}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
+        ))}
+      </tbody></table></div>
+    </div>
   );
 }
 
 // --- CONTACTS ---
 function ContactsTab() {
-  const { data: contacts, isLoading } = useQuery({ queryKey: ["admin-contacts"], queryFn: async () => { const { data } = await supabase.from("contact_access_requests").select("*").order("created_at", { ascending: false }); return data || []; } });
-  return (<div className="grid gap-4 sm:grid-cols-2">{isLoading ? <p>Loading requests...</p> : contacts.map(c => (<Card key={c.id}><CardContent className="p-4 flex items-center justify-between"><div><p className="text-sm font-bold">Request: {c.id.slice(0,8)}</p><p className="text-xs text-muted-foreground">Status: {c.status}</p></div><Badge className={c.status === 'approved' ? 'bg-success text-success-foreground' : ''}>{c.status}</Badge></CardContent></Card>))}</div>);
+  const [search, setSearch] = useState("");
+  const { data: contacts, isLoading } = useQuery({ queryKey: ["admin-contacts"], queryFn: async () => { const { data } = await supabase.from("contact_access_requests").select("*, requester:profiles!contact_access_requests_requester_id_fkey(full_name), target:profiles!contact_access_requests_target_id_fkey(full_name)").order("created_at", { ascending: false }); return data || []; } });
+  const filtered = contacts?.filter(c => !search || (c.requester as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (c.target as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by participant name..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {isLoading ? <p className="p-12 text-center animate-pulse col-span-full">Loading requests...</p> :
+         !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No requests found.</p> :
+         filtered.map(c => (
+          <Card key={c.id}>
+            <CardContent className="p-4 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold">{(c.requester as any)?.full_name} → {(c.target as any)?.full_name}</p>
+                <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()} · {c.status}</p>
+              </div>
+              <Badge className={c.status === 'approved' ? 'bg-success text-success-foreground' : ''}>{c.status}</Badge>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // --- INVITES ---
 function InvitesTab() {
-  const { data: invites, isLoading } = useQuery({ queryKey: ["admin-invites"], queryFn: async () => { const { data } = await supabase.from("invites").select("*, projects(title)").order("created_at", { ascending: false }); return data || []; } });
-  return (<div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Status</th><th className="p-4">Created</th></tr></thead><tbody className="divide-y">{isLoading ? <tr><td colSpan={3} className="p-10 text-center">Loading...</td></tr> : invites.map(i => (<tr key={i.id}><td className="p-4 font-medium">{(i.projects as any)?.title}</td><td className="p-4"><Badge variant="outline">{i.status}</Badge></td><td className="p-4 text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</td></tr>))}</tbody></table></div>);
+  const [search, setSearch] = useState("");
+  const { data: invites, isLoading } = useQuery({ queryKey: ["admin-invites"], queryFn: async () => { const { data } = await supabase.from("invites").select("*, projects(title), developer:developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
+  const filtered = invites?.filter(i => !search || (i.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (i.developer as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by project or developer..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Developer</th><th className="p-4">Status</th><th className="p-4">Created</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
+         !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No invites found.</td></tr> :
+         filtered.map(i => (
+          <tr key={i.id}>
+            <td className="p-4 font-medium">{(i.projects as any)?.title}</td>
+            <td className="p-4">{(i.developer as any)?.full_name}</td>
+            <td className="p-4"><Badge variant="outline">{i.status}</Badge></td>
+            <td className="p-4 text-xs text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</td>
+          </tr>
+        ))}
+      </tbody></table></div>
+    </div>
+  );
 }
 
 // --- CHATS ---
 function ChatsTab() {
-  const { data: messages, isLoading } = useQuery({ queryKey: ["admin-chats"], queryFn: async () => { const { data } = await supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(100); return data || []; } });
-  return (<div className="space-y-4"><div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-200"><AlertTriangle className="h-4 w-4" /><p className="text-xs font-medium">Platform-wide chat monitoring enabled for safety.</p></div><div className="space-y-2">{isLoading ? <p>Loading logs...</p> : messages.map(m => (<div key={m.id} className="p-3 rounded-lg border bg-card text-xs flex justify-between items-start gap-4"><div><span className="font-bold text-accent">{m.sender_id.slice(0,8)}</span>: {m.content}</div><span className="text-[10px] text-muted-foreground whitespace-nowrap">{new Date(m.created_at).toLocaleTimeString()}</span></div>))}</div></div>);
+  const [search, setSearch] = useState("");
+  const { data: messages, isLoading } = useQuery({ queryKey: ["admin-chats"], queryFn: async () => { const { data } = await supabase.from("messages").select("*, sender:profiles(full_name), application:applications(projects(title))").order("created_at", { ascending: false }).limit(100); return data || []; } });
+  const filtered = messages?.filter(m => !search || (m.sender as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (m.application as any)?.projects?.title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search messages, senders, or projects..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-200">
+        <AlertTriangle className="h-4 w-4" />
+        <p className="text-xs font-medium">Platform-wide chat monitoring enabled for safety.</p>
+      </div>
+      <div className="space-y-2">
+        {isLoading ? <p className="p-12 text-center animate-pulse">Loading logs...</p> :
+         !filtered?.length ? <p className="p-12 text-center text-muted-foreground">No messages found.</p> :
+         filtered.map(m => (
+          <div key={m.id} className="p-4 rounded-lg border bg-card text-sm flex justify-between items-start gap-4 hover:bg-muted/30 transition-colors">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-bold text-accent">{(m.sender as any)?.full_name || m.sender_id.slice(0,8)}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">in {(m.application as any)?.projects?.title || "Unknown Project"}</span>
+              </div>
+              <p className="text-muted-foreground break-words">{m.body || (m.attachments ? "📎 Attachment" : "Empty Message")}</p>
+            </div>
+            <span className="text-[10px] text-muted-foreground whitespace-nowrap pt-1">{new Date(m.created_at).toLocaleString()}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 // --- ALERTS ---
