@@ -16,8 +16,12 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Developer Connect — Hire part-time developers in India" },
-      { name: "description", content: "Post a project, match in minutes, hire vetted part-time developers across India. Powered by BANTConfirm." },
+      { title: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { name: "description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { name: "keywords", content: "hire developers in India, part-time developers, freelance developers India, full stack developers, React developers, Node.js developers, remote developers, startup hiring platform, software developers marketplace, web developers India, hire React developer, hire backend developers, freelance marketplace India, developer hiring platform, hire remote developers, startup tech hiring, affordable developers India, developers for startups, developer marketplace platform" },
+      { property: "og:title", content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in" },
     ],
   }),
   component: Landing,
@@ -51,15 +55,11 @@ function Landing() {
     queryFn: async () => {
       const { data: devs } = await supabase
         .from("developer_profiles")
-        .select("id, headline, bio, location, skills, hourly_rate_inr, is_verified")
+        .select("id, headline, bio, location, skills, hourly_rate_inr, is_verified, full_name")
         .order("is_verified", { ascending: false })
         .order("updated_at", { ascending: false })
         .limit(6);
-      if (!devs?.length) return [];
-      const ids = devs.map((d) => d.id);
-      const { data: profs } = await supabase.from("profiles").select("id, full_name").in("id", ids);
-      const nameMap = new Map((profs ?? []).map((p) => [p.id, p.full_name]));
-      return devs.map((d) => ({ ...d, full_name: nameMap.get(d.id) ?? null }));
+      return (devs ?? []) as DevCard[];
     },
   });
 
@@ -131,8 +131,8 @@ function Landing() {
                 <Sparkles className="h-3.5 w-3.5" /> Built for India's developer economy
               </span>
               <h1 className="mt-6 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                Hire part-time developers <br />
-                <span className="text-gradient-accent">in hours, not weeks.</span>
+                Hire developers in India <br />
+                <span className="text-gradient-accent">part-time or full-time.</span>
               </h1>
               <p className="mx-auto mt-6 max-w-2xl text-base text-white/80 sm:text-lg">
                 Developer Connect is a structured marketplace built for fair pricing and fast hiring.
@@ -164,12 +164,12 @@ function Landing() {
 
         <TrustedBy />
 
-        {/* TRENDING SKILLS */}
+        {/* TRENDING SKILLS / POPULAR TECHNOLOGIES */}
         {trendingSkills.length > 0 && (
           <section className="mx-auto max-w-7xl px-4 pt-16 sm:px-6 lg:px-8">
             <div className="text-center">
-              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Trending right now</span>
-              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Skills companies are hiring for</h2>
+              <span className="text-xs font-semibold uppercase tracking-wider text-accent">Popular technologies</span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">Hire developers for top skills</h2>
             </div>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
               {trendingSkills.map(([skill, count]) => (
@@ -253,6 +253,59 @@ function Landing() {
             {(projects.length ? projects : sampleProjects).map((p) => (
               <ProjectShowcaseCard key={p.id} project={p} />
             ))}
+          </div>
+        </section>
+
+        {/* SEO CONTENT SECTION */}
+        <section className="bg-muted/50 py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-2">
+              <div>
+                <h2 className="font-display text-3xl font-bold tracking-tight">Why hire developers from DeveloperConnect?</h2>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  Finding the right tech talent in India shouldn't take weeks. DeveloperConnect is a specialized <strong>developer marketplace platform</strong> designed to connect startups with vetted <strong>freelance developers in India</strong> and <strong>full-time developers</strong>.
+                </p>
+                <ul className="mt-6 space-y-3">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span><strong>Hire React developers</strong> and <strong>Node.js developers</strong> with proven track records.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span>Access a curated pool of <strong>full stack developers</strong> and <strong>backend developers</strong> ready to ship.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-accent shrink-0 mt-0.5" />
+                    <span>Flexible hiring: Choose from <strong>part-time developers</strong> or dedicated remote talent.</span>
+                  </li>
+                </ul>
+              </div>
+              <div>
+                <h2 className="font-display text-3xl font-bold tracking-tight">Benefits for Startups</h2>
+                <p className="mt-4 text-muted-foreground leading-relaxed">
+                  As a leading <strong>startup hiring platform</strong>, we understand the need for speed and quality. Our <strong>software developers marketplace</strong> ensures you get matched with <strong>affordable developers in India</strong> without compromising on technical excellence.
+                </p>
+                <div className="mt-8 grid grid-cols-2 gap-4">
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <h4 className="font-bold text-accent">Remote First</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Hire top <strong>remote developers</strong> from anywhere in India.</p>
+                  </div>
+                  <div className="rounded-lg border border-border bg-card p-4">
+                    <h4 className="font-bold text-accent">Vetted Quality</h4>
+                    <p className="text-xs text-muted-foreground mt-1">Only the top 1% of <strong>web developers in India</strong> make the cut.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-20">
+              <h3 className="text-center font-display text-2xl font-bold">Popular Hiring Categories</h3>
+              <div className="mt-8 flex flex-wrap justify-center gap-3">
+                {["Frontend Developers", "Backend Developers", "Full Stack Developers", "Mobile App Developers", "DevOps Engineers", "UI/UX Designers", "React Native Developers", "Python Developers"].map(cat => (
+                  <Badge key={cat} variant="outline" className="px-4 py-2 text-sm">{cat}</Badge>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 

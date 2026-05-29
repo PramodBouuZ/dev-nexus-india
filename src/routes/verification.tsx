@@ -16,7 +16,7 @@ import { DocumentChecklist, type VerificationDoc } from "@/components/DocumentCh
 import { StatusTimeline } from "@/components/StatusTimeline";
 
 export const Route = createFileRoute("/verification")({
-  head: () => ({ meta: [{ title: "Get verified — HireSpark" }] }),
+  head: () => ({ meta: [{ title: "Get verified | DeveloperConnect" }] }),
   component: VerificationPage,
 });
 

@@ -14,7 +14,70 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/developers/$devId")({
-  head: () => ({ meta: [{ title: "Developer profile — Developer Connect" }] }),
+  loader: async ({ params }) => {
+    const { devId } = params;
+    const { data: dev } = await supabase.from("developer_profiles").select("full_name, headline, bio, skills").eq("id", devId).maybeSingle();
+    return { dev, devId };
+  },
+  head: ({ loaderData }) => {
+    const name = loaderData?.dev?.full_name || "Developer";
+    const headline = loaderData?.dev?.headline || "Software Developer";
+    const bio = loaderData?.dev?.bio || "Expert developer available for hire on DeveloperConnect.";
+    const title = `${name} | ${headline} in India | DeveloperConnect`;
+    const description = `${name} is a skilled ${headline} in India. ${bio.slice(0, 150)}...`;
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { name: "keywords", content: `${loaderData?.dev?.skills?.join(", ") || ""}, hire ${name}, developer India, part-time developer` },
+        { tag: "link", rel: "canonical", href: `https://developerconnect.in/developers/${loaderData?.devId}` },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Person",
+            "name": name,
+            "jobTitle": headline,
+            "description": bio,
+            "url": `https://developerconnect.in/developers/${loaderData?.devId}`,
+            "knowsAbout": loaderData?.dev?.skills || []
+          })
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://developerconnect.in"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Developers",
+                "item": "https://developerconnect.in/developers"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": name,
+                "item": `https://developerconnect.in/developers/${loaderData?.devId}`
+              }
+            ]
+          })
+        }
+      ]
+    };
+  },
   component: DevProfile,
 });
 
@@ -23,51 +86,64 @@ function DevProfile() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["dev-profile", devId],
+    staleTime: 1000 * 60 * 5, // 5 minutes
     queryFn: async () => {
-      const [{ data: prof }, { data: dev }, { data: revs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").eq("id", devId).maybeSingle(),
+      const [{ data: dev }, { data: revs }] = await Promise.all([
         supabase.from("developer_profiles").select("*").eq("id", devId).maybeSingle(),
         supabase.from("reviews").select("rating, comment, created_at, reviewer_id").eq("reviewee_id", devId).order("created_at", { ascending: false }),
       ]);
+
+      // Increment view count asynchronously
+      supabase.rpc("increment_profile_view", { profile_id: devId }).then();
+
       const avg = revs?.length ? revs.reduce((s, r) => s + r.rating, 0) / revs.length : 0;
-      return { prof, dev, revs: revs ?? [], avg };
+      return { dev, revs: revs ?? [], avg };
     },
   });
+
+  if (isLoading) return <ProfileSkeleton />;
+  if (!data?.dev) return <ProfileNotFound />;
+
+  const { dev } = data;
 
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <Link to="/developers" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" /> Back to developers</Link>
-        {isLoading && <p className="mt-8 text-sm text-muted-foreground">Loading...</p>}
-        {!isLoading && (!data?.prof || !data?.dev) && <p className="mt-8 text-sm text-muted-foreground">Developer not found.</p>}
-        {data?.prof && data?.dev && (
+        {dev && (
           <div className="mt-6 grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2 space-y-6">
               <div className="rounded-xl border border-border bg-card p-6 shadow-card">
                 <div className="flex items-start gap-4">
                   <Avatar className="h-16 w-16">
-                    {data.prof.avatar_url && <AvatarImage src={data.prof.avatar_url} alt={data.prof.full_name ?? "Developer"} />}
+                    {data.dev.avatar_url && <AvatarImage src={data.dev.avatar_url} alt={data.dev.full_name ?? "Developer"} />}
                     <AvatarFallback className="bg-gradient-accent text-2xl font-display font-bold text-primary-foreground">
-                      {data.prof.full_name?.[0] ?? "D"}
+                      {data.dev.full_name?.[0] ?? "D"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h1 className="font-display text-2xl font-bold">{data.prof.full_name ?? "Developer"}</h1>
-                      {data.dev.is_verified && <Badge className="bg-success text-success-foreground gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>}
+                      <h1 className="font-display text-2xl font-bold">{dev.full_name ?? "Developer"}</h1>
+                      {dev.is_verified && <Badge className="bg-success text-success-foreground gap-1"><ShieldCheck className="h-3 w-3" /> Verified</Badge>}
+                      {dev.is_available ? (
+                        <Badge variant="outline" className="text-success border-success/30">Available</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground">Busy</Badge>
+                      )}
                       <FavoriteButton kind="developer" targetId={devId} variant="outline" size="sm" />
                     </div>
-                    {data.dev.headline && <p className="text-muted-foreground">{data.dev.headline}</p>}
+                    {dev.headline && <p className="text-muted-foreground">{dev.headline}</p>}
                     <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                      {data.dev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {data.dev.location}</span>}
-                      {data.dev.experience_years != null && <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" /> {data.dev.experience_years} yrs experience</span>}
+                      {dev.location && <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {dev.location}</span>}
+                      {dev.experience_years != null && <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" /> {dev.experience_years} yrs experience</span>}
+                      <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" /> {dev.response_rate ?? 100}% response rate</span>
                       {data.revs.length > 0 && (
                         <span className="inline-flex items-center gap-1"><Stars value={data.avg} size={12} /> {data.avg.toFixed(1)} ({data.revs.length})</span>
                       )}
                     </div>
                     <div className="mt-4">
-                      <InviteDeveloperDialog developerId={devId} developerName={data.prof.full_name ?? "this developer"} />
+                      <InviteDeveloperDialog developerId={devId} developerName={dev.full_name ?? "this developer"} />
                     </div>
                   </div>
                 </div>
@@ -105,21 +181,29 @@ function DevProfile() {
               <div className="rounded-xl border border-border bg-card p-5 shadow-card">
                 <h3 className="font-semibold">Pricing</h3>
                 <dl className="mt-3 space-y-2 text-sm">
-                  <Row label="Hourly" value={data.dev.hourly_rate_inr ? `₹${data.dev.hourly_rate_inr.toLocaleString()}` : "—"} icon={IndianRupee} />
-                  <Row label="Weekly" value={data.dev.weekly_rate_inr ? `₹${data.dev.weekly_rate_inr.toLocaleString()}` : "—"} />
-                  <Row label="Monthly" value={data.dev.monthly_rate_inr ? `₹${data.dev.monthly_rate_inr.toLocaleString()}` : "—"} />
-                  <Row label="Project min" value={data.dev.project_min_inr ? `₹${data.dev.project_min_inr.toLocaleString()}` : "—"} />
+                  <Row label="Hourly" value={dev.hourly_rate_inr ? `₹${dev.hourly_rate_inr.toLocaleString()}` : "—"} icon={IndianRupee} />
+                  <Row label="Weekly" value={dev.weekly_rate_inr ? `₹${dev.weekly_rate_inr.toLocaleString()}` : "—"} />
+                  <Row label="Monthly" value={dev.monthly_rate_inr ? `₹${dev.monthly_rate_inr.toLocaleString()}` : "—"} />
+                  <Row label="Project min" value={dev.project_min_inr ? `₹${dev.project_min_inr.toLocaleString()}` : "—"} />
                 </dl>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-5 shadow-card">
                 <h3 className="font-semibold">Availability</h3>
                 <dl className="mt-3 space-y-2 text-sm">
-                  <Row label="Looking for" value={(data.dev.work_preference ?? "—").toString().replace("_"," ")} />
-                  <Row label="Hours/day" value={data.dev.hours_per_day ?? "—"} icon={Clock} />
-                  <Row label="Hours/week" value={data.dev.availability_hours_per_week ?? "—"} />
-                  <Row label="Days" value={data.dev.available_days?.length ? data.dev.available_days.join(", ") : "—"} icon={Calendar} />
-                  {data.dev.time_slots && <Row label="Slots" value={data.dev.time_slots} />}
+                  <Row label="Looking for" value={(dev.work_preference ?? "—").toString().replace("_"," ")} />
+                  <Row label="Hours/day" value={dev.hours_per_day ?? "—"} icon={Clock} />
+                  <Row label="Hours/week" value={dev.availability_hours_per_week ?? "—"} />
+                  <Row label="Days" value={dev.available_days?.length ? dev.available_days.join(", ") : "—"} icon={Calendar} />
+                  {dev.time_slots && <Row label="Slots" value={dev.time_slots} />}
+                </dl>
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-5 shadow-card">
+                <h3 className="font-semibold">Stats</h3>
+                <dl className="mt-3 space-y-2 text-sm">
+                  <Row label="Completed projects" value={dev.completed_projects ?? 0} icon={CheckCircle2} />
+                  <Row label="Profile views" value={dev.profile_views ?? 0} icon={Users} />
                 </dl>
               </div>
 
@@ -134,10 +218,47 @@ function DevProfile() {
                 </div>
               )}
 
-              <ContactAccess targetUserId={devId} targetName={data.prof.full_name ?? "this developer"} />
+              <ContactAccess targetUserId={devId} targetName={data.dev.full_name ?? "this developer"} />
             </aside>
           </div>
         )}
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function ProfileSkeleton() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+        <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+        <div className="mt-6 grid gap-8 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="h-40 animate-pulse rounded-xl bg-muted" />
+            <div className="h-32 animate-pulse rounded-xl bg-muted" />
+            <div className="h-32 animate-pulse rounded-xl bg-muted" />
+          </div>
+          <div className="space-y-4">
+            <div className="h-48 animate-pulse rounded-xl bg-muted" />
+            <div className="h-48 animate-pulse rounded-xl bg-muted" />
+          </div>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
+function ProfileNotFound() {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex flex-col items-center justify-center p-10 text-center">
+        <h1 className="text-4xl font-bold">404</h1>
+        <p className="mt-2 text-muted-foreground">Developer profile not found.</p>
+        <Button asChild className="mt-6"><Link to="/developers">Browse all developers</Link></Button>
       </main>
       <Footer />
     </div>

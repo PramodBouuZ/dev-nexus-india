@@ -12,7 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShieldCheck, MapPin, IndianRupee, Briefcase, Heart, Search } from "lucide-react";
 
 export const Route = createFileRoute("/saved")({
-  head: () => ({ meta: [{ title: "Saved — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Saved | DeveloperConnect" }] }),
   component: SavedPage,
 });
 
@@ -32,19 +32,16 @@ function SavedPage() {
         .order("created_at", { ascending: false });
       const devIds = (favs ?? []).filter((f) => f.kind === "developer").map((f) => f.target_id);
       const projIds = (favs ?? []).filter((f) => f.kind === "project").map((f) => f.target_id);
-      const [{ data: devs }, { data: profs }, { data: projs }] = await Promise.all([
+      const [{ data: devs }, { data: projs }] = await Promise.all([
         devIds.length
-          ? supabase.from("developer_profiles").select("id, headline, skills, hourly_rate_inr, location, is_verified").in("id", devIds)
-          : Promise.resolve({ data: [] as any[] }),
-        devIds.length
-          ? supabase.from("profiles").select("id, full_name").in("id", devIds)
+          ? supabase.from("developer_profiles").select("id, full_name, headline, skills, hourly_rate_inr, location, is_verified").in("id", devIds)
           : Promise.resolve({ data: [] as any[] }),
         projIds.length
           ? supabase.from("projects").select("id, title, description, tech_stack, budget_min_inr, budget_max_inr, project_type, status").in("id", projIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
       return {
-        developers: (devs ?? []).map((d: any) => ({ ...d, full_name: profs?.find((p: any) => p.id === d.id)?.full_name })),
+        developers: devs ?? [],
         projects: projs ?? [],
       };
     },

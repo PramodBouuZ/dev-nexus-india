@@ -14,7 +14,29 @@ import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/developers")({
-  head: () => ({ meta: [{ title: "Find developers — Developer Connect" }, { name: "description", content: "Browse vetted Indian part-time developers by skill, rate, and availability." }] }),
+  head: () => ({
+    meta: [
+      { title: "Browse Skilled Developers in India | DeveloperConnect" },
+      { name: "description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
+      { name: "keywords", content: "hire developers India, freelance developers, part-time developers India, remote developers, react developers, nodejs developers" },
+      { property: "og:title", content: "Browse Skilled Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
+      { tag: "link", rel: "canonical", href: "https://developerconnect.in/developers" },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
+            { "@type": "ListItem", "position": 2, "name": "Developers", "item": "https://developerconnect.in/developers" }
+          ]
+        })
+      }
+    ]
+  }),
   component: DevList,
 });
 
@@ -27,16 +49,12 @@ function DevList() {
       const { data: devs } = await supabase.from("developer_profiles").select("*").order("is_verified", { ascending: false });
       if (!devs?.length) return [];
       const ids = devs.map(d => d.id);
-      const [{ data: profs }, { data: reviews }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").in("id", ids),
-        supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", ids),
-      ]);
+      const { data: reviews } = await supabase.from("reviews").select("reviewee_id, rating").in("reviewee_id", ids);
       return devs.map(d => {
         const mine = reviews?.filter(r => r.reviewee_id === d.id) ?? [];
         const avg = mine.length ? mine.reduce((s, r) => s + r.rating, 0) / mine.length : 0;
         return {
           ...d,
-          profile: profs?.find(p => p.id === d.id) ?? null,
           rating_avg: avg,
           rating_count: mine.length,
         };
@@ -46,7 +64,7 @@ function DevList() {
 
   const filtered = data?.filter(d => {
     if (!q) return true;
-    const hay = `${d.profile?.full_name ?? ""} ${d.headline ?? ""} ${d.skills?.join(" ") ?? ""}`.toLowerCase();
+    const hay = `${d.full_name ?? ""} ${d.headline ?? ""} ${d.skills?.join(" ") ?? ""}`.toLowerCase();
     return hay.includes(q.toLowerCase());
   });
 
@@ -71,14 +89,14 @@ function DevList() {
                 className="block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
               <div className="flex items-center gap-3">
                 <Avatar className="h-12 w-12">
-                  {d.profile?.avatar_url && <AvatarImage src={d.profile.avatar_url} alt={d.profile?.full_name ?? "Developer"} />}
+                  {d.avatar_url && <AvatarImage src={d.avatar_url} alt={d.full_name ?? "Developer"} />}
                   <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                    {d.profile?.full_name?.[0] ?? "?"}
+                    {d.full_name?.[0] ?? "?"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <h3 className="truncate font-semibold">{d.profile?.full_name ?? "Developer"}</h3>
+                    <h3 className="truncate font-semibold">{d.full_name ?? "Developer"}</h3>
                     {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
                   </div>
                   {d.location && <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" /> {d.location}</p>}

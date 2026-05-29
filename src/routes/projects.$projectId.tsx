@@ -18,7 +18,79 @@ import { TopMatches } from "@/components/TopMatches";
 import { FavoriteButton } from "@/components/FavoriteButton";
 
 export const Route = createFileRoute("/projects/$projectId")({
-  head: () => ({ meta: [{ title: "Project — HireSpark" }] }),
+  loader: async ({ params }) => {
+    const { projectId } = params;
+    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).maybeSingle();
+    return { project, projectId };
+  },
+  head: ({ loaderData }) => {
+    const title = loaderData?.project ? `${loaderData.project.title} | DeveloperConnect` : "Project | DeveloperConnect";
+    const description = loaderData?.project
+      ? `${loaderData.project.description.slice(0, 160)}...`
+      : "View project details on DeveloperConnect.";
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { tag: "link", rel: "canonical", href: `https://developerconnect.in/projects/${loaderData?.projectId}` },
+      ],
+      scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "JobPosting",
+            "title": loaderData?.project?.title,
+            "description": loaderData?.project?.description,
+            "datePosted": loaderData?.project?.created_at,
+            "employmentType": loaderData?.project?.project_type === "hourly" ? "PART_TIME" : "CONTRACTOR",
+            "hiringOrganization": {
+              "@type": "Organization",
+              "name": "DeveloperConnect",
+              "sameAs": "https://developerconnect.in"
+            },
+            "jobLocation": {
+              "@type": "Place",
+              "address": {
+                "@type": "PostalAddress",
+                "addressCountry": "IN"
+              }
+            }
+          })
+        },
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://developerconnect.in"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Projects",
+                "item": "https://developerconnect.in/projects"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": loaderData?.project?.title || "Project",
+                "item": `https://developerconnect.in/projects/${loaderData?.projectId}`
+              }
+            ]
+          })
+        }
+      ]
+    };
+  },
   component: ProjectDetail,
 });
 
@@ -215,13 +287,10 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
         .select("*").eq("project_id", projectId).order("created_at", { ascending: false });
       if (!appRows?.length) return [];
       const devIds = [...new Set(appRows.map(a => a.developer_id))];
-      const [{ data: profs }, { data: devs }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url").in("id", devIds),
-        supabase.from("developer_profiles").select("id, headline, hourly_rate_inr, skills, is_verified").in("id", devIds),
-      ]);
+      const { data: devs } = await supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, hourly_rate_inr, skills, is_verified").in("id", devIds);
+
       return appRows.map(a => ({
         ...a,
-        profile: profs?.find(p => p.id === a.developer_id) ?? null,
         dev: devs?.find(d => d.id === a.developer_id) ?? null,
       }));
     },
@@ -262,7 +331,7 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent">
-                    {a.profile?.full_name ?? "Developer"}
+                    {a.dev?.full_name ?? "Developer"}
                   </Link>
                   {a.dev?.is_verified && <Badge className="bg-success text-success-foreground">Verified</Badge>}
                 </div>

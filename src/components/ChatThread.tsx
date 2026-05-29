@@ -34,13 +34,25 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
   const [text, setText] = useState("");
   const [pending, setPending] = useState<File[]>([]);
   const [busy, setBusy] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: messages } = useQuery({
+  const { data: messages, isLoading, error } = useQuery({
     queryKey: ["msgs", appId],
+    staleTime: 1000 * 10, // Reduced stale time for better freshness
+    retry: 1, // Don't retry too much on auth errors
     queryFn: async () => {
-      const { data } = await supabase.from("messages").select("*").eq("application_id", appId).order("created_at", { ascending: true });
+      if (!appId) return [];
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("application_id", appId)
+        .order("created_at", { ascending: true });
+      if (error) {
+        console.error("Chat fetch error:", error);
+        throw error;
+      }
       return data ?? [];
     },
   });
@@ -63,9 +75,23 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
         () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `application_id=eq.${appId}` },
         () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (payload.userId !== userId) {
+          setIsTyping(true);
+          setTimeout(() => setIsTyping(false), 3000);
+        }
+      })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [appId, qc]);
+  }, [appId, userId, qc]);
+
+  const sendTyping = () => {
+    supabase.channel(`msgs-${appId}`).send({
+      type: "broadcast",
+      event: "typing",
+      payload: { userId },
+    });
+  };
 
   function pickFiles(files: FileList | null) {
     if (!files) return;
@@ -108,10 +134,13 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
     } finally { setBusy(false); }
   }
 
+  if (error) return <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 p-10 text-center text-destructive">Failed to load chat. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["msgs", appId] })}>Retry</Button></div>;
+
   return (
     <div className="mt-6 flex h-[60vh] flex-col rounded-xl border border-border bg-card shadow-card">
       <div className="flex-1 space-y-3 overflow-y-auto p-5">
-        {messages?.length === 0 && <p className="text-center text-sm text-muted-foreground">No messages yet — say hi 👋</p>}
+        {isLoading && <ChatSkeleton />}
+        {!isLoading && messages?.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">No messages yet — say hi 👋</p>}
         {messages?.map(m => {
           const mine = m.sender_id === userId;
           const atts = (m.attachments as unknown as Attachment[]) ?? [];
@@ -148,6 +177,11 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
             </div>
           );
         })}
+        {isTyping && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl bg-muted px-4 py-2 text-xs text-muted-foreground animate-pulse">typing...</div>
+          </div>
+        )}
         <div ref={endRef} />
       </div>
 
@@ -171,11 +205,29 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
         <Button type="button" size="icon" variant="outline" onClick={() => fileRef.current?.click()} disabled={busy}>
           <Paperclip className="h-4 w-4" />
         </Button>
-        <Input value={text} onChange={e => setText(e.target.value)} placeholder="Type a message..." maxLength={2000} disabled={busy} />
+        <Input
+          value={text}
+          onChange={e => { setText(e.target.value); sendTyping(); }}
+          placeholder="Type a message..."
+          maxLength={2000}
+          disabled={busy}
+        />
         <Button type="submit" size="icon" disabled={busy} className="bg-gradient-accent text-primary-foreground hover:opacity-90">
           <Send className="h-4 w-4" />
         </Button>
       </form>
+    </div>
+  );
+}
+
+function ChatSkeleton() {
+  return (
+    <div className="space-y-4">
+      {[1, 2, 3].map(i => (
+        <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+          <div className="h-10 w-2/3 animate-pulse rounded-2xl bg-muted" />
+        </div>
+      ))}
     </div>
   );
 }

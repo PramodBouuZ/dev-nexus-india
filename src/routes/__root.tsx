@@ -34,18 +34,60 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Developer Connect — Hire part-time developers in India" },
-      { name: "description", content: "Structured marketplace to hire vetted part-time and project developers in India. Powered by BANTConfirm." },
-      { property: "og:title", content: "Developer Connect — Hire part-time developers in India" },
-      { property: "og:description", content: "Structured marketplace to hire vetted part-time and project developers in India. Powered by BANTConfirm." },
+      { title: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { name: "description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
+      { name: "keywords", content: "hire developers in India, part-time developers, freelance developers India, full stack developers, React developers, Node.js developers, remote developers, startup hiring platform, software developers marketplace, web developers India, hire React developer, hire backend developers, freelance marketplace India, developer hiring platform, hire remote developers, startup tech hiring, affordable developers India, developers for startups, developer marketplace platform" },
+      { property: "og:title", content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { property: "og:description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
       { property: "og:type", content: "website" },
-      { name: "twitter:title", content: "Developer Connect — Hire part-time developers in India" },
-      { name: "twitter:description", content: "Structured marketplace to hire vetted part-time and project developers in India. Powered by BANTConfirm." },
+      { property: "og:url", content: "https://developerconnect.in" },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png" },
+      { name: "twitter:title", content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect" },
+      { name: "twitter:description", content: "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly." },
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "robots", content: "index, follow" },
+      { name: "author", content: "DeveloperConnect" },
+      { name: "theme-color", content: "#0f172a" },
     ],
-    links: [{ rel: "stylesheet", href: appCss }, { rel: "preconnect", href: "https://fonts.googleapis.com" }, { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" }, { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" }],
+    links: [
+      { rel: "canonical", href: "https://developerconnect.in" },
+      { rel: "stylesheet", href: appCss },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" }
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "DeveloperConnect",
+          "url": "https://developerconnect.in",
+          "logo": "https://developerconnect.in/logo.png",
+          "description": "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India.",
+          "address": {
+            "@type": "PostalAddress",
+            "addressCountry": "IN"
+          }
+        })
+      },
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "DeveloperConnect",
+          "url": "https://developerconnect.in",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://developerconnect.in/projects?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        })
+      }
+    ]
   }),
   shellComponent: RootShell,
   component: RootComponent,

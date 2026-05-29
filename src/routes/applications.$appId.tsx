@@ -9,7 +9,7 @@ import { ArrowLeft } from "lucide-react";
 import { ChatThread } from "@/components/ChatThread";
 
 export const Route = createFileRoute("/applications/$appId")({
-  head: () => ({ meta: [{ title: "Application — Developer Connect" }] }),
+  head: () => ({ meta: [{ title: "Application | DeveloperConnect" }] }),
   component: AppPage,
 });
 
@@ -31,15 +31,18 @@ function AppPage() {
 }
 
 function Inner({ appId, userId }: { appId: string; userId: string }) {
-  const { data: app } = useQuery({
+  const { data: app, isLoading, error } = useQuery({
     queryKey: ["app", appId],
     queryFn: async () => {
-      const { data } = await supabase.from("applications").select("*, projects(title, recruiter_id)").eq("id", appId).maybeSingle();
+      const { data, error } = await supabase.from("applications").select("*, projects(title, recruiter_id)").eq("id", appId).maybeSingle();
+      if (error) throw error;
       return data;
     },
   });
 
-  if (!app) return <p className="mt-8 text-sm text-muted-foreground">Loading...</p>;
+  if (isLoading) return <p className="mt-8 text-sm text-muted-foreground animate-pulse">Loading conversation details...</p>;
+  if (error) return <p className="mt-8 text-sm text-destructive">Error loading application: {error.message}</p>;
+  if (!app) return <p className="mt-8 text-sm text-muted-foreground">Application not found or access denied.</p>;
 
   return (
     <div className="mt-6">
