@@ -124,6 +124,22 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
         application_id: appId, sender_id: userId, body, attachments,
       });
       if (error) { toast.error(error.message); return; }
+
+      // Notify recipient
+      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id, title)").eq("id", appId).maybeSingle();
+      if (app) {
+        const targetId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
+        if (targetId) {
+          await supabase.from("notifications").insert({
+            user_id: targetId,
+            title: "New message",
+            body: `New message for project: ${(app.projects as any)?.title}`,
+            type: "project_update",
+            link: `/applications/${appId}`
+          });
+        }
+      }
+
       setText(""); setPending([]);
       if (fileRef.current) fileRef.current.value = "";
     } finally { setBusy(false); }

@@ -31,10 +31,11 @@ function AppPage() {
 }
 
 function Inner({ appId, userId }: { appId: string; userId: string }) {
+  const { role } = useAuth();
   const { data: app } = useQuery({
     queryKey: ["app", appId],
     queryFn: async () => {
-      const { data } = await supabase.from("applications").select("*, projects(title, recruiter_id)").eq("id", appId).maybeSingle();
+      const { data } = await supabase.from("applications").select("*, projects(title, recruiter_id), developer_profiles(full_name)").eq("id", appId).maybeSingle();
       return data;
     },
   });
@@ -48,7 +49,19 @@ function Inner({ appId, userId }: { appId: string; userId: string }) {
           <Link to="/projects/$projectId" params={{ projectId: app.project_id }} className="text-sm text-muted-foreground hover:text-foreground">
             {app.projects?.title}
           </Link>
-          <h1 className="mt-1 font-display text-2xl font-bold tracking-tight">Conversation</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <h1 className="font-display text-2xl font-bold tracking-tight">Conversation</h1>
+            <span className="text-muted-foreground">with</span>
+            {role === 'developer' ? (
+              <Link to="/recruiters/$recId" params={{ recId: (app.projects as any)?.recruiter_id }} className="font-semibold text-accent hover:underline">
+                Recruiter
+              </Link>
+            ) : (
+              <Link to="/developers/$devId" params={{ devId: app.developer_id }} className="font-semibold text-accent hover:underline">
+                {(app.developer_profiles as any)?.full_name || 'Developer'}
+              </Link>
+            )}
+          </div>
         </div>
         <Badge variant={app.status === "accepted" ? "default" : app.status === "rejected" ? "destructive" : "secondary"}>{app.status}</Badge>
       </div>
