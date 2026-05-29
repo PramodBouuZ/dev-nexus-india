@@ -32,7 +32,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type TabView = "overview" | "developers" | "recruiters" | "projects" | "applications" | "contacts" | "invites" | "chats" | "alerts";
+type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" | "applications" | "contacts" | "invites" | "chats" | "alerts";
 
 function AdminPage() {
   const { user, role, loading } = useAuth();
@@ -43,19 +43,25 @@ function AdminPage() {
     if (role !== "admin") return;
 
     const tables = [
-      "profiles", "developer_profiles", "recruiter_profiles",
+      "profiles", "users", "developer_profiles", "recruiter_profiles",
       "projects", "applications", "invites",
       "contact_access_requests", "messages"
     ];
 
     const channels = tables.map(table =>
-      supabase.channel(`admin-${table}`)
+      supabase.channel(`admin-rt-${table}`)
         .on("postgres_changes", { event: "*", schema: "public", table }, () => {
           console.log(`Realtime update for ${table}`);
           qc.invalidateQueries({ queryKey: ["admin-stats-full"] });
-          qc.invalidateQueries({ queryKey: [`admin-${table}`] });
-          if (table === "developer_profiles") qc.invalidateQueries({ queryKey: ["admin-developers"] });
-          if (table === "recruiter_profiles") qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
+          qc.invalidateQueries({ queryKey: ["admin-recent-activity"] });
+          qc.invalidateQueries({ queryKey: ["admin-users-all"] });
+          qc.invalidateQueries({ queryKey: ["admin-developers"] });
+          qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
+          qc.invalidateQueries({ queryKey: ["admin-projects"] });
+          qc.invalidateQueries({ queryKey: ["admin-applications"] });
+          qc.invalidateQueries({ queryKey: ["admin-contacts"] });
+          qc.invalidateQueries({ queryKey: ["admin-invites"] });
+          qc.invalidateQueries({ queryKey: ["admin-chats"] });
         })
         .subscribe()
     );
@@ -90,6 +96,7 @@ function AdminPage() {
         <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-64px)]">
           <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
           <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Management</div>
+          <SidebarItem icon={Users} label="All Users" active={activeTab === "users"} onClick={() => setActiveTab("users")} />
           <SidebarItem icon={UserRound} label="Developers" active={activeTab === "developers"} onClick={() => setActiveTab("developers")} />
           <SidebarItem icon={Briefcase} label="Recruiters" active={activeTab === "recruiters"} onClick={() => setActiveTab("recruiters")} />
           <SidebarItem icon={FileText} label="Projects" active={activeTab === "projects"} onClick={() => setActiveTab("projects")} />
@@ -123,6 +130,7 @@ function AdminPage() {
 
         <div className="p-6 overflow-y-auto">
           {activeTab === "overview" && <OverviewTab />}
+          {activeTab === "users" && <UsersTab />}
           {activeTab === "developers" && <DevelopersTab />}
           {activeTab === "recruiters" && <RecruitersTab />}
           {activeTab === "projects" && <ProjectsTab />}
@@ -151,7 +159,8 @@ function OverviewTab() {
   const { data: stats } = useQuery({
     queryKey: ["admin-stats-full"],
     queryFn: async () => {
-      const [devs, recs, projs, apps, invites, contacts, msgs] = await Promise.all([
+      const [users, devs, recs, projs, apps, invites, contacts, msgs] = await Promise.all([
+        supabase.from("profiles").select("id", { count: "exact", head: true }),
         supabase.from("developer_profiles").select("id", { count: "exact", head: true }),
         supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }),
         supabase.from("projects").select("id", { count: "exact", head: true }),
@@ -165,6 +174,7 @@ function OverviewTab() {
         supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
       ]);
       return {
+        users: users.count || 0,
         devs: devs.count || 0,
         recs: recs.count || 0,
         projs: projs.count || 0,
@@ -183,10 +193,10 @@ function OverviewTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total Registrations" value={stats?.users || 0} sub="Registered users" icon={Users} color="text-blue-500" />
         <StatCard label="Total Developers" value={stats?.devs || 0} sub={`${stats?.vDevs} verified`} icon={UserRound} />
         <StatCard label="Total Recruiters" value={stats?.recs || 0} sub={`${stats?.vRecs} verified`} icon={Briefcase} />
         <StatCard label="Active Projects" value={stats?.projs || 0} sub="Open for hire" icon={FileText} color="text-success" />
-        <StatCard label="Total Messages" value={stats?.msgs || 0} sub="Platform-wide chats" icon={MessageSquare} color="text-accent" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -300,17 +310,19 @@ function RecentActivity() {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["admin-recent-activity"],
     queryFn: async () => {
-      const [apps, projs, msgs] = await Promise.all([
+      const [users, apps, projs, msgs] = await Promise.all([
+        supabase.from("profiles").select("id, created_at, full_name").order("created_at", { ascending: false }).limit(5),
         supabase.from("applications").select("id, created_at, developer_profiles(full_name), projects(title)").order("created_at", { ascending: false }).limit(3),
         supabase.from("projects").select("id, created_at, title, recruiter_profiles(company_name)").order("created_at", { ascending: false }).limit(3),
         supabase.from("messages").select("id, created_at, body, sender_id").order("created_at", { ascending: false }).limit(3),
       ]);
 
       const formatted = [
+        ...(users.data || []).map(u => ({ user: u.full_name || "New user", action: "joined the platform", target: "", time: u.created_at, type: "user" })),
         ...(apps.data || []).map(a => ({ user: (a.developer_profiles as any)?.full_name || "Someone", action: "applied for", target: (a.projects as any)?.title, time: a.created_at, type: "app" })),
         ...(projs.data || []).map(p => ({ user: (p.recruiter_profiles as any)?.company_name || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
         ...(msgs.data || []).map(m => ({ user: m.sender_id.slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
-      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 8);
+      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
 
       return formatted;
     }
@@ -328,7 +340,7 @@ function RecentActivity() {
            !activities?.length ? <p className="text-center text-sm text-muted-foreground">No recent activity.</p> :
            activities.map((a, i) => (
             <div key={i} className="flex items-center gap-3 text-sm">
-              <div className={`h-2 w-2 rounded-full ${a.type === 'app' ? 'bg-blue-500' : a.type === 'proj' ? 'bg-success' : a.type === 'msg' ? 'bg-accent' : 'bg-amber-500'}`} />
+              <div className={`h-2 w-2 rounded-full ${a.type === 'user' ? 'bg-blue-400' : a.type === 'app' ? 'bg-blue-600' : a.type === 'proj' ? 'bg-success' : a.type === 'msg' ? 'bg-accent' : 'bg-amber-500'}`} />
               <div className="flex-1">
                 <span className="font-bold">{a.user}</span> {a.action} <span className="font-medium text-muted-foreground">{a.target}</span>
               </div>
@@ -339,6 +351,49 @@ function RecentActivity() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// --- USERS ---
+function UsersTab() {
+  const [search, setSearch] = useState("");
+  const qc = useQueryClient();
+  const { data: users, isLoading } = useQuery({
+    queryKey: ["admin-users-all"],
+    queryFn: async () => {
+      const { data } = await supabase.from("profiles").select("*, users(role)").order("created_at", { ascending: false });
+      return (data || []).map((u: any) => ({
+        ...u,
+        role: u.users?.role || 'unknown'
+      }));
+    }
+  });
+  const filtered = users?.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
+
+  async function deleteUser(id: string) {
+    if (!confirm("Delete this user? This will remove all their data.")) return;
+    const { error } = await supabase.from("profiles").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success("User deleted");
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search users..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">User</th><th className="p-4">Email</th><th className="p-4">Role</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading all users...</td></tr> :
+         !filtered?.length ? <tr><td colSpan={5} className="p-12 text-center text-muted-foreground">No users found.</td></tr> :
+         filtered.map(u => (
+          <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+            <td className="p-4"><div className="font-bold">{u.full_name || "Anonymous"}</div><div className="text-[10px] text-muted-foreground font-mono">{u.id}</div></td>
+            <td className="p-4 text-muted-foreground">{u.email}</td>
+            <td className="p-4"><Badge variant="outline" className="capitalize">{u.role}</Badge></td>
+            <td className="p-4 text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
+            <td className="p-4 text-right"><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteUser(u.id)}><Trash2 className="h-4 w-4" /></Button></td>
+          </tr>
+        ))}
+      </tbody></table></div>
+    </div>
   );
 }
 
@@ -420,11 +475,6 @@ function DevelopersTab() {
                 <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {d.email || 'No Email'}</div>
                 <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" /> {d.phone || 'No Phone'}</div>
               </div>
-            </td>
-            <td className="p-4">
-              <button onClick={() => toggleVerify(d.id, d.is_verified)}>
-                {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
-              </button>
             </td>
             <td className="p-4"><div className="flex flex-wrap gap-1 max-w-[200px]">{d.skills?.slice(0, 3).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}{d.skills?.length > 3 && <span className="text-[10px] text-muted-foreground">+{d.skills.length - 3}</span>}</div></td>
             <td className="p-4">
