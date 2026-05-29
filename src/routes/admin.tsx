@@ -183,6 +183,10 @@ function OverviewTab() {
         </Card>
       </div>
       <VisitorAnalytics />
+      <div className="grid gap-6 md:grid-cols-2">
+        <VisitorFlow />
+        <RecentActivity />
+      </div>
     </div>
   );
 }
@@ -214,6 +218,78 @@ function AnalyticsMini({title,val,p,color}:{title:string,val:string,p:number,col
   return (<div><p className="text-xs text-muted-foreground font-medium">{title}</p><p className="text-xl font-bold mt-1">{val}</p><div className="h-1 w-full bg-muted rounded-full mt-2 overflow-hidden"><div className={`h-full ${color}`} style={{width:`${p}%`}}></div></div></div>);
 }
 
+function VisitorFlow() {
+  const flowData = [
+    { name: "Home", visitors: 4200, bounce: 20 },
+    { name: "Projects", visitors: 2800, bounce: 15 },
+    { name: "Developers", visitors: 2100, bounce: 10 },
+    { name: "Auth", visitors: 1500, bounce: 40 },
+    { name: "Apply", visitors: 800, bounce: 5 },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Visitors Flow</CardTitle>
+        <CardDescription>Main entry points and drop-off rates</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {flowData.map((item) => (
+            <div key={item.name} className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="font-medium">{item.name}</span>
+                <span className="text-muted-foreground">{item.visitors.toLocaleString()} views</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${(item.visitors / 4200) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-[10px] text-destructive font-medium">{item.bounce}% exit</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RecentActivity() {
+  const activities = [
+    { user: "Sarah K.", action: "applied for", target: "React Lead", time: "2m ago", type: "app" },
+    { user: "TechFlow", action: "posted", target: "Backend Dev", time: "15m ago", type: "proj" },
+    { user: "Rahul M.", action: "verified as", target: "Developer", time: "1h ago", type: "verif" },
+    { user: "CloudScale", action: "requested", target: "Contact Access", time: "3h ago", type: "contact" },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent Activity</CardTitle>
+        <CardDescription>Live platform events</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {activities.map((a, i) => (
+            <div key={i} className="flex items-center gap-3 text-sm">
+              <div className={`h-2 w-2 rounded-full ${a.type === 'app' ? 'bg-blue-500' : a.type === 'proj' ? 'bg-success' : a.type === 'verif' ? 'bg-accent' : 'bg-amber-500'}`} />
+              <div className="flex-1">
+                <span className="font-bold">{a.user}</span> {a.action} <span className="font-medium text-muted-foreground">{a.target}</span>
+              </div>
+              <div className="text-[10px] text-muted-foreground uppercase">{a.time}</div>
+            </div>
+          ))}
+          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground mt-2">View Full Audit Log</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // --- DEVELOPERS ---
 function DevelopersTab() {
   const [search, setSearch] = useState("");
@@ -221,6 +297,15 @@ function DevelopersTab() {
   const qc = useQueryClient();
   const { data: devs, isLoading } = useQuery({ queryKey: ["admin-developers"], queryFn: async () => { const { data } = await supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }); return data || []; } });
   const filtered = devs?.filter(d => (!search || d.full_name?.toLowerCase().includes(search.toLowerCase())) && (filter === "all" || (filter === "verified" && d.is_verified) || (filter === "unverified" && !d.is_verified)));
+
+  async function toggleVerify(id: string, current: boolean) {
+    const { error } = await supabase.from("developer_profiles").update({ is_verified: !current } as any).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(current ? "Unverified" : "Verified");
+      qc.invalidateQueries({ queryKey: ["admin-developers"] });
+    }
+  }
 
   const exportCSV = () => {
     const headers = ["Name", "Email", "Headline", "Skills", "Exp", "Location", "Verified", "Joined"];
@@ -245,9 +330,13 @@ function DevelopersTab() {
         {isLoading ? <tr><td colSpan={4} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> : filtered?.map(d => (
           <tr key={d.id} className="hover:bg-muted/30">
             <td className="p-4"><div><p className="font-bold">{d.full_name || "Anonymous"}</p><p className="text-xs text-muted-foreground truncate max-w-[250px]">{d.headline}</p></div></td>
-            <td className="p-4">{d.is_verified ? <Badge className="bg-success/10 text-success border-success/20">Verified</Badge> : <Badge variant="secondary">Pending</Badge>}</td>
+            <td className="p-4">
+              <button onClick={() => toggleVerify(d.id, d.is_verified)}>
+                {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
+              </button>
+            </td>
             <td className="p-4 text-muted-foreground">{d.location || "Remote"}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild><Link to="/developers/" params={{ devId: d.id }}><Eye className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/developers/" params={{ devId: d.id }}><Eye className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile"><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
@@ -261,15 +350,30 @@ function RecruitersTab() {
   const qc = useQueryClient();
   const { data: recs, isLoading } = useQuery({ queryKey: ["admin-recruiters"], queryFn: async () => { const { data } = await supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }); return data || []; } });
   const filtered = recs?.filter(r => !search || r.company_name?.toLowerCase().includes(search.toLowerCase()));
+
+  async function toggleVerify(id: string, current: boolean) {
+    const { error } = await supabase.from("recruiter_profiles").update({ is_verified: !current } as any).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(current ? "Unverified" : "Verified");
+      qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search recruiters..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Industry</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={4} className="p-12 text-center animate-pulse">Loading partners...</td></tr> : filtered?.map(r => (
+      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
+        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading partners...</td></tr> : filtered?.map(r => (
           <tr key={r.id}>
             <td className="p-4"><div className="font-bold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.full_name}</div></td>
+            <td className="p-4">
+              <button onClick={() => toggleVerify(r.id, r.is_verified)}>
+                {r.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
+              </button>
+            </td>
             <td className="p-4 text-muted-foreground">{r.industry || 'Tech'}</td>
-            <td className="p-4 text-right"><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /></td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
@@ -328,15 +432,95 @@ function AlertsTab() {
 
 // --- MODALS ---
 function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; user: any; onUpdate: () => void }) {
-  const [form, setForm] = useState({ full_name: developer.full_name || "", headline: developer.headline || "", skills: (developer.skills || []).join(", "), is_verified: developer.is_verified || false });
+  const [form, setForm] = useState({
+    full_name: developer.full_name || "",
+    headline: developer.headline || "",
+    skills: (developer.skills || []).join(", "),
+    is_verified: developer.is_verified || false,
+    bio: developer.bio || "",
+    location: developer.location || "",
+    hourly_rate_inr: developer.hourly_rate_inr || 0,
+    experience_years: developer.experience_years || 0
+  });
   const [open, setOpen] = useState(false);
-  async function handleSave() { const { error } = await supabase.from("developer_profiles").update({ full_name: form.full_name, headline: form.headline, skills: form.skills.split(",").map(s => s.trim()).filter(Boolean), is_verified: form.is_verified }).eq("id", user.id); if (error) toast.error(error.message); else { toast.success("Updated"); setOpen(false); onUpdate(); } }
-  return (<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="ghost" size="icon"><Edit2 className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Moderate Profile</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-1"><Label>Full Name</Label><Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} /></div><div className="space-y-1"><Label>Headline</Label><Input value={form.headline} onChange={e => setForm({...form, headline: e.target.value})} /></div><div className="space-y-1"><Label>Skills</Label><Textarea value={form.skills} onChange={e => setForm({...form, skills: e.target.value})} /></div><div className="flex items-center space-x-2"><Checkbox id="v" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="v">Verified</Label></div></div><DialogFooter><Button onClick={handleSave}>Save</Button></DialogFooter></DialogContent></Dialog>);
+  async function handleSave() {
+    const { error } = await supabase.from("developer_profiles").update({
+      full_name: form.full_name,
+      headline: form.headline,
+      skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+      is_verified: form.is_verified,
+      bio: form.bio,
+      location: form.location,
+      hourly_rate_inr: form.hourly_rate_inr,
+      experience_years: form.experience_years
+    }).eq("id", user.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Profile Updated"); setOpen(false); onUpdate(); }
+  }
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button variant="ghost" size="icon" title="Edit Profile"><Edit2 className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Moderate Developer Profile</DialogTitle></DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1"><Label>Full Name</Label><Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} /></div>
+            <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
+          </div>
+          <div className="space-y-1"><Label>Headline</Label><Input value={form.headline} onChange={e => setForm({...form, headline: e.target.value})} /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1"><Label>Hourly Rate (INR)</Label><Input type="number" value={form.hourly_rate_inr} onChange={e => setForm({...form, hourly_rate_inr: parseInt(e.target.value) || 0})} /></div>
+            <div className="space-y-1"><Label>Exp. Years</Label><Input type="number" value={form.experience_years} onChange={e => setForm({...form, experience_years: parseInt(e.target.value) || 0})} /></div>
+          </div>
+          <div className="space-y-1"><Label>Skills (comma separated)</Label><Input value={form.skills} onChange={e => setForm({...form, skills: e.target.value})} /></div>
+          <div className="space-y-1"><Label>Bio</Label><Textarea className="h-32" value={form.bio} onChange={e => setForm({...form, bio: e.target.value})} /></div>
+          <div className="flex items-center space-x-2 pt-2"><Checkbox id="v" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="v" className="font-bold text-success">Verified Badge Active</Label></div>
+        </div>
+        <DialogFooter><Button onClick={handleSave} className="w-full">Save Changes</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; user: any; onUpdate: () => void }) {
-  const [form, setForm] = useState({ company_name: recruiter.company_name || "", is_verified: recruiter.is_verified || false });
+  const [form, setForm] = useState({
+    company_name: recruiter.company_name || "",
+    is_verified: recruiter.is_verified || false,
+    industry: recruiter.industry || "",
+    location: recruiter.location || "",
+    company_description: recruiter.company_description || "",
+    company_website: recruiter.company_website || ""
+  });
   const [open, setOpen] = useState(false);
-  async function handleSave() { const { error } = await supabase.from("recruiter_profiles").update({ company_name: form.company_name, is_verified: form.is_verified }).eq("id", user.id); if (error) toast.error(error.message); else { toast.success("Updated"); setOpen(false); onUpdate(); } }
-  return (<Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="ghost" size="icon"><Edit2 className="h-4 w-4" /></Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Moderate Company</DialogTitle></DialogHeader><div className="space-y-4 py-4"><div className="space-y-1"><Label>Company Name</Label><Input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div><div className="flex items-center space-x-2"><Checkbox id="rv" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="rv">Verified Company</Label></div></div><DialogFooter><Button onClick={handleSave}>Save</Button></DialogFooter></DialogContent></Dialog>);
+  async function handleSave() {
+    const { error } = await supabase.from("recruiter_profiles").update({
+      company_name: form.company_name,
+      is_verified: form.is_verified,
+      industry: form.industry,
+      location: form.location,
+      company_description: form.company_description,
+      company_website: form.company_website
+    }).eq("id", user.id);
+    if (error) toast.error(error.message);
+    else { toast.success("Company Updated"); setOpen(false); onUpdate(); }
+  }
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button variant="ghost" size="icon" title="Edit Company"><Edit2 className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader><DialogTitle>Moderate Company Profile</DialogTitle></DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1"><Label>Company Name</Label><Input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
+            <div className="space-y-1"><Label>Industry</Label><Input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} /></div>
+          </div>
+          <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
+          <div className="space-y-1"><Label>Website</Label><Input value={form.company_website} onChange={e => setForm({...form, company_website: e.target.value})} /></div>
+          <div className="space-y-1"><Label>Description</Label><Textarea className="h-24" value={form.company_description} onChange={e => setForm({...form, company_description: e.target.value})} /></div>
+          <div className="flex items-center space-x-2 pt-2"><Checkbox id="rv" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="rv" className="font-bold text-success">Verified Company Badge</Label></div>
+        </div>
+        <DialogFooter><Button onClick={handleSave} className="w-full">Save Changes</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
 }
