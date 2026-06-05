@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_alerts: {
+        Row: {
+          created_at: string
+          id: string
+          message: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           cover_message: string | null
@@ -174,6 +198,7 @@ export type Database = {
           available_days: string[] | null
           avatar_url: string | null
           bio: string | null
+          completed_projects: number
           contact_public: boolean
           created_at: string
           developer_type: Database["public"]["Enums"]["developer_type"] | null
@@ -184,12 +209,16 @@ export type Database = {
           hourly_rate_inr: number | null
           hours_per_day: number | null
           id: string
+          is_available: boolean
           is_verified: boolean
           linkedin_url: string | null
           location: string | null
           monthly_rate_inr: number | null
+          phone: string | null
           portfolio_url: string | null
+          profile_views: number
           project_min_inr: number | null
+          response_rate: number
           skills: string[] | null
           time_slots: string | null
           updated_at: string
@@ -201,6 +230,7 @@ export type Database = {
           available_days?: string[] | null
           avatar_url?: string | null
           bio?: string | null
+          completed_projects?: number
           contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
@@ -211,12 +241,16 @@ export type Database = {
           hourly_rate_inr?: number | null
           hours_per_day?: number | null
           id: string
+          is_available?: boolean
           is_verified?: boolean
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
+          phone?: string | null
           portfolio_url?: string | null
+          profile_views?: number
           project_min_inr?: number | null
+          response_rate?: number
           skills?: string[] | null
           time_slots?: string | null
           updated_at?: string
@@ -230,6 +264,7 @@ export type Database = {
           available_days?: string[] | null
           avatar_url?: string | null
           bio?: string | null
+          completed_projects?: number
           contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
@@ -240,12 +275,16 @@ export type Database = {
           hourly_rate_inr?: number | null
           hours_per_day?: number | null
           id?: string
+          is_available?: boolean
           is_verified?: boolean
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
+          phone?: string | null
           portfolio_url?: string | null
+          profile_views?: number
           project_min_inr?: number | null
+          response_rate?: number
           skills?: string[] | null
           time_slots?: string | null
           updated_at?: string
@@ -391,6 +430,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          email: string | null
           full_name: string | null
           id: string
           is_suspended: boolean
@@ -399,6 +439,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id: string
           is_suspended?: boolean
@@ -407,6 +448,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string | null
           id?: string
           is_suspended?: boolean
@@ -544,6 +586,7 @@ export type Database = {
       }
       recruiter_profiles: {
         Row: {
+          avatar_url: string | null
           company_description: string | null
           company_name: string | null
           company_size: string | null
@@ -555,9 +598,11 @@ export type Database = {
           is_verified: boolean
           location: string | null
           logo_url: string | null
+          phone: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           company_description?: string | null
           company_name?: string | null
           company_size?: string | null
@@ -569,9 +614,11 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           logo_url?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           company_description?: string | null
           company_name?: string | null
           company_size?: string | null
@@ -583,6 +630,7 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           logo_url?: string | null
+          phone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -709,6 +757,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_profile_view: {
+        Args: { _developer_id: string }
+        Returns: undefined
       }
       is_application_party: {
         Args: { _app_id: string; _user_id: string }
