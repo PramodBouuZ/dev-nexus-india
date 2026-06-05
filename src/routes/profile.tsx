@@ -73,9 +73,10 @@ function DeveloperForm({ userId }: { userId: string }) {
   useEffect(() => {
     (async () => {
       const { data: dev } = await supabase.from("developer_profiles").select("*").eq("id", userId).maybeSingle();
+      const { data: dp } = await supabase.from("developer_phones" as any).select("phone").eq("developer_id", userId).maybeSingle();
       if (dev) {
         setForm({
-          full_name: dev.full_name ?? "",
+          full_name: (dev as any).full_name ?? "",
           headline: dev.headline ?? "",
           bio: dev.bio ?? "",
           skills: dev.skills?.join(", ") ?? "",
@@ -93,11 +94,11 @@ function DeveloperForm({ userId }: { userId: string }) {
           location: dev.location ?? "",
           work_preference: (dev.work_preference as any) ?? "both",
           developer_type: (dev.developer_type as any) ?? "fullstack",
-          phone: dev.phone ?? "",
+          phone: (dp as any)?.phone ?? "",
           available_days: dev.available_days ?? [],
           contact_public: dev.contact_public ?? false,
-          avatar_url: dev.avatar_url ?? null,
-        is_available: dev.is_available ?? true,
+          avatar_url: (dev as any).avatar_url ?? null,
+        is_available: (dev as any).is_available ?? true,
         });
       }
     })();
@@ -137,11 +138,16 @@ function DeveloperForm({ userId }: { userId: string }) {
       location: form.location || null,
       work_preference: form.work_preference,
       developer_type: form.developer_type as any,
-      phone: form.phone || null,
       available_days: form.available_days,
       contact_public: form.contact_public,
       is_available: form.is_available,
-    });
+    } as any);
+    // Upsert phone into private table
+    if (form.phone) {
+      await supabase.from("developer_phones" as any).upsert({ developer_id: userId, phone: form.phone, updated_at: new Date().toISOString() } as any);
+    } else {
+      await supabase.from("developer_phones" as any).delete().eq("developer_id", userId);
+    }
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Profile saved!");
@@ -258,17 +264,18 @@ function RecruiterForm({ userId }: { userId: string }) {
   useEffect(() => {
     (async () => {
       const { data: rec } = await supabase.from("recruiter_profiles").select("*").eq("id", userId).maybeSingle();
+      const { data: rp } = await supabase.from("recruiter_phones" as any).select("phone").eq("recruiter_id", userId).maybeSingle();
       if (rec) {
         setForm({
-          full_name: rec.full_name ?? "",
+          full_name: (rec as any).full_name ?? "",
           company_name: rec.company_name ?? "",
           company_website: rec.company_website ?? "",
           company_description: rec.company_description ?? "",
           company_size: rec.company_size ?? "",
           industry: rec.industry ?? "",
           location: rec.location ?? "",
-          phone: rec.phone ?? "",
-          avatar_url: rec.avatar_url ?? null,
+          phone: (rp as any)?.phone ?? "",
+          avatar_url: (rec as any).avatar_url ?? null,
           logo_url: (rec as any).logo_url ?? null,
         hiring_status: (rec as any).hiring_status ?? true,
         });
@@ -289,10 +296,14 @@ function RecruiterForm({ userId }: { userId: string }) {
       company_size: form.company_size || null,
       industry: form.industry || null,
       location: form.location || null,
-      phone: form.phone || null,
       logo_url: form.logo_url,
       hiring_status: form.hiring_status,
-    });
+    } as any);
+    if (form.phone) {
+      await supabase.from("recruiter_phones" as any).upsert({ recruiter_id: userId, phone: form.phone, updated_at: new Date().toISOString() } as any);
+    } else {
+      await supabase.from("recruiter_phones" as any).delete().eq("recruiter_id", userId);
+    }
     setBusy(false);
     if (error) { toast.error(error.message); return; }
     toast.success("Profile saved!");
