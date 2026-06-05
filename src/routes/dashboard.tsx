@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck, Search,
   UserCog, Mail, Clock as ClockIcon, Phone, Globe, Github, Send, TrendingUp
@@ -451,7 +452,7 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-10 w-10">
-                        <AvatarImage src={r.recruiter?.logo_url} />
+                        <AvatarImage src={r.recruiter?.logo_url ?? undefined} />
                         <AvatarFallback>{r.recruiter?.company_name?.[0] || r.recruiter?.full_name?.[0]}</AvatarFallback>
                       </Avatar>
                       <div>

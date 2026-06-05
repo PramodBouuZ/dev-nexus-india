@@ -38,7 +38,7 @@ export const Route = createFileRoute("/recruiters/$recId")({
   },
   loader: async ({ params }) => {
     const { data: rec } = await supabase.from("recruiter_profiles").select("company_name").eq("id", params.recId).maybeSingle();
-    return { rec };
+    return { rec: rec as { company_name: string | null } | null };
   },
   component: RecProfile,
 });
