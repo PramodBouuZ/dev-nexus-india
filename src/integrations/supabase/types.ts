@@ -142,6 +142,32 @@ export type Database = {
           },
         ]
       }
+      developer_phones: {
+        Row: {
+          developer_id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          developer_id: string
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          developer_id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "developer_phones_developer_id_fkey"
+            columns: ["developer_id"]
+            isOneToOne: true
+            referencedRelation: "developer_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       developer_profiles: {
         Row: {
           availability_hours_per_week: number | null
@@ -160,7 +186,6 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           monthly_rate_inr: number | null
-          phone: string | null
           portfolio_url: string | null
           project_min_inr: number | null
           skills: string[] | null
@@ -186,7 +211,6 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
-          phone?: string | null
           portfolio_url?: string | null
           project_min_inr?: number | null
           skills?: string[] | null
@@ -214,7 +238,6 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
-          phone?: string | null
           portfolio_url?: string | null
           project_min_inr?: number | null
           skills?: string[] | null
@@ -362,7 +385,6 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
-          email: string | null
           full_name: string | null
           id: string
           updated_at: string
@@ -370,7 +392,6 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
-          email?: string | null
           full_name?: string | null
           id: string
           updated_at?: string
@@ -378,7 +399,6 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
-          email?: string | null
           full_name?: string | null
           id?: string
           updated_at?: string
@@ -484,6 +504,32 @@ export type Database = {
         }
         Relationships: []
       }
+      recruiter_phones: {
+        Row: {
+          phone: string
+          recruiter_id: string
+          updated_at: string
+        }
+        Insert: {
+          phone: string
+          recruiter_id: string
+          updated_at?: string
+        }
+        Update: {
+          phone?: string
+          recruiter_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recruiter_phones_recruiter_id_fkey"
+            columns: ["recruiter_id"]
+            isOneToOne: true
+            referencedRelation: "recruiter_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recruiter_profiles: {
         Row: {
           company_description: string | null
@@ -495,7 +541,6 @@ export type Database = {
           industry: string | null
           location: string | null
           logo_url: string | null
-          phone: string | null
           updated_at: string
         }
         Insert: {
@@ -508,7 +553,6 @@ export type Database = {
           industry?: string | null
           location?: string | null
           logo_url?: string | null
-          phone?: string | null
           updated_at?: string
         }
         Update: {
@@ -521,7 +565,6 @@ export type Database = {
           industry?: string | null
           location?: string | null
           logo_url?: string | null
-          phone?: string | null
           updated_at?: string
         }
         Relationships: []

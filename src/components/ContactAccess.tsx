@@ -66,32 +66,32 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
     queryFn: async () => {
       const { data: dev } = await supabase
         .from("developer_profiles")
-        .select("contact_public, phone")
+        .select("contact_public")
         .eq("id", targetUserId)
         .maybeSingle();
       if (!dev || !(dev as any).contact_public) return null;
-      const { data: prof } = await supabase
-        .from("profiles").select("email").eq("id", targetUserId).maybeSingle();
-      return { email: prof?.email ?? null, phone: (dev as any).phone ?? null };
+      // RLS on developer_phones lets anyone read when contact_public = true
+      const { data: dp } = await supabase
+        .from("developer_phones" as any).select("phone").eq("developer_id", targetUserId).maybeSingle();
+      return { email: null as string | null, phone: (dp as any)?.phone ?? null };
     },
   });
 
   const showContact = isApproved || !!publicInfo;
 
-  // Fetch contact details only when approved
+  // Fetch contact details only when approved (RLS gates these tables)
   const { data: contactInfo } = useQuery({
     queryKey: ["contact-info", targetUserId, isApproved],
     enabled: isApproved && !publicInfo,
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
-      const [{ data: prof }, { data: dev }, { data: rec }] = await Promise.all([
-        supabase.from("profiles").select("email").eq("id", targetUserId).maybeSingle(),
-        supabase.from("developer_profiles").select("phone").eq("id", targetUserId).maybeSingle(),
-        supabase.from("recruiter_profiles").select("phone").eq("id", targetUserId).maybeSingle(),
+      const [{ data: dp }, { data: rp }] = await Promise.all([
+        supabase.from("developer_phones" as any).select("phone").eq("developer_id", targetUserId).maybeSingle(),
+        supabase.from("recruiter_phones" as any).select("phone").eq("recruiter_id", targetUserId).maybeSingle(),
       ]);
       return {
-        email: prof?.email ?? null,
-        phone: dev?.phone ?? rec?.phone ?? null,
+        email: null as string | null,
+        phone: (dp as any)?.phone ?? (rp as any)?.phone ?? null,
       };
     },
   });
