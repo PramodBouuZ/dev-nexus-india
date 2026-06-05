@@ -125,7 +125,7 @@ function DevList() {
               </Link>
               {role === "recruiter" && (
                 <div className="absolute bottom-3 right-3">
-                  <InviteDeveloperDialog developerId={d.id} developerName={d.profile?.full_name ?? "this developer"} size="sm" />
+                  <InviteDeveloperDialog developerId={d.id} developerName={d.full_name ?? "this developer"} size="sm" />
                 </div>
               )}
             </div>

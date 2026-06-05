@@ -216,7 +216,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                 <Link key={d.id} to="/developers/$devId" params={{ devId: d.id }} className="block rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/40">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={d.avatar_url} />
+                      <AvatarImage src={d.avatar_url ?? undefined} />
                       <AvatarFallback>{d.full_name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
@@ -294,7 +294,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                 <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-card">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={r.dev?.avatar_url} />
+                      <AvatarImage src={r.dev?.avatar_url ?? undefined} />
                       <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
                     </Avatar>
                     <div>
@@ -541,8 +541,9 @@ function ChatConversations({ userId, role }: { userId: string; role: "developer"
       const { data: msgs } = await supabase.from("messages").select("*").in("application_id", appIds).order("created_at", { ascending: false });
 
       const partnerIds = role === "developer" ? apps.map(a => a.projects?.recruiter_id) : apps.map(a => a.developer_id);
-      const partnerTable = role === "developer" ? "recruiter_profiles" : "developer_profiles";
-      const { data: partners } = await supabase.from(partnerTable).select("id, full_name, avatar_url, company_name, logo_url").in("id", partnerIds.filter(Boolean));
+      const partners: any[] = role === "developer"
+        ? ((await supabase.from("recruiter_profiles").select("id, full_name, company_name").in("id", partnerIds.filter(Boolean) as string[])).data ?? [])
+        : ((await supabase.from("developer_profiles").select("id, full_name, avatar_url").in("id", partnerIds.filter(Boolean) as string[])).data ?? []);
 
       return apps.map(a => {
         const lastMsg = msgs?.find(m => m.application_id === a.id);
@@ -554,7 +555,7 @@ function ChatConversations({ userId, role }: { userId: string; role: "developer"
           appId: a.id,
           projectTitle: a.projects?.title,
           partnerName: partner?.company_name || partner?.full_name || "Partner",
-          partnerAvatar: partner?.logo_url || partner?.avatar_url,
+          partnerAvatar: partner?.avatar_url ?? undefined,
           lastMsg: lastMsg?.body || (lastMsg?.attachments ? "Sent an attachment" : "No messages yet"),
           lastTime: lastMsg?.created_at || a.created_at,
           unreadCount

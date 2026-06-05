@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ContactAccess } from "@/components/ContactAccess";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft, Globe, MapPin, Building2, Briefcase, ShieldCheck, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
