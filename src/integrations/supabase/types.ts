@@ -172,11 +172,13 @@ export type Database = {
         Row: {
           availability_hours_per_week: number | null
           available_days: string[] | null
+          avatar_url: string | null
           bio: string | null
           contact_public: boolean
           created_at: string
           developer_type: Database["public"]["Enums"]["developer_type"] | null
           experience_years: number | null
+          full_name: string | null
           github_url: string | null
           headline: string | null
           hourly_rate_inr: number | null
@@ -197,11 +199,13 @@ export type Database = {
         Insert: {
           availability_hours_per_week?: number | null
           available_days?: string[] | null
+          avatar_url?: string | null
           bio?: string | null
           contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
+          full_name?: string | null
           github_url?: string | null
           headline?: string | null
           hourly_rate_inr?: number | null
@@ -224,11 +228,13 @@ export type Database = {
         Update: {
           availability_hours_per_week?: number | null
           available_days?: string[] | null
+          avatar_url?: string | null
           bio?: string | null
           contact_public?: boolean
           created_at?: string
           developer_type?: Database["public"]["Enums"]["developer_type"] | null
           experience_years?: number | null
+          full_name?: string | null
           github_url?: string | null
           headline?: string | null
           hourly_rate_inr?: number | null
@@ -456,6 +462,7 @@ export type Database = {
           hiring_type: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week: number | null
           id: string
+          is_featured: boolean
           project_type: Database["public"]["Enums"]["project_type"]
           recruiter_id: string
           status: Database["public"]["Enums"]["project_status"]
@@ -476,6 +483,7 @@ export type Database = {
           hiring_type?: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week?: number | null
           id?: string
+          is_featured?: boolean
           project_type?: Database["public"]["Enums"]["project_type"]
           recruiter_id: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -496,6 +504,7 @@ export type Database = {
           hiring_type?: Database["public"]["Enums"]["hiring_type"] | null
           hours_per_week?: number | null
           id?: string
+          is_featured?: boolean
           project_type?: Database["public"]["Enums"]["project_type"]
           recruiter_id?: string
           status?: Database["public"]["Enums"]["project_status"]
@@ -540,6 +549,7 @@ export type Database = {
           company_size: string | null
           company_website: string | null
           created_at: string
+          full_name: string | null
           id: string
           industry: string | null
           is_verified: boolean
@@ -553,6 +563,7 @@ export type Database = {
           company_size?: string | null
           company_website?: string | null
           created_at?: string
+          full_name?: string | null
           id: string
           industry?: string | null
           is_verified?: boolean
@@ -566,6 +577,7 @@ export type Database = {
           company_size?: string | null
           company_website?: string | null
           created_at?: string
+          full_name?: string | null
           id?: string
           industry?: string | null
           is_verified?: boolean
