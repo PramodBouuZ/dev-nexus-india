@@ -13,7 +13,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock,
+  ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock, Mail, Phone,
   Users, Search, Download, Edit2, BarChart3, TrendingUp, AlertTriangle, UserMinus, UserCheck,
   LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter
 } from "lucide-react";
@@ -739,7 +739,7 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
     const { error } = await supabase.from("developer_profiles").update({
       full_name: form.full_name,
       headline: form.headline,
-      skills: form.skills.split(",").map(s => s.trim()).filter(Boolean),
+      skills: form.skills.split(",").map((s: string) => s.trim()).filter(Boolean),
       is_verified: form.is_verified,
       bio: form.bio,
       location: form.location,

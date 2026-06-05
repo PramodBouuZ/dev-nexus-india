@@ -9,8 +9,9 @@ import { Stars } from "@/components/Stars";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
+import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft, Github, Globe, Linkedin, IndianRupee, Clock, MapPin, ShieldCheck, Calendar, Briefcase,
+  ArrowLeft, Github, Globe, Linkedin, IndianRupee, Clock, MapPin, ShieldCheck, Calendar, Briefcase, CheckCircle2, Users,
 } from "lucide-react";
 
 export const Route = createFileRoute("/developers/$devId")({
@@ -94,7 +95,7 @@ function DevProfile() {
       ]);
 
       // Increment view count asynchronously
-      supabase.rpc("increment_profile_view", { profile_id: devId }).then();
+      supabase.rpc("increment_profile_view", { _developer_id: devId }).then(() => {});
 
       const avg = revs?.length ? revs.reduce((s, r) => s + r.rating, 0) / revs.length : 0;
       return { dev, revs: revs ?? [], avg };

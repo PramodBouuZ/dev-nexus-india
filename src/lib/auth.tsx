@@ -60,15 +60,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 2. Fallback to users table (newly requested)
+    // 2. Fallback to user_roles table
     const { data } = await supabase
-      .from("users")
+      .from("user_roles")
       .select("role")
       .eq("user_id", uid)
       .maybeSingle();
 
-    const dbRole = data?.role as AppRole;
-    console.log("Saved Role (from db):", dbRole);
+    const dbRole = data?.role as AppRole | undefined;
     setRole(dbRole ?? null);
   }
 

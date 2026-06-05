@@ -150,14 +150,7 @@ function SignUpForm() {
       return;
     }
 
-    if (data.user) {
-      // Explicitly upsert to users table as requested
-      await supabase.from('users').upsert({
-        user_id: data.user.id,
-        email: data.user.email!,
-        role: selectedRole
-      } as any);
-    }
+    // Role is captured via user_metadata and synced to public.user_roles by the handle_new_user trigger.
 
     setBusy(false);
     toast.success("Account created! Welcome aboard.");

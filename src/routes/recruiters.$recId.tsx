@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { ContactAccess } from "@/components/ContactAccess";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft, Globe, MapPin, Building2, Briefcase, ShieldCheck, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/recruiters/$recId")({
   },
   loader: async ({ params }) => {
     const { data: rec } = await supabase.from("recruiter_profiles").select("company_name").eq("id", params.recId).maybeSingle();
-    return { rec };
+    return { rec: rec as { company_name: string | null } | null };
   },
   component: RecProfile,
 });
