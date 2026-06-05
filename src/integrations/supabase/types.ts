@@ -387,6 +387,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          is_suspended: boolean
           updated_at: string
         }
         Insert: {
@@ -394,6 +395,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id: string
+          is_suspended?: boolean
           updated_at?: string
         }
         Update: {
@@ -401,6 +403,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_suspended?: boolean
           updated_at?: string
         }
         Relationships: []
@@ -539,6 +542,7 @@ export type Database = {
           created_at: string
           id: string
           industry: string | null
+          is_verified: boolean
           location: string | null
           logo_url: string | null
           updated_at: string
@@ -551,6 +555,7 @@ export type Database = {
           created_at?: string
           id: string
           industry?: string | null
+          is_verified?: boolean
           location?: string | null
           logo_url?: string | null
           updated_at?: string
@@ -563,6 +568,7 @@ export type Database = {
           created_at?: string
           id?: string
           industry?: string | null
+          is_verified?: boolean
           location?: string | null
           logo_url?: string | null
           updated_at?: string
