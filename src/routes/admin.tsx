@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock, Mail, Phone,
   Users, Search, Download, Edit2, BarChart3, TrendingUp, AlertTriangle, UserMinus, UserCheck,
-  LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter
+  LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter, Menu
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" |
 function AdminPage() {
   const { user, role, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabView>("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -84,6 +86,24 @@ function AdminPage() {
     );
   }
 
+  const navContent = (
+    <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-64px)]">
+      <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setMobileNavOpen(false); }} />
+      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Management</div>
+      <SidebarItem icon={Users} label="All Users" active={activeTab === "users"} onClick={() => { setActiveTab("users"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={UserRound} label="Developers" active={activeTab === "developers"} onClick={() => { setActiveTab("developers"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={Briefcase} label="Recruiters" active={activeTab === "recruiters"} onClick={() => { setActiveTab("recruiters"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={FileText} label="Projects" active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={Star} label="Applications" active={activeTab === "applications"} onClick={() => { setActiveTab("applications"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={Users} label="Contact Requests" active={activeTab === "contacts"} onClick={() => { setActiveTab("contacts"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={Send} label="Invites" active={activeTab === "invites"} onClick={() => { setActiveTab("invites"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={MessageSquare} label="Chats" active={activeTab === "chats"} onClick={() => { setActiveTab("chats"); setMobileNavOpen(false); }} />
+      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">System</div>
+      <SidebarItem icon={Bell} label="Alerts" active={activeTab === "alerts"} onClick={() => { setActiveTab("alerts"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={ExternalLink} label="Main Site" onClick={() => window.open('/', '_blank')} />
+    </nav>
+  );
+
   return (
     <div className="flex min-h-screen bg-muted/20">
       <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card hidden lg:block">
@@ -93,27 +113,27 @@ function AdminPage() {
             <span>AdminPanel</span>
           </Link>
         </div>
-        <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-64px)]">
-          <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "overview"} onClick={() => setActiveTab("overview")} />
-          <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Management</div>
-          <SidebarItem icon={Users} label="All Users" active={activeTab === "users"} onClick={() => setActiveTab("users")} />
-          <SidebarItem icon={UserRound} label="Developers" active={activeTab === "developers"} onClick={() => setActiveTab("developers")} />
-          <SidebarItem icon={Briefcase} label="Recruiters" active={activeTab === "recruiters"} onClick={() => setActiveTab("recruiters")} />
-          <SidebarItem icon={FileText} label="Projects" active={activeTab === "projects"} onClick={() => setActiveTab("projects")} />
-          <SidebarItem icon={Star} label="Applications" active={activeTab === "applications"} onClick={() => setActiveTab("applications")} />
-          <SidebarItem icon={Users} label="Contact Requests" active={activeTab === "contacts"} onClick={() => setActiveTab("contacts")} />
-          <SidebarItem icon={Send} label="Invites" active={activeTab === "invites"} onClick={() => setActiveTab("invites")} />
-          <SidebarItem icon={MessageSquare} label="Chats" active={activeTab === "chats"} onClick={() => setActiveTab("chats")} />
-          <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">System</div>
-          <SidebarItem icon={Bell} label="Alerts" active={activeTab === "alerts"} onClick={() => setActiveTab("alerts")} />
-          <SidebarItem icon={ExternalLink} label="Main Site" onClick={() => window.open('/', '_blank')} />
-        </nav>
+        {navContent}
       </aside>
 
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent side="left" className="w-72 p-0 lg:hidden">
+          <SheetHeader className="h-16 px-6 border-b flex flex-row items-center">
+            <SheetTitle className="font-display font-bold text-lg">AdminPanel</SheetTitle>
+          </SheetHeader>
+          {navContent}
+        </SheetContent>
+      </Sheet>
+
       <main className="flex-1 lg:ml-64 flex flex-col min-w-0">
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-6 backdrop-blur-xl">
-          <h2 className="font-display text-lg font-bold capitalize">{activeTab.replace('_', ' ')}</h2>
-          <div className="flex items-center gap-4">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-3 sm:px-6 backdrop-blur-xl">
+          <div className="flex items-center gap-2 min-w-0">
+            <Button variant="ghost" size="icon" className="lg:hidden shrink-0" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h2 className="font-display text-base sm:text-lg font-bold capitalize truncate">{activeTab.replace('_', ' ')}</h2>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-4">
              <Button variant="ghost" size="icon" onClick={() => setActiveTab("alerts")} className="relative">
                 <Bell className="h-5 w-5" />
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive animate-pulse" />
@@ -128,7 +148,7 @@ function AdminPage() {
           </div>
         </header>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="p-3 sm:p-6 overflow-x-auto">
           {activeTab === "overview" && <OverviewTab />}
           {activeTab === "users" && <UsersTab />}
           {activeTab === "developers" && <DevelopersTab />}
