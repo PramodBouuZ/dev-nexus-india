@@ -45,7 +45,7 @@ function AdminPage() {
     if (role !== "admin") return;
 
     const tables = [
-      "profiles", "users", "developer_profiles", "recruiter_profiles",
+      "profiles", "user_roles", "developer_profiles", "recruiter_profiles",
       "projects", "applications", "invites",
       "contact_access_requests", "messages"
     ];
