@@ -45,7 +45,7 @@ function AdminPage() {
     if (role !== "admin") return;
 
     const tables = [
-      "profiles", "users", "developer_profiles", "recruiter_profiles",
+      "profiles", "user_roles", "developer_profiles", "recruiter_profiles",
       "projects", "applications", "invites",
       "contact_access_requests", "messages"
     ];
@@ -378,14 +378,17 @@ function RecentActivity() {
 function UsersTab() {
   const [search, setSearch] = useState("");
   const qc = useQueryClient();
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, error } = useQuery({
     queryKey: ["admin-users-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("*, users(role)").order("created_at", { ascending: false });
-      return (data || []).map((u: any) => ({
-        ...u,
-        role: u.users?.role || 'unknown'
-      }));
+      const [{ data: profs, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      if (pErr) throw pErr;
+      if (rErr) throw rErr;
+      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+      return (profs || []).map((u: any) => ({ ...u, role: roleMap.get(u.id) || 'unknown' }));
     }
   });
   const filtered = users?.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
@@ -394,8 +397,10 @@ function UsersTab() {
     if (!confirm("Delete this user? This will remove all their data.")) return;
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) toast.error(error.message);
-    else toast.success("User deleted");
+    else { toast.success("User deleted"); qc.invalidateQueries({ queryKey: ["admin-users-all"] }); }
   }
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load users: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
