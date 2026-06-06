@@ -38,6 +38,7 @@ type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" |
 function AdminPage() {
   const { user, role, loading } = useAuth();
   const [activeTab, setActiveTab] = useState<TabView>("overview");
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
