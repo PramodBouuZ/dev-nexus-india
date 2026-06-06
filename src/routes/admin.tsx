@@ -378,14 +378,17 @@ function RecentActivity() {
 function UsersTab() {
   const [search, setSearch] = useState("");
   const qc = useQueryClient();
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, error } = useQuery({
     queryKey: ["admin-users-all"],
     queryFn: async () => {
-      const { data } = await supabase.from("profiles").select("*, users(role)").order("created_at", { ascending: false });
-      return (data || []).map((u: any) => ({
-        ...u,
-        role: u.users?.role || 'unknown'
-      }));
+      const [{ data: profs, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
+        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      if (pErr) throw pErr;
+      if (rErr) throw rErr;
+      const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
+      return (profs || []).map((u: any) => ({ ...u, role: roleMap.get(u.id) || 'unknown' }));
     }
   });
   const filtered = users?.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
