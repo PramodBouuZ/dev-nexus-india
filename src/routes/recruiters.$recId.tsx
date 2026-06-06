@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Globe, MapPin, Building2, Briefcase, ShieldCheck, CalendarDays } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
-  head: ({ loaderData, params }) => {
+  head: ({ loaderData, params }: { loaderData?: { rec: { company_name: string | null } | null }; params: { recId: string } }) => {
     const title = `${loaderData?.rec?.company_name || "Recruiter"} | Hiring on DeveloperConnect`;
     const description = `Hire developers from ${loaderData?.rec?.company_name || "this recruiter"} on DeveloperConnect. Top Indian tech talent for part-time and full-time roles.`;
     return {
