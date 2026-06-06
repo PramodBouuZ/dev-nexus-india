@@ -86,7 +86,6 @@ function AdminPage() {
     );
   }
 
-  return (
   const navContent = (
     <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-64px)]">
       <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setMobileNavOpen(false); }} />
