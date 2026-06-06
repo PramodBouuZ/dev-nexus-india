@@ -12,10 +12,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock, Mail, Phone,
   Users, Search, Download, Edit2, BarChart3, TrendingUp, AlertTriangle, UserMinus, UserCheck,
-  LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter
+  LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter, Menu
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
