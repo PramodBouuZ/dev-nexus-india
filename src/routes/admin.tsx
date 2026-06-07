@@ -432,14 +432,19 @@ function DevelopersTab() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const qc = useQueryClient();
-  const { data: devs, isLoading } = useQuery({
+  const { data: devs, isLoading, error } = useQuery({
     queryKey: ["admin-developers"],
     queryFn: async () => {
-      const { data } = await supabase.from("developer_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
-      return (data || []).map((d: any) => ({
+      const [{ data: dvs, error: dErr }, { data: profs }] = await Promise.all([
+        supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, is_suspended"),
+      ]);
+      if (dErr) throw dErr;
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      return (dvs || []).map((d: any) => ({
         ...d,
-        email: d.profiles?.email,
-        is_suspended: d.profiles?.is_suspended
+        email: pMap.get(d.id)?.email,
+        is_suspended: pMap.get(d.id)?.is_suspended,
       }));
     }
   });
