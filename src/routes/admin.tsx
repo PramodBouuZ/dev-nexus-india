@@ -625,8 +625,19 @@ function RecruitersTab() {
 function ProjectsTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const { data: projs, isLoading } = useQuery({ queryKey: ["admin-projects"], queryFn: async () => { const { data } = await supabase.from("projects").select("*, recruiter_profiles(company_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || (p.recruiter_profiles as any)?.company_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: projs, isLoading, error } = useQuery({
+    queryKey: ["admin-projects"],
+    queryFn: async () => {
+      const [{ data: ps, error: pErr }, { data: recs }] = await Promise.all([
+        supabase.from("projects").select("*").order("created_at", { ascending: false }),
+        supabase.from("recruiter_profiles").select("id, company_name"),
+      ]);
+      if (pErr) throw pErr;
+      const rMap = new Map((recs || []).map((r: any) => [r.id, r.company_name]));
+      return (ps || []).map((p: any) => ({ ...p, company_name: rMap.get(p.recruiter_id) }));
+    }
+  });
+  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.company_name?.toLowerCase().includes(search.toLowerCase()));
 
   async function toggleFeatured(id: string, current: boolean) { const { error } = await supabase.from("projects").update({ is_featured: !current } as any).eq("id", id); if (error) toast.error(error.message); else { toast.success("Featured status updated"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
   async function deleteProj(id: string) { if (!confirm("Delete project?")) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) toast.error(error.message); else toast.success("Deleted"); }
