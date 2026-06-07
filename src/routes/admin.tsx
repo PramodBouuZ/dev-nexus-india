@@ -939,3 +939,50 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
     </Dialog>
   );
 }
+
+function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recruiter" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">{user.full_name || (kind === "recruiter" ? user.company_name : "Anonymous")} {user.is_verified && <Badge className="bg-success text-success-foreground"><ShieldCheck className="mr-1 h-3 w-3" /> Verified</Badge>}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 py-2 text-sm">
+          <Row k="User ID" v={<span className="font-mono text-xs">{user.id}</span>} />
+          <Row k="Email" v={user.email || "—"} />
+          <Row k="Phone" v={user.phone || "—"} />
+          {kind === "developer" ? (
+            <>
+              <Row k="Headline" v={user.headline || "—"} />
+              <Row k="Location" v={user.location || "—"} />
+              <Row k="Experience" v={user.experience_years ? `${user.experience_years} yrs` : "—"} />
+              <Row k="Hourly Rate" v={user.hourly_rate_inr ? `₹${user.hourly_rate_inr.toLocaleString()}` : "—"} />
+              <Row k="Available" v={user.is_available ? "Yes" : "No"} />
+              <Row k="Skills" v={<div className="flex flex-wrap gap-1 justify-end max-w-[60%]">{(user.skills || []).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}</div>} />
+              <Row k="Bio" v={<span className="text-right text-xs">{user.bio || "—"}</span>} />
+              <Row k="GitHub" v={user.github_url ? <a className="text-accent" href={user.github_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="Portfolio" v={user.portfolio_url ? <a className="text-accent" href={user.portfolio_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="LinkedIn" v={user.linkedin_url ? <a className="text-accent" href={user.linkedin_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+            </>
+          ) : (
+            <>
+              <Row k="Company" v={user.company_name || "—"} />
+              <Row k="Industry" v={user.industry || "—"} />
+              <Row k="Location" v={user.location || "—"} />
+              <Row k="Website" v={user.company_website ? <a className="text-accent" href={user.company_website} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="About" v={<span className="text-right text-xs">{user.company_description || "—"}</span>} />
+            </>
+          )}
+          <Row k="Suspended" v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"} />
+          <Row k="Joined" v={new Date(user.created_at).toLocaleString()} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return <div className="flex items-start justify-between gap-3 border-b pb-2"><span className="text-muted-foreground text-xs uppercase font-semibold">{k}</span><span className="font-medium text-right">{v}</span></div>;
+}
