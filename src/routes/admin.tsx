@@ -697,8 +697,21 @@ function ApplicationsTab() {
 // --- CONTACTS ---
 function ContactsTab() {
   const [search, setSearch] = useState("");
-  const { data: contacts, isLoading } = useQuery({ queryKey: ["admin-contacts"], queryFn: async () => { const { data } = await supabase.from("contact_access_requests").select("*, requester:profiles!contact_access_requests_requester_id_fkey(full_name), target:profiles!contact_access_requests_target_id_fkey(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = contacts?.filter(c => !search || (c.requester as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (c.target as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: contacts, isLoading, error } = useQuery({
+    queryKey: ["admin-contacts"],
+    queryFn: async () => {
+      const [{ data: cs, error: cErr }, { data: profs }] = await Promise.all([
+        supabase.from("contact_access_requests").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name"),
+      ]);
+      if (cErr) throw cErr;
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      return (cs || []).map((c: any) => ({ ...c, requester_name: pMap.get(c.requester_id), target_name: pMap.get(c.target_id) }));
+    }
+  });
+  const filtered = contacts?.filter(c => !search || c.requester_name?.toLowerCase().includes(search.toLowerCase()) || c.target_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -710,7 +723,7 @@ function ContactsTab() {
           <Card key={c.id}>
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold">{(c.requester as any)?.full_name} → {(c.target as any)?.full_name}</p>
+                <p className="text-sm font-bold">{c.requester_name || "—"} → {c.target_name || "—"}</p>
                 <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()} · {c.status}</p>
               </div>
               <Badge className={c.status === 'approved' ? 'bg-success text-success-foreground' : ''}>{c.status}</Badge>
