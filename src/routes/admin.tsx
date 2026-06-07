@@ -47,7 +47,7 @@ function AdminPage() {
     const tables = [
       "profiles", "user_roles", "developer_profiles", "recruiter_profiles",
       "projects", "applications", "invites",
-      "contact_access_requests", "messages"
+      "contact_access_requests", "messages", "verification_requests", "admin_alerts"
     ];
 
     const channels = tables.map(table =>
