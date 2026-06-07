@@ -330,18 +330,23 @@ function RecentActivity() {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["admin-recent-activity"],
     queryFn: async () => {
-      const [users, apps, projs, msgs] = await Promise.all([
+      const [users, apps, projs, msgs, devs, recs] = await Promise.all([
         supabase.from("profiles").select("id, created_at, full_name").order("created_at", { ascending: false }).limit(5),
-        supabase.from("applications").select("id, created_at, developer_profiles(full_name), projects(title)").order("created_at", { ascending: false }).limit(3),
-        supabase.from("projects").select("id, created_at, title, recruiter_profiles(company_name)").order("created_at", { ascending: false }).limit(3),
+        supabase.from("applications").select("id, created_at, developer_id, project_id").order("created_at", { ascending: false }).limit(3),
+        supabase.from("projects").select("id, created_at, title, recruiter_id").order("created_at", { ascending: false }).limit(3),
         supabase.from("messages").select("id, created_at, body, sender_id").order("created_at", { ascending: false }).limit(3),
+        supabase.from("developer_profiles").select("id, full_name"),
+        supabase.from("recruiter_profiles").select("id, company_name"),
       ]);
+      const devMap = new Map((devs.data || []).map((d: any) => [d.id, d.full_name]));
+      const recMap = new Map((recs.data || []).map((r: any) => [r.id, r.company_name]));
+      const projMap = new Map((projs.data || []).map((p: any) => [p.id, p.title]));
 
       const formatted = [
         ...(users.data || []).map(u => ({ user: u.full_name || "New user", action: "joined the platform", target: "", time: u.created_at, type: "user" })),
-        ...(apps.data || []).map(a => ({ user: (a.developer_profiles as any)?.full_name || "Someone", action: "applied for", target: (a.projects as any)?.title, time: a.created_at, type: "app" })),
-        ...(projs.data || []).map(p => ({ user: (p.recruiter_profiles as any)?.company_name || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
-        ...(msgs.data || []).map(m => ({ user: m.sender_id.slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
+        ...(apps.data || []).map(a => ({ user: devMap.get(a.developer_id) || "Someone", action: "applied for", target: projMap.get(a.project_id) || "", time: a.created_at, type: "app" })),
+        ...(projs.data || []).map(p => ({ user: recMap.get(p.recruiter_id) || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
+        ...(msgs.data || []).map(m => ({ user: (m.sender_id || "").slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
       ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
 
       return formatted;
