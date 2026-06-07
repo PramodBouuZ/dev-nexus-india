@@ -540,11 +540,15 @@ function RecruitersTab() {
   const { data: recs, isLoading } = useQuery({
     queryKey: ["admin-recruiters"],
     queryFn: async () => {
-      const { data } = await supabase.from("recruiter_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
-      return (data || []).map((r: any) => ({
+      const [{ data: rs }, { data: profs }] = await Promise.all([
+        supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, is_suspended"),
+      ]);
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      return (rs || []).map((r: any) => ({
         ...r,
-        email: r.profiles?.email,
-        is_suspended: r.profiles?.is_suspended
+        email: pMap.get(r.id)?.email,
+        is_suspended: pMap.get(r.id)?.is_suspended,
       }));
     }
   });
