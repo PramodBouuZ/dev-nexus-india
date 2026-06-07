@@ -330,18 +330,23 @@ function RecentActivity() {
   const { data: activities, isLoading } = useQuery({
     queryKey: ["admin-recent-activity"],
     queryFn: async () => {
-      const [users, apps, projs, msgs] = await Promise.all([
+      const [users, apps, projs, msgs, devs, recs] = await Promise.all([
         supabase.from("profiles").select("id, created_at, full_name").order("created_at", { ascending: false }).limit(5),
-        supabase.from("applications").select("id, created_at, developer_profiles(full_name), projects(title)").order("created_at", { ascending: false }).limit(3),
-        supabase.from("projects").select("id, created_at, title, recruiter_profiles(company_name)").order("created_at", { ascending: false }).limit(3),
+        supabase.from("applications").select("id, created_at, developer_id, project_id").order("created_at", { ascending: false }).limit(3),
+        supabase.from("projects").select("id, created_at, title, recruiter_id").order("created_at", { ascending: false }).limit(3),
         supabase.from("messages").select("id, created_at, body, sender_id").order("created_at", { ascending: false }).limit(3),
+        supabase.from("developer_profiles").select("id, full_name"),
+        supabase.from("recruiter_profiles").select("id, company_name"),
       ]);
+      const devMap = new Map((devs.data || []).map((d: any) => [d.id, d.full_name]));
+      const recMap = new Map((recs.data || []).map((r: any) => [r.id, r.company_name]));
+      const projMap = new Map((projs.data || []).map((p: any) => [p.id, p.title]));
 
       const formatted = [
         ...(users.data || []).map(u => ({ user: u.full_name || "New user", action: "joined the platform", target: "", time: u.created_at, type: "user" })),
-        ...(apps.data || []).map(a => ({ user: (a.developer_profiles as any)?.full_name || "Someone", action: "applied for", target: (a.projects as any)?.title, time: a.created_at, type: "app" })),
-        ...(projs.data || []).map(p => ({ user: (p.recruiter_profiles as any)?.company_name || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
-        ...(msgs.data || []).map(m => ({ user: m.sender_id.slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
+        ...(apps.data || []).map(a => ({ user: devMap.get(a.developer_id) || "Someone", action: "applied for", target: projMap.get(a.project_id) || "", time: a.created_at, type: "app" })),
+        ...(projs.data || []).map(p => ({ user: recMap.get(p.recruiter_id) || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
+        ...(msgs.data || []).map(m => ({ user: (m.sender_id || "").slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
       ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
 
       return formatted;
@@ -427,14 +432,19 @@ function DevelopersTab() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const qc = useQueryClient();
-  const { data: devs, isLoading } = useQuery({
+  const { data: devs, isLoading, error } = useQuery({
     queryKey: ["admin-developers"],
     queryFn: async () => {
-      const { data } = await supabase.from("developer_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
-      return (data || []).map((d: any) => ({
+      const [{ data: dvs, error: dErr }, { data: profs }] = await Promise.all([
+        supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, is_suspended"),
+      ]);
+      if (dErr) throw dErr;
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      return (dvs || []).map((d: any) => ({
         ...d,
-        email: d.profiles?.email,
-        is_suspended: d.profiles?.is_suspended
+        email: pMap.get(d.id)?.email,
+        is_suspended: pMap.get(d.id)?.is_suspended,
       }));
     }
   });
@@ -480,6 +490,8 @@ function DevelopersTab() {
     else toast.success("Deleted");
   }
 
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load developers: {(error as Error).message}</div>;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between">
@@ -508,7 +520,7 @@ function DevelopersTab() {
               </button>
             </td>
             <td className="p-4 text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString()}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/developers/$devId" params={{ devId: d.id }}><Eye className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className={d.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={d.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(d.id, d.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteDev(d.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><ViewUserDialog user={d} kind="developer" /><Button variant="ghost" size="icon" asChild title="Public Profile"><Link to="/developers/$devId" params={{ devId: d.id }}><ExternalLink className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className={d.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={d.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(d.id, d.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteDev(d.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
@@ -530,11 +542,15 @@ function RecruitersTab() {
   const { data: recs, isLoading } = useQuery({
     queryKey: ["admin-recruiters"],
     queryFn: async () => {
-      const { data } = await supabase.from("recruiter_profiles").select("*, profiles(email, is_suspended)").order("created_at", { ascending: false });
-      return (data || []).map((r: any) => ({
+      const [{ data: rs }, { data: profs }] = await Promise.all([
+        supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, email, is_suspended"),
+      ]);
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      return (rs || []).map((r: any) => ({
         ...r,
-        email: r.profiles?.email,
-        is_suspended: r.profiles?.is_suspended
+        email: pMap.get(r.id)?.email,
+        is_suspended: pMap.get(r.id)?.is_suspended,
       }));
     }
   });
@@ -592,7 +608,7 @@ function RecruitersTab() {
             </td>
             <td className="p-4 text-muted-foreground">{r.industry || 'Tech'}</td>
             <td className="p-4 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><Button variant="ghost" size="icon" asChild title="View Profile"><Link to="/recruiters/$recId" params={{ recId: r.id }}><Eye className="h-4 w-4" /></Link></Button><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className={r.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={r.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(r.id, r.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteRec(r.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
+            <td className="p-4 text-right"><div className="flex justify-end gap-1"><ViewUserDialog user={r} kind="recruiter" /><Button variant="ghost" size="icon" asChild title="Public Profile"><Link to="/recruiters/$recId" params={{ recId: r.id }}><ExternalLink className="h-4 w-4" /></Link></Button><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className={r.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={r.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(r.id, r.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteRec(r.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
           </tr>
         ))}
       </tbody></table></div>
@@ -611,8 +627,19 @@ function RecruitersTab() {
 function ProjectsTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const { data: projs, isLoading } = useQuery({ queryKey: ["admin-projects"], queryFn: async () => { const { data } = await supabase.from("projects").select("*, recruiter_profiles(company_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || (p.recruiter_profiles as any)?.company_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: projs, isLoading, error } = useQuery({
+    queryKey: ["admin-projects"],
+    queryFn: async () => {
+      const [{ data: ps, error: pErr }, { data: recs }] = await Promise.all([
+        supabase.from("projects").select("*").order("created_at", { ascending: false }),
+        supabase.from("recruiter_profiles").select("id, company_name"),
+      ]);
+      if (pErr) throw pErr;
+      const rMap = new Map((recs || []).map((r: any) => [r.id, r.company_name]));
+      return (ps || []).map((p: any) => ({ ...p, company_name: rMap.get(p.recruiter_id) }));
+    }
+  });
+  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.company_name?.toLowerCase().includes(search.toLowerCase()));
 
   async function toggleFeatured(id: string, current: boolean) { const { error } = await supabase.from("projects").update({ is_featured: !current } as any).eq("id", id); if (error) toast.error(error.message); else { toast.success("Featured status updated"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
   async function deleteProj(id: string) { if (!confirm("Delete project?")) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) toast.error(error.message); else toast.success("Deleted"); }
@@ -625,7 +652,7 @@ function ProjectsTab() {
          !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No projects found.</p> :
          filtered.map(p => (
           <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
-            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)}><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)}><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{(p.recruiter_profiles as any)?.company_name}</CardDescription></CardHeader>
+            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)}><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)}><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{p.company_name || "—"}</CardDescription></CardHeader>
             <CardContent className="p-4 pt-0 flex justify-between items-center mt-2"><span className="text-xs font-bold text-accent">Budget: ₹{p.budget_min_inr?.toLocaleString()}</span><Button variant="link" size="sm" asChild className="p-0 h-auto"><Link to="/projects/$projectId" params={{ projectId: p.id }}>Details →</Link></Button></CardContent>
           </Card>
         ))}
@@ -637,8 +664,23 @@ function ProjectsTab() {
 // --- APPLICATIONS ---
 function ApplicationsTab() {
   const [search, setSearch] = useState("");
-  const { data: apps, isLoading } = useQuery({ queryKey: ["admin-applications"], queryFn: async () => { const { data } = await supabase.from("applications").select("*, projects(title), developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = apps?.filter(a => !search || (a.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (a.developer_profiles as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: apps, isLoading, error } = useQuery({
+    queryKey: ["admin-applications"],
+    queryFn: async () => {
+      const [{ data: as, error: aErr }, { data: ps }, { data: dvs }] = await Promise.all([
+        supabase.from("applications").select("*").order("created_at", { ascending: false }),
+        supabase.from("projects").select("id, title"),
+        supabase.from("developer_profiles").select("id, full_name"),
+      ]);
+      if (aErr) throw aErr;
+      const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
+      return (as || []).map((a: any) => ({ ...a, project_title: pMap.get(a.project_id), developer_name: dMap.get(a.developer_id) }));
+    }
+  });
+  const filtered = apps?.filter(a => !search || a.project_title?.toLowerCase().includes(search.toLowerCase()) || a.developer_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -647,7 +689,7 @@ function ApplicationsTab() {
         {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
          !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No applications found.</td></tr> :
          filtered.map(a => (
-          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{(a.projects as any)?.title}</td><td className="p-4">{(a.developer_profiles as any)?.full_name}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
+          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{a.project_title || "—"}</td><td className="p-4">{a.developer_name || "—"}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
         ))}
       </tbody></table></div>
     </div>
@@ -657,8 +699,21 @@ function ApplicationsTab() {
 // --- CONTACTS ---
 function ContactsTab() {
   const [search, setSearch] = useState("");
-  const { data: contacts, isLoading } = useQuery({ queryKey: ["admin-contacts"], queryFn: async () => { const { data } = await supabase.from("contact_access_requests").select("*, requester:profiles!contact_access_requests_requester_id_fkey(full_name), target:profiles!contact_access_requests_target_id_fkey(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = contacts?.filter(c => !search || (c.requester as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (c.target as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: contacts, isLoading, error } = useQuery({
+    queryKey: ["admin-contacts"],
+    queryFn: async () => {
+      const [{ data: cs, error: cErr }, { data: profs }] = await Promise.all([
+        supabase.from("contact_access_requests").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("id, full_name"),
+      ]);
+      if (cErr) throw cErr;
+      const pMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      return (cs || []).map((c: any) => ({ ...c, requester_name: pMap.get(c.requester_id), target_name: pMap.get(c.target_id) }));
+    }
+  });
+  const filtered = contacts?.filter(c => !search || c.requester_name?.toLowerCase().includes(search.toLowerCase()) || c.target_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -670,7 +725,7 @@ function ContactsTab() {
           <Card key={c.id}>
             <CardContent className="p-4 flex items-center justify-between">
               <div>
-                <p className="text-sm font-bold">{(c.requester as any)?.full_name} → {(c.target as any)?.full_name}</p>
+                <p className="text-sm font-bold">{c.requester_name || "—"} → {c.target_name || "—"}</p>
                 <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()} · {c.status}</p>
               </div>
               <Badge className={c.status === 'approved' ? 'bg-success text-success-foreground' : ''}>{c.status}</Badge>
@@ -685,8 +740,23 @@ function ContactsTab() {
 // --- INVITES ---
 function InvitesTab() {
   const [search, setSearch] = useState("");
-  const { data: invites, isLoading } = useQuery({ queryKey: ["admin-invites"], queryFn: async () => { const { data } = await supabase.from("invites").select("*, projects(title), developer:developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = invites?.filter(i => !search || (i.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (i.developer as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: invites, isLoading, error } = useQuery({
+    queryKey: ["admin-invites"],
+    queryFn: async () => {
+      const [{ data: invs, error: iErr }, { data: ps }, { data: dvs }] = await Promise.all([
+        supabase.from("invites").select("*").order("created_at", { ascending: false }),
+        supabase.from("projects").select("id, title"),
+        supabase.from("developer_profiles").select("id, full_name"),
+      ]);
+      if (iErr) throw iErr;
+      const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
+      return (invs || []).map((i: any) => ({ ...i, project_title: pMap.get(i.project_id), developer_name: dMap.get(i.developer_id) }));
+    }
+  });
+  const filtered = invites?.filter(i => !search || i.project_title?.toLowerCase().includes(search.toLowerCase()) || i.developer_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -696,8 +766,8 @@ function InvitesTab() {
          !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No invites found.</td></tr> :
          filtered.map(i => (
           <tr key={i.id}>
-            <td className="p-4 font-medium">{(i.projects as any)?.title}</td>
-            <td className="p-4">{(i.developer as any)?.full_name}</td>
+            <td className="p-4 font-medium">{i.project_title || "—"}</td>
+            <td className="p-4">{i.developer_name || "—"}</td>
             <td className="p-4"><Badge variant="outline">{i.status}</Badge></td>
             <td className="p-4 text-xs text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</td>
           </tr>
@@ -710,8 +780,29 @@ function InvitesTab() {
 // --- CHATS ---
 function ChatsTab() {
   const [search, setSearch] = useState("");
-  const { data: messages, isLoading } = useQuery({ queryKey: ["admin-chats"], queryFn: async () => { const { data } = await supabase.from("messages").select("*, sender:profiles(full_name), application:applications(projects(title))").order("created_at", { ascending: false }).limit(100); return data || []; } });
-  const filtered = messages?.filter(m => !search || (m.sender as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (m.application as any)?.projects?.title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+  const { data: messages, isLoading, error } = useQuery({
+    queryKey: ["admin-chats"],
+    queryFn: async () => {
+      const [{ data: msgs, error: mErr }, { data: profs }, { data: apps }, { data: ps }] = await Promise.all([
+        supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("profiles").select("id, full_name"),
+        supabase.from("applications").select("id, project_id"),
+        supabase.from("projects").select("id, title"),
+      ]);
+      if (mErr) throw mErr;
+      const profMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      const projMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const appMap = new Map((apps || []).map((a: any) => [a.id, projMap.get(a.project_id)]));
+      return (msgs || []).map((m: any) => ({
+        ...m,
+        sender_name: profMap.get(m.sender_id),
+        project_title: appMap.get(m.application_id),
+      }));
+    }
+  });
+  const filtered = messages?.filter(m => !search || m.sender_name?.toLowerCase().includes(search.toLowerCase()) || m.project_title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load chats: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -727,10 +818,10 @@ function ChatsTab() {
           <div key={m.id} className="p-4 rounded-lg border bg-card text-sm flex justify-between items-start gap-4 hover:bg-muted/30 transition-colors">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-accent">{(m.sender as any)?.full_name || m.sender_id.slice(0,8)}</span>
-                <span className="text-[10px] text-muted-foreground uppercase">in {(m.application as any)?.projects?.title || "Unknown Project"}</span>
+                <span className="font-bold text-accent">{m.sender_name || (m.sender_id || "").slice(0,8)}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">in {m.project_title || "Unknown Project"}</span>
               </div>
-              <p className="text-muted-foreground break-words">{m.body || (m.attachments ? "📎 Attachment" : "Empty Message")}</p>
+              <p className="text-muted-foreground break-words">{m.body || ((m.attachments?.length ?? 0) > 0 ? "📎 Attachment" : "Empty Message")}</p>
             </div>
             <span className="text-[10px] text-muted-foreground whitespace-nowrap pt-1">{new Date(m.created_at).toLocaleString()}</span>
           </div>
@@ -847,4 +938,51 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
       </DialogContent>
     </Dialog>
   );
+}
+
+function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recruiter" }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild><Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">{user.full_name || (kind === "recruiter" ? user.company_name : "Anonymous")} {user.is_verified && <Badge className="bg-success text-success-foreground"><ShieldCheck className="mr-1 h-3 w-3" /> Verified</Badge>}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-3 py-2 text-sm">
+          <Row k="User ID" v={<span className="font-mono text-xs">{user.id}</span>} />
+          <Row k="Email" v={user.email || "—"} />
+          <Row k="Phone" v={user.phone || "—"} />
+          {kind === "developer" ? (
+            <>
+              <Row k="Headline" v={user.headline || "—"} />
+              <Row k="Location" v={user.location || "—"} />
+              <Row k="Experience" v={user.experience_years ? `${user.experience_years} yrs` : "—"} />
+              <Row k="Hourly Rate" v={user.hourly_rate_inr ? `₹${user.hourly_rate_inr.toLocaleString()}` : "—"} />
+              <Row k="Available" v={user.is_available ? "Yes" : "No"} />
+              <Row k="Skills" v={<div className="flex flex-wrap gap-1 justify-end max-w-[60%]">{(user.skills || []).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}</div>} />
+              <Row k="Bio" v={<span className="text-right text-xs">{user.bio || "—"}</span>} />
+              <Row k="GitHub" v={user.github_url ? <a className="text-accent" href={user.github_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="Portfolio" v={user.portfolio_url ? <a className="text-accent" href={user.portfolio_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="LinkedIn" v={user.linkedin_url ? <a className="text-accent" href={user.linkedin_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+            </>
+          ) : (
+            <>
+              <Row k="Company" v={user.company_name || "—"} />
+              <Row k="Industry" v={user.industry || "—"} />
+              <Row k="Location" v={user.location || "—"} />
+              <Row k="Website" v={user.company_website ? <a className="text-accent" href={user.company_website} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row k="About" v={<span className="text-right text-xs">{user.company_description || "—"}</span>} />
+            </>
+          )}
+          <Row k="Suspended" v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"} />
+          <Row k="Joined" v={new Date(user.created_at).toLocaleString()} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return <div className="flex items-start justify-between gap-3 border-b pb-2"><span className="text-muted-foreground text-xs uppercase font-semibold">{k}</span><span className="font-medium text-right">{v}</span></div>;
 }
