@@ -662,8 +662,23 @@ function ProjectsTab() {
 // --- APPLICATIONS ---
 function ApplicationsTab() {
   const [search, setSearch] = useState("");
-  const { data: apps, isLoading } = useQuery({ queryKey: ["admin-applications"], queryFn: async () => { const { data } = await supabase.from("applications").select("*, projects(title), developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = apps?.filter(a => !search || (a.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (a.developer_profiles as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: apps, isLoading, error } = useQuery({
+    queryKey: ["admin-applications"],
+    queryFn: async () => {
+      const [{ data: as, error: aErr }, { data: ps }, { data: dvs }] = await Promise.all([
+        supabase.from("applications").select("*").order("created_at", { ascending: false }),
+        supabase.from("projects").select("id, title"),
+        supabase.from("developer_profiles").select("id, full_name"),
+      ]);
+      if (aErr) throw aErr;
+      const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
+      return (as || []).map((a: any) => ({ ...a, project_title: pMap.get(a.project_id), developer_name: dMap.get(a.developer_id) }));
+    }
+  });
+  const filtered = apps?.filter(a => !search || a.project_title?.toLowerCase().includes(search.toLowerCase()) || a.developer_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -672,7 +687,7 @@ function ApplicationsTab() {
         {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
          !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No applications found.</td></tr> :
          filtered.map(a => (
-          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{(a.projects as any)?.title}</td><td className="p-4">{(a.developer_profiles as any)?.full_name}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
+          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{a.project_title || "—"}</td><td className="p-4">{a.developer_name || "—"}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
         ))}
       </tbody></table></div>
     </div>
