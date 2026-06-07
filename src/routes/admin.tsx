@@ -490,6 +490,8 @@ function DevelopersTab() {
     else toast.success("Deleted");
   }
 
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load developers: {(error as Error).message}</div>;
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between">
