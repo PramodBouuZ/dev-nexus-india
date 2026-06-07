@@ -725,8 +725,23 @@ function ContactsTab() {
 // --- INVITES ---
 function InvitesTab() {
   const [search, setSearch] = useState("");
-  const { data: invites, isLoading } = useQuery({ queryKey: ["admin-invites"], queryFn: async () => { const { data } = await supabase.from("invites").select("*, projects(title), developer:developer_profiles(full_name)").order("created_at", { ascending: false }); return data || []; } });
-  const filtered = invites?.filter(i => !search || (i.projects as any)?.title?.toLowerCase().includes(search.toLowerCase()) || (i.developer as any)?.full_name?.toLowerCase().includes(search.toLowerCase()));
+  const { data: invites, isLoading, error } = useQuery({
+    queryKey: ["admin-invites"],
+    queryFn: async () => {
+      const [{ data: invs, error: iErr }, { data: ps }, { data: dvs }] = await Promise.all([
+        supabase.from("invites").select("*").order("created_at", { ascending: false }),
+        supabase.from("projects").select("id, title"),
+        supabase.from("developer_profiles").select("id, full_name"),
+      ]);
+      if (iErr) throw iErr;
+      const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
+      return (invs || []).map((i: any) => ({ ...i, project_title: pMap.get(i.project_id), developer_name: dMap.get(i.developer_id) }));
+    }
+  });
+  const filtered = invites?.filter(i => !search || i.project_title?.toLowerCase().includes(search.toLowerCase()) || i.developer_name?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -736,8 +751,8 @@ function InvitesTab() {
          !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No invites found.</td></tr> :
          filtered.map(i => (
           <tr key={i.id}>
-            <td className="p-4 font-medium">{(i.projects as any)?.title}</td>
-            <td className="p-4">{(i.developer as any)?.full_name}</td>
+            <td className="p-4 font-medium">{i.project_title || "—"}</td>
+            <td className="p-4">{i.developer_name || "—"}</td>
             <td className="p-4"><Badge variant="outline">{i.status}</Badge></td>
             <td className="p-4 text-xs text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</td>
           </tr>
@@ -750,8 +765,29 @@ function InvitesTab() {
 // --- CHATS ---
 function ChatsTab() {
   const [search, setSearch] = useState("");
-  const { data: messages, isLoading } = useQuery({ queryKey: ["admin-chats"], queryFn: async () => { const { data } = await supabase.from("messages").select("*, sender:profiles(full_name), application:applications(projects(title))").order("created_at", { ascending: false }).limit(100); return data || []; } });
-  const filtered = messages?.filter(m => !search || (m.sender as any)?.full_name?.toLowerCase().includes(search.toLowerCase()) || (m.application as any)?.projects?.title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+  const { data: messages, isLoading, error } = useQuery({
+    queryKey: ["admin-chats"],
+    queryFn: async () => {
+      const [{ data: msgs, error: mErr }, { data: profs }, { data: apps }, { data: ps }] = await Promise.all([
+        supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(100),
+        supabase.from("profiles").select("id, full_name"),
+        supabase.from("applications").select("id, project_id"),
+        supabase.from("projects").select("id, title"),
+      ]);
+      if (mErr) throw mErr;
+      const profMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
+      const projMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
+      const appMap = new Map((apps || []).map((a: any) => [a.id, projMap.get(a.project_id)]));
+      return (msgs || []).map((m: any) => ({
+        ...m,
+        sender_name: profMap.get(m.sender_id),
+        project_title: appMap.get(m.application_id),
+      }));
+    }
+  });
+  const filtered = messages?.filter(m => !search || m.sender_name?.toLowerCase().includes(search.toLowerCase()) || m.project_title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load chats: {(error as Error).message}</div>;
 
   return (
     <div className="space-y-4">
@@ -767,10 +803,10 @@ function ChatsTab() {
           <div key={m.id} className="p-4 rounded-lg border bg-card text-sm flex justify-between items-start gap-4 hover:bg-muted/30 transition-colors">
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-accent">{(m.sender as any)?.full_name || m.sender_id.slice(0,8)}</span>
-                <span className="text-[10px] text-muted-foreground uppercase">in {(m.application as any)?.projects?.title || "Unknown Project"}</span>
+                <span className="font-bold text-accent">{m.sender_name || (m.sender_id || "").slice(0,8)}</span>
+                <span className="text-[10px] text-muted-foreground uppercase">in {m.project_title || "Unknown Project"}</span>
               </div>
-              <p className="text-muted-foreground break-words">{m.body || (m.attachments ? "📎 Attachment" : "Empty Message")}</p>
+              <p className="text-muted-foreground break-words">{m.body || ((m.attachments?.length ?? 0) > 0 ? "📎 Attachment" : "Empty Message")}</p>
             </div>
             <span className="text-[10px] text-muted-foreground whitespace-nowrap pt-1">{new Date(m.created_at).toLocaleString()}</span>
           </div>
