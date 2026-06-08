@@ -913,8 +913,10 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
       location: form.location,
       company_description: form.company_description,
       company_website: form.company_website,
-      phone: form.phone
     }).eq("id", user.id);
+    if (form.phone) {
+      await supabase.from("recruiter_phones" as any).upsert({ recruiter_id: user.id, phone: form.phone, updated_at: new Date().toISOString() } as any);
+    }
     if (error) toast.error(error.message);
     else { toast.success("Company Updated"); setOpen(false); onUpdate(); }
   }
