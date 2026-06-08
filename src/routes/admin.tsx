@@ -549,14 +549,19 @@ function RecruitersTab() {
   const { data: recs, isLoading } = useQuery({
     queryKey: ["admin-recruiters"],
     queryFn: async () => {
-      const [{ data: rs }, { data: profs }] = await Promise.all([
+      const [{ data: rs }, { data: profs }, { data: emails }, { data: phones }] = await Promise.all([
         supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("profiles").select("id, email, is_suspended"),
+        supabase.from("profiles").select("id, is_suspended"),
+        supabase.rpc("admin_list_user_emails" as any),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone"),
       ]);
       const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
+      const phoneMap = new Map((phones || []).map((p: any) => [p.recruiter_id, p.phone]));
       return (rs || []).map((r: any) => ({
         ...r,
-        email: pMap.get(r.id)?.email,
+        email: emailMap.get(r.id),
+        phone: phoneMap.get(r.id),
         is_suspended: pMap.get(r.id)?.is_suspended,
       }));
     }
