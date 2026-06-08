@@ -32,7 +32,7 @@ function AppPage() {
 
 function Inner({ appId, userId }: { appId: string; userId: string }) {
   const { role } = useAuth();
-  const { data: app } = useQuery({
+  const { data: app, isLoading, error } = useQuery({
     queryKey: ["app", appId],
     queryFn: async () => {
       const { data, error } = await supabase
