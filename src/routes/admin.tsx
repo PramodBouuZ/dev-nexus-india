@@ -386,14 +386,16 @@ function UsersTab() {
   const { data: users, isLoading, error } = useQuery({
     queryKey: ["admin-users-all"],
     queryFn: async () => {
-      const [{ data: profs, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+      const [{ data: profs, error: pErr }, { data: roles, error: rErr }, { data: emails }] = await Promise.all([
+        supabase.from("profiles").select("id, full_name, avatar_url, created_at, updated_at, is_suspended").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.rpc("admin_list_user_emails" as any),
       ]);
       if (pErr) throw pErr;
       if (rErr) throw rErr;
       const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
-      return (profs || []).map((u: any) => ({ ...u, role: roleMap.get(u.id) || 'unknown' }));
+      const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
+      return (profs || []).map((u: any) => ({ ...u, email: emailMap.get(u.id), role: roleMap.get(u.id) || 'unknown' }));
     }
   });
   const filtered = users?.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
