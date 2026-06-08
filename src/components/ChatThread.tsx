@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,8 @@ const ALLOWED = [
   "image/png", "image/jpeg", "image/webp", "image/gif",
 ];
 
-type Attachment = { name: string; url: string; size: number; mime: string };
+// Stored shape (new): { name, path, size, mime }. Old rows may have { name, url, size, mime }.
+type Attachment = { name: string; path?: string; url?: string; size: number; mime: string };
 
 function fileIcon(mime: string) {
   if (mime.startsWith("image/")) return ImageIcon;
@@ -37,10 +39,12 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
   const [isTyping, setIsTyping] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const lastTypingSentRef = useRef(0);
 
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ["msgs", appId],
-    staleTime: 1000 * 30, // 30 seconds cache
+    staleTime: 1000 * 30,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("messages")
@@ -52,41 +56,74 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
     },
   });
 
+  // Collect attachment paths needing signed URLs
+  const paths = useMemo(() => {
+    const set = new Set<string>();
+    (messages ?? []).forEach((m: any) => {
+      const atts = (m.attachments ?? []) as Attachment[];
+      atts.forEach((a) => { if (a.path) set.add(a.path); });
+    });
+    return Array.from(set);
+  }, [messages]);
+
+  // Resolve signed URLs for stored paths (refresh every hour)
+  const { data: urlMap } = useQuery({
+    queryKey: ["chat-signed-urls", appId, paths.join("|")],
+    enabled: paths.length > 0,
+    staleTime: 1000 * 60 * 50,
+    queryFn: async () => {
+      const map: Record<string, string> = {};
+      // batch in chunks of 50
+      for (let i = 0; i < paths.length; i += 50) {
+        const slice = paths.slice(i, i + 50);
+        const { data } = await supabase.storage.from("chat-files").createSignedUrls(slice, 60 * 60);
+        (data ?? []).forEach((r) => { if (r.signedUrl && r.path) map[r.path] = r.signedUrl; });
+      }
+      return map;
+    },
+  });
+
+  function resolveUrl(a: Attachment): string {
+    if (a.path && urlMap?.[a.path]) return urlMap[a.path];
+    return a.url || "";
+  }
+
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  // Mark messages I received as read
+  // Mark received messages as read
   useEffect(() => {
     if (!messages?.length) return;
-    const unread = messages.filter((m) => m.sender_id !== userId && !m.read_at).map((m) => m.id);
+    const unread = messages.filter((m: any) => m.sender_id !== userId && !m.read_at).map((m: any) => m.id);
     if (!unread.length) return;
     supabase.from("messages").update({ read_at: new Date().toISOString() }).in("id", unread).then(({ error }) => {
       if (!error) qc.invalidateQueries({ queryKey: ["msgs", appId] });
     });
   }, [messages, userId, appId, qc]);
 
+  // Single channel for both postgres_changes and typing broadcast
   useEffect(() => {
-    const ch = supabase.channel(`msgs-${appId}`)
+    const ch = supabase.channel(`msgs-${appId}`, { config: { broadcast: { self: false } } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `application_id=eq.${appId}` },
         () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `application_id=eq.${appId}` },
         () => qc.invalidateQueries({ queryKey: ["msgs", appId] }))
       .on("broadcast", { event: "typing" }, ({ payload }) => {
-        if (payload.userId !== userId) {
+        if (payload?.userId !== userId) {
           setIsTyping(true);
-          setTimeout(() => setIsTyping(false), 3000);
+          setTimeout(() => setIsTyping(false), 2500);
         }
       })
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    channelRef.current = ch;
+    return () => { supabase.removeChannel(ch); channelRef.current = null; };
   }, [appId, userId, qc]);
 
-  const sendTyping = () => {
-    supabase.channel(`msgs-${appId}`).send({
-      type: "broadcast",
-      event: "typing",
-      payload: { userId },
-    });
-  };
+  function sendTyping() {
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < 1500) return; // throttle
+    lastTypingSentRef.current = now;
+    channelRef.current?.send({ type: "broadcast", event: "typing", payload: { userId } });
+  }
 
   function pickFiles(files: FileList | null) {
     if (!files) return;
@@ -102,13 +139,13 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
   async function uploadAll(): Promise<Attachment[]> {
     const out: Attachment[] = [];
     for (const f of pending) {
-      const key = `${appId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${f.name}`;
+      const safeName = f.name.replace(/[^\w.\-]+/g, "_");
+      const key = `${appId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}-${safeName}`;
       const { error } = await supabase.storage.from("chat-files").upload(key, f, {
         contentType: f.type, upsert: false,
       });
       if (error) { toast.error(`${f.name}: ${error.message}`); continue; }
-      const { data: signed } = await supabase.storage.from("chat-files").createSignedUrl(key, 60 * 60 * 24 * 7);
-      out.push({ name: f.name, url: signed?.signedUrl ?? key, size: f.size, mime: f.type });
+      out.push({ name: f.name, path: key, size: f.size, mime: f.type });
     }
     return out;
   }
@@ -116,32 +153,39 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
   async function send(e: React.FormEvent) {
     e.preventDefault();
     if (!text.trim() && pending.length === 0) return;
+    if (busy) return;
     setBusy(true);
     try {
       const attachments = pending.length ? await uploadAll() : [];
+      if (pending.length > 0 && attachments.length === 0) return; // all uploads failed
       const body = text.trim().slice(0, 2000) || null;
       const { error } = await supabase.from("messages").insert({
         application_id: appId, sender_id: userId, body, attachments,
       });
       if (error) { toast.error(error.message); return; }
 
-      // Notify recipient
-      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id, title)").eq("id", appId).maybeSingle();
-      if (app) {
-        const targetId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
-        if (targetId) {
-          await supabase.from("notifications").insert({
-            user_id: targetId,
-            title: "New message",
-            body: `New message for project: ${(app.projects as any)?.title}`,
-            type: "project_update",
-            link: `/applications/${appId}`
-          });
+      // Notify recipient (best-effort)
+      try {
+        const { data: app } = await supabase.from("applications")
+          .select("developer_id, projects(recruiter_id, title)").eq("id", appId).maybeSingle();
+        if (app) {
+          const targetId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
+          if (targetId && targetId !== userId) {
+            await supabase.from("notifications").insert({
+              user_id: targetId,
+              title: "New message",
+              body: `New message for project: ${(app.projects as any)?.title ?? ""}`.trim(),
+              type: "project_update",
+              link: `/applications/${appId}`,
+            });
+          }
         }
-      }
+      } catch { /* notification failure shouldn't block chat */ }
 
       setText(""); setPending([]);
       if (fileRef.current) fileRef.current.value = "";
+      // Immediate refresh — don't wait for realtime
+      qc.invalidateQueries({ queryKey: ["msgs", appId] });
     } finally { setBusy(false); }
   }
 
@@ -152,23 +196,24 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
       <div className="flex-1 space-y-3 overflow-y-auto p-5">
         {isLoading && <ChatSkeleton />}
         {!isLoading && messages?.length === 0 && <p className="text-center text-sm text-muted-foreground py-10">No messages yet — say hi 👋</p>}
-        {messages?.map(m => {
+        {messages?.map((m: any) => {
           const mine = m.sender_id === userId;
           const atts = (m.attachments as unknown as Attachment[]) ?? [];
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${mine ? "bg-gradient-accent text-primary-foreground" : "bg-muted"}`}>
-                {m.body && <p className="whitespace-pre-wrap">{m.body}</p>}
+                {m.body && <p className="whitespace-pre-wrap break-words">{m.body}</p>}
                 {atts.length > 0 && (
                   <div className={`mt-2 space-y-1.5 ${m.body ? "border-t border-white/15 pt-2" : ""}`}>
                     {atts.map((a, i) => {
                       const Icon = fileIcon(a.mime);
                       const isImage = a.mime.startsWith("image/");
+                      const url = resolveUrl(a);
                       return (
-                        <a key={i} href={a.url} target="_blank" rel="noreferrer"
-                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:opacity-90 ${mine ? "bg-white/15" : "bg-background/60 border border-border"}`}>
-                          {isImage ? (
-                            <img src={a.url} alt={a.name} className="h-10 w-10 rounded object-cover" loading="lazy" />
+                        <a key={i} href={url || undefined} target="_blank" rel="noreferrer"
+                          className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:opacity-90 ${mine ? "bg-white/15" : "bg-background/60 border border-border"} ${url ? "" : "pointer-events-none opacity-60"}`}>
+                          {isImage && url ? (
+                            <img src={url} alt={a.name} className="h-10 w-10 rounded object-cover" loading="lazy" />
                           ) : (
                             <Icon className="h-4 w-4 shrink-0" />
                           )}
