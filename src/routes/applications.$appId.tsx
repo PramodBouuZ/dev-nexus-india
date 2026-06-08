@@ -35,12 +35,25 @@ function Inner({ appId, userId }: { appId: string; userId: string }) {
   const { data: app } = useQuery({
     queryKey: ["app", appId],
     queryFn: async () => {
-      const { data } = await supabase.from("applications").select("*, projects(title, recruiter_id), developer_profiles(full_name)").eq("id", appId).maybeSingle();
-      return data;
+      const { data, error } = await supabase
+        .from("applications")
+        .select("*, projects(title, recruiter_id)")
+        .eq("id", appId)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data) return null;
+      const { data: dev } = await supabase
+        .from("developer_profiles")
+        .select("full_name")
+        .eq("id", data.developer_id)
+        .maybeSingle();
+      return { ...data, developer_profiles: dev };
     },
   });
 
-  if (!app) return <p className="mt-8 text-sm text-muted-foreground">Loading...</p>;
+  if (isLoading) return <p className="mt-8 text-sm text-muted-foreground">Loading...</p>;
+  if (error) return <p className="mt-8 text-sm text-destructive">Failed to load: {(error as Error).message}</p>;
+  if (!app) return <p className="mt-8 text-sm text-muted-foreground">Application not found or you don't have access.</p>;
 
   return (
     <div className="mt-6">
