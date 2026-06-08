@@ -437,15 +437,20 @@ function DevelopersTab() {
   const { data: devs, isLoading, error } = useQuery({
     queryKey: ["admin-developers"],
     queryFn: async () => {
-      const [{ data: dvs, error: dErr }, { data: profs }] = await Promise.all([
+      const [{ data: dvs, error: dErr }, { data: profs }, { data: emails }, { data: phones }] = await Promise.all([
         supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("profiles").select("id, email, is_suspended"),
+        supabase.from("profiles").select("id, is_suspended"),
+        supabase.rpc("admin_list_user_emails" as any),
+        supabase.from("developer_phones" as any).select("developer_id, phone"),
       ]);
       if (dErr) throw dErr;
       const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
+      const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
+      const phoneMap = new Map((phones || []).map((p: any) => [p.developer_id, p.phone]));
       return (dvs || []).map((d: any) => ({
         ...d,
-        email: pMap.get(d.id)?.email,
+        email: emailMap.get(d.id),
+        phone: phoneMap.get(d.id),
         is_suspended: pMap.get(d.id)?.is_suspended,
       }));
     }
