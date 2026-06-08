@@ -214,7 +214,6 @@ export type Database = {
           linkedin_url: string | null
           location: string | null
           monthly_rate_inr: number | null
-          phone: string | null
           portfolio_url: string | null
           profile_views: number
           project_min_inr: number | null
@@ -246,7 +245,6 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
-          phone?: string | null
           portfolio_url?: string | null
           profile_views?: number
           project_min_inr?: number | null
@@ -280,7 +278,6 @@ export type Database = {
           linkedin_url?: string | null
           location?: string | null
           monthly_rate_inr?: number | null
-          phone?: string | null
           portfolio_url?: string | null
           profile_views?: number
           project_min_inr?: number | null
@@ -598,7 +595,6 @@ export type Database = {
           is_verified: boolean
           location: string | null
           logo_url: string | null
-          phone: string | null
           updated_at: string
         }
         Insert: {
@@ -614,7 +610,6 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           logo_url?: string | null
-          phone?: string | null
           updated_at?: string
         }
         Update: {
@@ -630,7 +625,6 @@ export type Database = {
           is_verified?: boolean
           location?: string | null
           logo_url?: string | null
-          phone?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -750,6 +744,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_user_emails: {
+        Args: never
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
+      get_my_email: { Args: never; Returns: string }
       has_contact_access: { Args: { _a: string; _b: string }; Returns: boolean }
       has_role: {
         Args: {
