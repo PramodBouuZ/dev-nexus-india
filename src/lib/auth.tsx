@@ -22,13 +22,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Set up listener FIRST
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, sess) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      console.log("Auth state change event:", event);
       setSession(sess);
       setUser(sess?.user ?? null);
       if (sess?.user) {
+        console.log("User detected in session:", sess.user.id);
         // defer to avoid deadlock
         setTimeout(() => fetchRole(sess.user.id), 0);
       } else {
+        console.log("No user in session");
         setRole(null);
       }
     });
@@ -48,6 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { user: currentUser } } = await supabase.auth.getUser();
     if (currentUser?.email === 'info.bouuz@gmail.com') {
       setRole("admin");
+      return;
+    }
+
+    // Check if there's a pending role from Google Sign Up
+    const pendingRole = localStorage.getItem("pending_role") as AppRole | null;
+    if (pendingRole && currentUser) {
+      console.log("Applying pending role from Google Sign Up:", pendingRole);
+      localStorage.removeItem("pending_role");
+
+      // Update user metadata with the role
+      await supabase.auth.updateUser({
+        data: { role: pendingRole }
+      });
+
+      setRole(pendingRole);
       return;
     }
 
@@ -72,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    console.log("Signing out user:", user?.id);
     await supabase.auth.signOut();
     setRole(null);
   }
