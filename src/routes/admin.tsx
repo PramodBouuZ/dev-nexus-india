@@ -861,8 +861,10 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
       location: form.location,
       hourly_rate_inr: form.hourly_rate_inr,
       experience_years: form.experience_years,
-      phone: form.phone
     }).eq("id", user.id);
+    if (form.phone) {
+      await supabase.from("developer_phones" as any).upsert({ developer_id: user.id, phone: form.phone, updated_at: new Date().toISOString() } as any);
+    }
     if (error) toast.error(error.message);
     else { toast.success("Profile Updated"); setOpen(false); onUpdate(); }
   }
