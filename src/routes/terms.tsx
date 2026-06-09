@@ -9,6 +9,7 @@ export const Route = createFileRoute("/terms")({
       { name: "description", content: "Terms and conditions for using DeveloperConnect, the marketplace for hiring part-time and full-time developers in India." },
       { property: "og:title", content: "Terms & Conditions | DeveloperConnect India" },
       { property: "og:description", content: "Terms and conditions for using DeveloperConnect, the marketplace for hiring part-time and full-time developers in India." },
+      { property: "og:url", content: "https://developerconnect.in/terms" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/terms" },
     ],
     scripts: [

@@ -11,6 +11,7 @@ export const Route = createFileRoute("/faq")({
       { name: "description", content: "Find answers to frequently asked questions about hiring freelance and part-time developers in India on DeveloperConnect." },
       { property: "og:title", content: "DeveloperConnect FAQ | Common Questions About Hiring Developers" },
       { property: "og:description", content: "Find answers to frequently asked questions about hiring freelance and part-time developers in India on DeveloperConnect." },
+      { property: "og:url", content: "https://developerconnect.in/faq" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/faq" },
     ],
     scripts: [

@@ -35,6 +35,8 @@ export const Route = createFileRoute("/projects/$projectId")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:url", content: `https://developerconnect.in/projects/${loaderData?.projectId}` },
+        { property: "og:type", content: "article" },
         { tag: "link", rel: "canonical", href: `https://developerconnect.in/projects/${loaderData?.projectId}` },
       ],
       scripts: [

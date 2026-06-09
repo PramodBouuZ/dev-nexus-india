@@ -10,6 +10,7 @@ export const Route = createFileRoute("/pricing")({
       { name: "description", content: "Simple and transparent pricing. Free for developers. Affordable hiring plans for startups to find top tech talent in India." },
       { property: "og:title", content: "Affordable Pricing for Hiring Developers in India | DeveloperConnect" },
       { property: "og:description", content: "Simple and transparent pricing. Free for developers. Affordable hiring plans for startups to find top tech talent in India." },
+      { property: "og:url", content: "https://developerconnect.in/pricing" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/pricing" },
     ],
     scripts: [

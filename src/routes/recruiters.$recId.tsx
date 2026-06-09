@@ -18,6 +18,7 @@ export const Route = createFileRoute("/recruiters/$recId")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:url", content: `https://developerconnect.in/recruiters/${params.recId}` },
         { tag: "link", rel: "canonical", href: `https://developerconnect.in/recruiters/${params.recId}` },
       ],
       scripts: [

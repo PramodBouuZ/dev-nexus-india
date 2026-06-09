@@ -18,6 +18,7 @@ export const Route = createFileRoute("/projects/")({
       { name: "keywords", content: "freelance projects India, part-time software jobs, remote development projects, hire developers India" },
       { property: "og:title", content: "Browse Freelance & Part-Time Projects in India | DeveloperConnect" },
       { property: "og:description", content: "Find the best freelance and part-time development projects in India. React, Node.js, and Full Stack opportunities for developers." },
+      { property: "og:url", content: "https://developerconnect.in/projects" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/projects" },
     ],
     scripts: [

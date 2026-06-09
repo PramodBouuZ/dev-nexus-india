@@ -33,6 +33,8 @@ export const Route = createFileRoute("/developers/$devId")({
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
+        { property: "og:url", content: `https://developerconnect.in/developers/${loaderData?.devId}` },
+        { property: "og:type", content: "profile" },
         { name: "keywords", content: `${loaderData?.dev?.skills?.join(", ") || ""}, hire ${name}, developer India, part-time developer` },
         { tag: "link", rel: "canonical", href: `https://developerconnect.in/developers/${loaderData?.devId}` },
       ],

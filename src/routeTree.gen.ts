@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -29,7 +30,6 @@ import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
-import { Route as ApiSitemapApiRouteImport } from './routes/api.sitemap.api'
 
 const VerificationRoute = VerificationRouteImport.update({
   id: '/verification',
@@ -39,6 +39,11 @@ const VerificationRoute = VerificationRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SavedRoute = SavedRouteImport.update({
@@ -131,11 +136,6 @@ const ApplicationsAppIdRoute = ApplicationsAppIdRouteImport.update({
   path: '/applications/$appId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSitemapApiRoute = ApiSitemapApiRouteImport.update({
-  id: '/api/sitemap/api',
-  path: '/api/sitemap/api',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -150,6 +150,7 @@ export interface FileRoutesByFullPath {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -158,7 +159,6 @@ export interface FileRoutesByFullPath {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -173,6 +173,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -181,7 +182,6 @@ export interface FileRoutesByTo {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -197,6 +197,7 @@ export interface FileRoutesById {
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
@@ -205,7 +206,6 @@ export interface FileRoutesById {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -222,6 +222,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/saved'
+    | '/sitemap.xml'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -230,7 +231,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects/'
-    | '/api/sitemap/api'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -245,6 +245,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/saved'
+    | '/sitemap.xml'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -253,7 +254,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects'
-    | '/api/sitemap/api'
   id:
     | '__root__'
     | '/'
@@ -268,6 +268,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reset-password'
     | '/saved'
+    | '/sitemap.xml'
     | '/terms'
     | '/verification'
     | '/applications/$appId'
@@ -276,7 +277,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects/'
-    | '/api/sitemap/api'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -292,6 +292,7 @@ export interface RootRouteChildren {
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SavedRoute: typeof SavedRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   VerificationRoute: typeof VerificationRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
@@ -299,7 +300,6 @@ export interface RootRouteChildren {
   ProjectsNewRoute: typeof ProjectsNewRoute
   RecruitersRecIdRoute: typeof RecruitersRecIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
-  ApiSitemapApiRoute: typeof ApiSitemapApiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -316,6 +316,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/saved': {
@@ -444,13 +451,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsAppIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/sitemap/api': {
-      id: '/api/sitemap/api'
-      path: '/api/sitemap/api'
-      fullPath: '/api/sitemap/api'
-      preLoaderRoute: typeof ApiSitemapApiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -479,6 +479,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SavedRoute: SavedRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   VerificationRoute: VerificationRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
@@ -486,7 +487,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsNewRoute: ProjectsNewRoute,
   RecruitersRecIdRoute: RecruitersRecIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
-  ApiSitemapApiRoute: ApiSitemapApiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
