@@ -44,15 +44,19 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
 
   const { data: messages, isLoading, error } = useQuery({
     queryKey: ["msgs", appId],
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
+    placeholderData: (prev) => prev,
     queryFn: async () => {
+      // Fetch latest 50 in desc order (uses index), then reverse for display
       const { data, error } = await supabase
         .from("messages")
-        .select("*")
+        .select("id,application_id,sender_id,body,attachments,created_at,read_at")
         .eq("application_id", appId)
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: false })
+        .limit(50);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).reverse();
     },
   });
 
