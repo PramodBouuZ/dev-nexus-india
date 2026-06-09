@@ -21,6 +21,7 @@ export const Route = createFileRoute("/developers")({
       { name: "keywords", content: "hire developers India, freelance developers, part-time developers India, remote developers, react developers, nodejs developers" },
       { property: "og:title", content: "Browse Skilled Developers in India | DeveloperConnect" },
       { property: "og:description", content: "Hire vetted part-time and full-time developers in India. Browse React, Node.js, Full Stack, and Mobile developers by skill and rate." },
+      { property: "og:url", content: "https://developerconnect.in/developers" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/developers" },
     ],
     scripts: [

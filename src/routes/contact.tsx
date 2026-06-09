@@ -17,6 +17,7 @@ export const Route = createFileRoute("/contact")({
       { name: "description", content: "Get in touch with the DeveloperConnect team. We're here to help startups hire developers and assist developers in finding the best remote work in India." },
       { property: "og:title", content: "Contact Us | DeveloperConnect India" },
       { property: "og:description", content: "Get in touch with the DeveloperConnect team. We're here to help startups hire developers and assist developers in finding the best remote work in India." },
+      { property: "og:url", content: "https://developerconnect.in/contact" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/contact" },
     ],
     scripts: [
