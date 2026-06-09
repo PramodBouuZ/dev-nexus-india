@@ -1,0 +1,13 @@
+# Developer Connect
+
+> Marketplace to hire vetted part-time and full-time developers in India. Startups post projects, developers apply, and both sides chat to hire fast at fair INR rates.
+
+## Pages
+
+- [Home](/): What Developer Connect is and how hiring works.
+- [Browse Developers](/developers): Search verified Indian developers by skill, rate, and availability.
+- [Browse Projects](/projects): Open part-time and freelance projects for developers to apply to.
+- [Pricing](/pricing): Plans for recruiters; free forever for developers.
+- [FAQ](/faq): Common questions for developers and recruiters.
+- [Contact](/contact): Reach the Developer Connect team.
+- [Terms & Conditions](/terms): Platform terms of service.

@@ -29,7 +29,6 @@ import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
-import { Route as ApiSitemapApiRouteImport } from './routes/api.sitemap.api'
 
 const VerificationRoute = VerificationRouteImport.update({
   id: '/verification',
@@ -131,11 +130,6 @@ const ApplicationsAppIdRoute = ApplicationsAppIdRouteImport.update({
   path: '/applications/$appId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiSitemapApiRoute = ApiSitemapApiRouteImport.update({
-  id: '/api/sitemap/api',
-  path: '/api/sitemap/api',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -158,7 +152,6 @@ export interface FileRoutesByFullPath {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -181,7 +174,6 @@ export interface FileRoutesByTo {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -205,7 +197,6 @@ export interface FileRoutesById {
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
   '/projects/': typeof ProjectsIndexRoute
-  '/api/sitemap/api': typeof ApiSitemapApiRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -230,7 +221,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects/'
-    | '/api/sitemap/api'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -253,7 +243,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects'
-    | '/api/sitemap/api'
   id:
     | '__root__'
     | '/'
@@ -276,7 +265,6 @@ export interface FileRouteTypes {
     | '/projects/new'
     | '/recruiters/$recId'
     | '/projects/'
-    | '/api/sitemap/api'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -299,7 +287,6 @@ export interface RootRouteChildren {
   ProjectsNewRoute: typeof ProjectsNewRoute
   RecruitersRecIdRoute: typeof RecruitersRecIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
-  ApiSitemapApiRoute: typeof ApiSitemapApiRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -444,13 +431,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsAppIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/sitemap/api': {
-      id: '/api/sitemap/api'
-      path: '/api/sitemap/api'
-      fullPath: '/api/sitemap/api'
-      preLoaderRoute: typeof ApiSitemapApiRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -486,8 +466,16 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectsNewRoute: ProjectsNewRoute,
   RecruitersRecIdRoute: RecruitersRecIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
-  ApiSitemapApiRoute: ApiSitemapApiRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
