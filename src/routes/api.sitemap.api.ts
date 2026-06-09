@@ -12,7 +12,7 @@ export const Route = createFileRoute("/api/sitemap/api")({
              headers: { "Content-Type": "application/json" }
            });
         } catch (e) {
-           return new Response(JSON.stringify({ status: "error", error: e.message }), {
+           return new Response(JSON.stringify({ status: "error", error: (e as Error).message }), {
              headers: { "Content-Type": "application/json" }
            });
         }
