@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { PoweredByBant } from "@/components/Brand";
 import { TrustedBy } from "@/components/TrustedBy";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import {
   Sparkles, Zap, ShieldCheck, Clock, IndianRupee, Code2, Users, ArrowRight,
   CheckCircle2, MapPin, Briefcase,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
