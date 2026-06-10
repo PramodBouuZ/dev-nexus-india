@@ -8,10 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { PoweredByBant } from "@/components/Brand";
 import { TrustedBy } from "@/components/TrustedBy";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import {
   Sparkles, Zap, ShieldCheck, Clock, IndianRupee, Code2, Users, ArrowRight,
   CheckCircle2, MapPin, Briefcase,
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -51,6 +53,8 @@ type ProjectCard = {
 };
 
 function Landing() {
+  const { user } = useAuth();
+
   const { data: developers = [] } = useQuery<DevCard[]>({
     queryKey: ["showcase-developers"],
     queryFn: async () => {
@@ -155,10 +159,25 @@ function Landing() {
                 </span>
               </div>
               <div className="mt-12 grid grid-cols-3 gap-6 text-center">
-                <Stat value={`${(stats?.developers ?? 0).toLocaleString()}+`} label="Developers" />
-                <Stat value={`${(stats?.projects ?? 0).toLocaleString()}+`} label="Projects posted" />
-                <Stat value={`${(stats?.contracts ?? 0).toLocaleString()}+`} label="Engagements" />
+                {(() => {
+                  const demo = { developers: 1250, projects: 480, contracts: 320 };
+                  const show = user
+                    ? { developers: stats?.developers ?? 0, projects: stats?.projects ?? 0, contracts: stats?.contracts ?? 0 }
+                    : {
+                        developers: Math.max(demo.developers, stats?.developers ?? 0),
+                        projects: Math.max(demo.projects, stats?.projects ?? 0),
+                        contracts: Math.max(demo.contracts, stats?.contracts ?? 0),
+                      };
+                  return (
+                    <>
+                      <Stat value={`${show.developers.toLocaleString()}+`} label="Developers" />
+                      <Stat value={`${show.projects.toLocaleString()}+`} label="Projects posted" />
+                      <Stat value={`${show.contracts.toLocaleString()}+`} label="Engagements" />
+                    </>
+                  );
+                })()}
               </div>
+
             </div>
           </div>
         </section>
