@@ -53,6 +53,8 @@ type ProjectCard = {
 };
 
 function Landing() {
+  const { user } = useAuth();
+
   const { data: developers = [] } = useQuery<DevCard[]>({
     queryKey: ["showcase-developers"],
     queryFn: async () => {
