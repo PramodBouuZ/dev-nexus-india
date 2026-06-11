@@ -486,7 +486,7 @@ function DeveloperDashboard({ userId }: { userId: string }) {
             <h2 className="font-display text-xl font-semibold">Contact requests</h2>
             <div className="mt-4 space-y-3">
               {!incomingRequests || incomingRequests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No pending contact requests.</p>
+                <p className="text-sm text-muted-foreground">No contact requests yet.</p>
               ) : incomingRequests.map(r => (
                 <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
                   <div className="flex items-start justify-between gap-4">
@@ -510,6 +510,26 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                       <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
                     )}
                   </div>
+                  {r.status === "approved" && (
+                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                      </div>
+                      {r.email && (
+                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                        </a>
+                      )}
+                      {r.phone && (
+                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                        </a>
+                      )}
+                      {!r.email && !r.phone && (
+                        <p className="text-xs text-muted-foreground">No contact details added yet by the recruiter.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
