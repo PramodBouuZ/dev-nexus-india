@@ -301,18 +301,40 @@ function RecruiterDashboard({ userId }: { userId: string }) {
               {!sentRequests || sentRequests.length === 0 ? (
                 <p className="col-span-full text-sm text-muted-foreground">No requests sent yet.</p>
               ) : sentRequests.map(r => (
-                <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-card">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={r.dev?.avatar_url ?? undefined} />
-                      <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">{r.dev?.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                        <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold">{r.dev?.full_name}</p>
+                        <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                      </div>
                     </div>
+                    <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
                   </div>
-                  <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
+                  {r.status === "approved" && (
+                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                      </div>
+                      {r.email && (
+                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                        </a>
+                      )}
+                      {r.phone && (
+                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                        </a>
+                      )}
+                      {!r.email && !r.phone && (
+                        <p className="text-xs text-muted-foreground">No contact details added yet by the developer.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
