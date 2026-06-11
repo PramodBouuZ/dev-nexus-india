@@ -391,8 +391,17 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.requester_id);
-      const { data: recs } = await supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids);
-      return reqs.map(r => ({ ...r, recruiter: recs?.find(rc => rc.id === r.requester_id) }));
+      const [{ data: recs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        recruiter: recs?.find(rc => rc.id === r.requester_id),
+        email: profs?.find(p => p.id === r.requester_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.recruiter_id === r.requester_id)?.phone ?? null,
+      }));
     }
   });
 
