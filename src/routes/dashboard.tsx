@@ -151,8 +151,17 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.target_id);
-      const { data: devs } = await supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", ids);
-      return reqs.map(r => ({ ...r, dev: devs?.find(d => d.id === r.target_id) }));
+      const [{ data: devs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        dev: devs?.find(d => d.id === r.target_id),
+        email: profs?.find(p => p.id === r.target_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.developer_id === r.target_id)?.phone ?? null,
+      }));
     }
   });
 
@@ -292,18 +301,40 @@ function RecruiterDashboard({ userId }: { userId: string }) {
               {!sentRequests || sentRequests.length === 0 ? (
                 <p className="col-span-full text-sm text-muted-foreground">No requests sent yet.</p>
               ) : sentRequests.map(r => (
-                <div key={r.id} className="flex items-center justify-between rounded-xl border border-border bg-card p-4 shadow-card">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={r.dev?.avatar_url ?? undefined} />
-                      <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-sm font-semibold">{r.dev?.full_name}</p>
-                      <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                        <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="text-sm font-semibold">{r.dev?.full_name}</p>
+                        <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                      </div>
                     </div>
+                    <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
                   </div>
-                  <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
+                  {r.status === "approved" && (
+                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                      </div>
+                      {r.email && (
+                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                        </a>
+                      )}
+                      {r.phone && (
+                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                        </a>
+                      )}
+                      {!r.email && !r.phone && (
+                        <p className="text-xs text-muted-foreground">No contact details added yet by the developer.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -360,8 +391,17 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.requester_id);
-      const { data: recs } = await supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids);
-      return reqs.map(r => ({ ...r, recruiter: recs?.find(rc => rc.id === r.requester_id) }));
+      const [{ data: recs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        recruiter: recs?.find(rc => rc.id === r.requester_id),
+        email: profs?.find(p => p.id === r.requester_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.recruiter_id === r.requester_id)?.phone ?? null,
+      }));
     }
   });
 
@@ -446,7 +486,7 @@ function DeveloperDashboard({ userId }: { userId: string }) {
             <h2 className="font-display text-xl font-semibold">Contact requests</h2>
             <div className="mt-4 space-y-3">
               {!incomingRequests || incomingRequests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No pending contact requests.</p>
+                <p className="text-sm text-muted-foreground">No contact requests yet.</p>
               ) : incomingRequests.map(r => (
                 <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
                   <div className="flex items-start justify-between gap-4">
@@ -470,6 +510,26 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                       <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
                     )}
                   </div>
+                  {r.status === "approved" && (
+                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                      </div>
+                      {r.email && (
+                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                        </a>
+                      )}
+                      {r.phone && (
+                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                        </a>
+                      )}
+                      {!r.email && !r.phone && (
+                        <p className="text-xs text-muted-foreground">No contact details added yet by the recruiter.</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
