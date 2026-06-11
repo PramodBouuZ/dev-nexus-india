@@ -151,8 +151,17 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.target_id);
-      const { data: devs } = await supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", ids);
-      return reqs.map(r => ({ ...r, dev: devs?.find(d => d.id === r.target_id) }));
+      const [{ data: devs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        dev: devs?.find(d => d.id === r.target_id),
+        email: profs?.find(p => p.id === r.target_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.developer_id === r.target_id)?.phone ?? null,
+      }));
     }
   });
 
