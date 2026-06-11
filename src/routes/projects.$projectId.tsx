@@ -339,7 +339,7 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
         agreed_rate_inr: app?.proposed_rate_inr ?? null,
       });
       if (e2) return toast.error(e2.message);
-      await supabase.from("projects").update({ status: "in_progress" }).eq("id", projectId);
+      await supabase.from("projects").update({ status: "in_discussion" }).eq("id", projectId);
 
       await supabase.from("notifications").insert({
         user_id: developerId,
@@ -384,10 +384,38 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
                   <Button size="sm" variant="outline" onClick={() => decide(a.id, a.developer_id, "reject")}><XCircle className="mr-1 h-4 w-4" /> Reject</Button>
                 </>
               )}
+              {a.status === "accepted" && project?.status !== 'assigned' && (
+                 <AssignButton projectId={projectId} developerId={a.developer_id} recruiterId={recruiterId} />
+              )}
             </div>
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+function AssignButton({ projectId, developerId, recruiterId }: { projectId: string; developerId: string; recruiterId: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  async function assign() {
+    setBusy(true);
+    const { error } = await supabase.from("project_assignments").insert({
+       project_id: projectId,
+       developer_id: developerId,
+       recruiter_id: recruiterId
+    });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    toast.success("Project assigned!");
+    qc.invalidateQueries({ queryKey: ["project", projectId] });
+    qc.invalidateQueries({ queryKey: ["project-apps", projectId] });
+  }
+
+  return (
+    <Button size="sm" disabled={busy} onClick={assign} className="bg-success text-success-foreground hover:opacity-90">
+       Confirm Assignment
+    </Button>
   );
 }

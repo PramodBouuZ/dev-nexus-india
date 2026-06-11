@@ -70,6 +70,34 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
     return Array.from(set);
   }, [messages]);
 
+  const { data: hasContactAccess } = useQuery({
+    queryKey: ["has-contact-access", userId, appId],
+    queryFn: async () => {
+      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id)").eq("id", appId).maybeSingle();
+      if (!app) return false;
+      const partnerId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
+      const { data } = await supabase.rpc("has_contact_access", { _a: userId, _b: partnerId });
+      return !!data;
+    }
+  });
+
+  const { data: inviteAccepted } = useQuery({
+    queryKey: ["invite-accepted", userId, appId],
+    queryFn: async () => {
+      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id, id)").eq("id", appId).maybeSingle();
+      if (!app) return false;
+      const partnerId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
+      const { data } = await supabase.from("invites")
+        .select("status")
+        .eq("status", "accepted")
+        .or(`and(recruiter_id.eq.${userId},developer_id.eq.${partnerId}),and(recruiter_id.eq.${partnerId},developer_id.eq.${userId})`)
+        .maybeSingle();
+      return !!data;
+    }
+  });
+
+  const chatEnabled = hasContactAccess || inviteAccepted;
+
   // Resolve signed URLs for stored paths (refresh every hour)
   const { data: urlMap } = useQuery({
     queryKey: ["chat-signed-urls", appId, paths.join("|")],
@@ -194,6 +222,20 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
   }
 
   if (error) return <div className="mt-6 rounded-xl border border-destructive/20 bg-destructive/5 p-10 text-center text-destructive">Failed to load chat. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["msgs", appId] })}>Retry</Button></div>;
+
+  if (!chatEnabled && !isLoading) {
+    return (
+      <div className="mt-6 flex h-[40vh] flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card p-10 text-center shadow-card">
+        <div className="rounded-full bg-muted p-4">
+          <Send className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h3 className="mt-4 font-semibold">Chat is locked</h3>
+        <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+          To enable chat, you must first have an approved contact request or an accepted invite between both parties.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-6 flex h-[60vh] flex-col rounded-xl border border-border bg-card shadow-card">
