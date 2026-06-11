@@ -89,6 +89,7 @@ export type Database = {
           status: Database["public"]["Enums"]["contact_access_status"]
           target_id: string
           updated_at: string
+          request_type: string | null
         }
         Insert: {
           created_at?: string
@@ -99,6 +100,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["contact_access_status"]
           target_id: string
           updated_at?: string
+          request_type?: string | null
         }
         Update: {
           created_at?: string
@@ -108,6 +110,31 @@ export type Database = {
           responded_at?: string | null
           status?: Database["public"]["Enums"]["contact_access_status"]
           target_id?: string
+          updated_at?: string
+          request_type?: string | null
+        }
+        Relationships: []
+      }
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          participant_1_id: string
+          participant_2_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          participant_1_id: string
+          participant_2_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          participant_1_id?: string
+          participant_2_id?: string
           updated_at?: string
         }
         Relationships: []
@@ -351,7 +378,8 @@ export type Database = {
       }
       messages: {
         Row: {
-          application_id: string
+          application_id: string | null
+          conversation_id: string | null
           attachments: Json
           body: string | null
           created_at: string
@@ -360,7 +388,8 @@ export type Database = {
           sender_id: string
         }
         Insert: {
-          application_id: string
+          application_id?: string | null
+          conversation_id?: string | null
           attachments?: Json
           body?: string | null
           created_at?: string
@@ -369,7 +398,8 @@ export type Database = {
           sender_id: string
         }
         Update: {
-          application_id?: string
+          application_id?: string | null
+          conversation_id?: string | null
           attachments?: Json
           body?: string | null
           created_at?: string
@@ -383,6 +413,13 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -450,6 +487,33 @@ export type Database = {
           id?: string
           is_suspended?: boolean
           updated_at?: string
+        }
+        Relationships: []
+      }
+      project_assignments: {
+        Row: {
+          assigned_at: string
+          developer_id: string
+          id: string
+          project_id: string
+          recruiter_id: string
+          status: string
+        }
+        Insert: {
+          assigned_at?: string
+          developer_id: string
+          id?: string
+          project_id: string
+          recruiter_id: string
+          status?: string
+        }
+        Update: {
+          assigned_at?: string
+          developer_id?: string
+          id?: string
+          project_id?: string
+          recruiter_id?: string
+          status?: string
         }
         Relationships: []
       }
@@ -811,7 +875,16 @@ export type Database = {
         | "welcome"
         | "stage_update"
         | "invite_rejected"
-      project_status: "open" | "in_progress" | "completed" | "closed"
+        | "project_assigned"
+        | "new_message"
+        | "developer_accepted_project"
+      project_status:
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "closed"
+        | "assigned"
+        | "in_discussion"
       project_type: "fixed" | "hourly"
       stage_status:
         | "planned"
@@ -988,8 +1061,18 @@ export const Constants = {
         "welcome",
         "stage_update",
         "invite_rejected",
+        "project_assigned",
+        "new_message",
+        "developer_accepted_project",
       ],
-      project_status: ["open", "in_progress", "completed", "closed"],
+      project_status: [
+        "open",
+        "in_progress",
+        "completed",
+        "closed",
+        "assigned",
+        "in_discussion",
+      ],
       project_type: ["fixed", "hourly"],
       stage_status: [
         "planned",

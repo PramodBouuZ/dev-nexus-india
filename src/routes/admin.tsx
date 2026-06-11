@@ -654,6 +654,7 @@ function ProjectsTab() {
   const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.company_name?.toLowerCase().includes(search.toLowerCase()));
 
   async function toggleFeatured(id: string, current: boolean) { const { error } = await supabase.from("projects").update({ is_featured: !current } as any).eq("id", id); if (error) toast.error(error.message); else { toast.success("Featured status updated"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
+  async function closeProj(id: string) { if (!confirm("Close this project?")) return; const { error } = await supabase.from("projects").update({ status: "closed" }).eq("id", id); if (error) toast.error(error.message); else { toast.success("Project closed"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
   async function deleteProj(id: string) { if (!confirm("Delete project?")) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) toast.error(error.message); else toast.success("Deleted"); }
 
   return (
@@ -664,7 +665,7 @@ function ProjectsTab() {
          !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No projects found.</p> :
          filtered.map(p => (
           <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
-            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)}><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)}><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{p.company_name || "—"}</CardDescription></CardHeader>
+            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)} title="Toggle Featured"><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button>{p.status !== 'closed' && <Button variant="ghost" size="icon" className="text-warning" onClick={() => closeProj(p.id)} title="Close Project"><XCircle className="h-4 w-4" /></Button>}<Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)} title="Delete Project"><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{p.company_name || "—"}</CardDescription></CardHeader>
             <CardContent className="p-4 pt-0 flex justify-between items-center mt-2"><span className="text-xs font-bold text-accent">Budget: ₹{p.budget_min_inr?.toLocaleString()}</span><Button variant="link" size="sm" asChild className="p-0 h-auto"><Link to="/projects/$projectId" params={{ projectId: p.id }}>Details →</Link></Button></CardContent>
           </Card>
         ))}

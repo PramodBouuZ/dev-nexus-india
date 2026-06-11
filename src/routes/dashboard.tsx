@@ -50,6 +50,52 @@ function Dashboard() {
   );
 }
 
+function NotificationCenter({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const { data: notifications, isLoading } = useQuery({
+    queryKey: ["notifications", userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  async function markAsRead(id: string) {
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+    qc.invalidateQueries({ queryKey: ["notifications", userId] });
+  }
+
+  if (isLoading) return <div className="space-y-3 mt-6">{[1, 2, 3].map(i => <div key={i} className="h-16 animate-pulse rounded-xl bg-muted" />)}</div>;
+
+  return (
+    <div className="mt-6 space-y-3">
+      {!notifications || notifications.length === 0 ? (
+        <p className="text-center py-10 text-sm text-muted-foreground">No notifications yet.</p>
+      ) : notifications.map(n => (
+        <div key={n.id} className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.read_at ? 'bg-accent/5' : 'bg-card'}`}>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold">{n.title}</h4>
+            <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>
+            <p className="text-[10px] text-muted-foreground mt-2">{new Date(n.created_at).toLocaleString()}</p>
+          </div>
+          {!n.read_at && (
+            <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => markAsRead(n.id)}>Mark as read</Button>
+          )}
+          {n.link && (
+            <Button asChild size="sm" variant="outline" className="h-8 text-xs ml-2">
+               <Link to={n.link as any}>View</Link>
+            </Button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function FullPageSpinner() {
   return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Loading...</div>;
 }
@@ -69,7 +115,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
   const qc = useQueryClient();
   useEffect(() => {
     const ch = supabase
-      .channel(`invites-rec-${userId}`)
+      .channel(`recruiter-dashboard-${userId}`)
       .on(
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "invites", filter: `recruiter_id=eq.${userId}` },
@@ -88,6 +134,34 @@ function RecruiterDashboard({ userId }: { userId: string }) {
             qc.invalidateQueries({ queryKey: ["sent-invites", userId] });
           }
         },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "applications" },
+        async (payload) => {
+          // Verify if it's for one of recruiter's projects
+          const { data: proj } = await supabase.from("projects").select("recruiter_id").eq("id", payload.new.project_id).maybeSingle();
+          if (proj?.recruiter_id === userId) {
+            toast.success("New application received!");
+            qc.invalidateQueries({ queryKey: ["my-projects", userId] });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
+        () => {
+           toast.info("New contact access request");
+           qc.invalidateQueries({ queryKey: ["sent-contact-reqs", userId] }); // Note: recruiters also receive requests
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "project_assignments", filter: `recruiter_id=eq.${userId}` },
+        () => {
+           qc.invalidateQueries({ queryKey: ["assigned-devs", userId] });
+           qc.invalidateQueries({ queryKey: ["my-projects", userId] });
+        }
       )
       .subscribe();
     return () => {
@@ -111,6 +185,23 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       const { data } = await supabase.from("contracts").select("*, projects(title)").eq("recruiter_id", userId);
       return data ?? [];
     },
+  });
+
+  const { data: assignedDevs } = useQuery({
+    queryKey: ["assigned-devs", userId],
+    queryFn: async () => {
+      const { data: assignments } = await supabase
+        .from("project_assignments")
+        .select("*, projects(title)")
+        .eq("recruiter_id", userId);
+      if (!assignments?.length) return [];
+      const devIds = assignments.map(a => a.developer_id);
+      const { data: devs } = await supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", devIds);
+      return assignments.map(a => ({
+        ...a,
+        dev: devs?.find(d => d.id === a.developer_id),
+      }));
+    }
   });
 
   const { data: invites } = useQuery({
@@ -175,19 +266,21 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         </Button>
       </DashboardHeader>
 
-      <div className="mt-8 grid gap-4 md:grid-cols-4">
-        <StatCard icon={Briefcase} label="Active projects" value={projects?.filter(p => p.status === "open" || p.status === "in_progress").length ?? 0} />
-        <StatCard icon={Users} label="Active hires" value={contracts?.filter(c => c.status === "active").length ?? 0} />
+      <div className="mt-8 grid gap-4 md:grid-cols-4 sm:grid-cols-2">
+        <StatCard icon={Briefcase} label="Active projects" value={projects?.filter(p => p.status === "open" || p.status === "in_progress" || p.status === "in_discussion").length ?? 0} />
+        <StatCard icon={Users} label="Assigned Developers" value={assignedDevs?.length ?? 0} />
         <StatCard icon={FileText} label="Total projects" value={projects?.length ?? 0} />
-        <StatCard icon={TrendingUp} label="Engagement" value={sentRequests?.length ?? 0} />
+        <StatCard icon={TrendingUp} label="Invites Sent" value={invites?.length ?? 0} />
       </div>
 
       <Tabs defaultValue="projects" className="mt-10">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="assigned">Assigned</TabsTrigger>
           <TabsTrigger value="invites">Invites</TabsTrigger>
           <TabsTrigger value="saved">Saved Developers</TabsTrigger>
           <TabsTrigger value="contacts">Contact Requests</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
 
@@ -208,9 +301,36 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                         {p.tech_stack?.slice(0, 5).map(t => <Badge key={t} variant="secondary">{t}</Badge>)}
                       </div>
                     </div>
-                    <Badge variant={p.status === "open" ? "default" : "outline"}>{p.status}</Badge>
+                    <Badge variant={p.status === "open" ? "default" : p.status === "assigned" ? "success" : "outline"}>{p.status.replace("_"," ")}</Badge>
                   </div>
                 </Link>
+              ))}
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="assigned">
+          <section className="mt-6">
+            <h2 className="font-display text-xl font-semibold">Assigned Developers</h2>
+            <div className="mt-4 space-y-3">
+              {!assignedDevs || assignedDevs.length === 0 ? (
+                 <p className="text-sm text-muted-foreground">No developers assigned yet.</p>
+              ) : assignedDevs.map(a => (
+                <div key={a.id} className="rounded-xl border border-border bg-card p-5 shadow-card">
+                   <div className="flex items-center justify-between">
+                     <div className="flex items-center gap-4">
+                       <Avatar>
+                         <AvatarImage src={a.dev?.avatar_url ?? undefined} />
+                         <AvatarFallback>{a.dev?.full_name?.[0]}</AvatarFallback>
+                       </Avatar>
+                       <div>
+                         <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent">{a.dev?.full_name}</Link>
+                         <p className="text-xs text-muted-foreground">Assigned to: <span className="font-medium text-foreground">{a.projects?.title}</span></p>
+                       </div>
+                     </div>
+                     <Badge variant="success">Assigned</Badge>
+                   </div>
+                </div>
               ))}
             </div>
           </section>
@@ -296,10 +416,10 @@ function RecruiterDashboard({ userId }: { userId: string }) {
 
         <TabsContent value="contacts">
           <section className="mt-6">
-            <h2 className="font-display text-xl font-semibold">Contact requests sent</h2>
+            <h2 className="font-display text-xl font-semibold">Contact requests</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {!sentRequests || sentRequests.length === 0 ? (
-                <p className="col-span-full text-sm text-muted-foreground">No requests sent yet.</p>
+                <p className="col-span-full text-sm text-muted-foreground">No requests yet.</p>
               ) : sentRequests.map(r => (
                 <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
                   <div className="flex items-center justify-between">
@@ -341,6 +461,10 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           </section>
         </TabsContent>
 
+        <TabsContent value="notifications">
+           <NotificationCenter userId={userId} />
+        </TabsContent>
+
         <TabsContent value="chats">
            <ChatConversations userId={userId} role="recruiter" />
         </TabsContent>
@@ -380,6 +504,17 @@ function DeveloperDashboard({ userId }: { userId: string }) {
     },
   });
 
+  const { data: assignedProjects } = useQuery({
+    queryKey: ["assigned-projects", userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("project_assignments")
+        .select("*, projects(*)")
+        .eq("developer_id", userId);
+      return data ?? [];
+    }
+  });
+
   const { data: incomingRequests } = useQuery({
     queryKey: ["incoming-contact-reqs", userId],
     staleTime: 1000 * 60 * 5,
@@ -405,13 +540,85 @@ function DeveloperDashboard({ userId }: { userId: string }) {
     }
   });
 
+  const { data: incomingInvites } = useQuery({
+    queryKey: ["incoming-invites", userId],
+    queryFn: async () => {
+      const { data: invs } = await supabase
+        .from("invites")
+        .select("*, projects(title, recruiter_id)")
+        .eq("developer_id", userId)
+        .order("created_at", { ascending: false });
+      if (!invs?.length) return [];
+      const recIds = invs.map(i => i.recruiter_id);
+      const { data: recs } = await supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", recIds);
+      return invs.map(i => ({
+        ...i,
+        recruiter: recs?.find(r => r.id === i.recruiter_id),
+      }));
+    }
+  });
+
   const qc = useQueryClient();
-  async function respond(reqId: string, status: "approved" | "rejected") {
+  useEffect(() => {
+    const ch = supabase
+      .channel(`developer-dashboard-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "invites", filter: `developer_id=eq.${userId}` },
+        () => {
+          toast.success("You received a new project invite!");
+          qc.invalidateQueries({ queryKey: ["incoming-invites", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
+        () => {
+          toast.info("New contact access request");
+          qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "applications", filter: `developer_id=eq.${userId}` },
+        (payload) => {
+          const next = payload.new as { status: string };
+          const prev = payload.old as { status: string };
+          if (next.status !== prev.status) {
+            toast.info(`Application status updated: ${next.status}`);
+            qc.invalidateQueries({ queryKey: ["my-apps", userId] });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "project_assignments", filter: `developer_id=eq.${userId}` },
+        () => {
+          toast.success("You have been assigned to a new project!");
+          qc.invalidateQueries({ queryKey: ["assigned-projects", userId] });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [userId, qc]);
+
+  async function respondToRequest(reqId: string, status: "approved" | "rejected") {
     const { error } = await supabase.from("contact_access_requests").update({ status, responded_at: new Date().toISOString() }).eq("id", reqId);
     if (error) toast.error(error.message);
     else {
       toast.success(status === "approved" ? "Contact shared" : "Request rejected");
       qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+    }
+  }
+
+  async function respondToInvite(inviteId: string, status: "accepted" | "rejected") {
+    const { error } = await supabase.from("invites").update({ status }).eq("id", inviteId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(status === "accepted" ? "Invite accepted" : "Invite declined");
+      qc.invalidateQueries({ queryKey: ["incoming-invites", userId] });
     }
   }
 
@@ -438,9 +645,9 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         </div>
       )}
 
-      <div className="mt-8 grid gap-4 md:grid-cols-4">
+      <div className="mt-8 grid gap-4 md:grid-cols-4 sm:grid-cols-2">
         <StatCard icon={FileText} label="Applications" value={applications?.length ?? 0} />
-        <StatCard icon={Briefcase} label="Active projects" value={contracts?.filter(c => c.status === "active").length ?? 0} />
+        <StatCard icon={Briefcase} label="Assigned projects" value={assignedProjects?.length ?? 0} />
         <StatCard icon={Users} label="Profile views" value={profile?.profile_views ?? 0} />
         <div className="rounded-xl border border-border bg-card p-5 shadow-card flex items-center justify-between">
            <div className="flex items-center gap-3">
@@ -455,9 +662,12 @@ function DeveloperDashboard({ userId }: { userId: string }) {
       </div>
 
       <Tabs defaultValue="applications" className="mt-10">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="applications">Applications</TabsTrigger>
+          <TabsTrigger value="assigned">Assigned</TabsTrigger>
+          <TabsTrigger value="invites">Invites</TabsTrigger>
           <TabsTrigger value="contacts">Contact Requests</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
 
@@ -476,6 +686,65 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                   </div>
                   <Badge variant={a.status === "accepted" ? "default" : a.status === "rejected" ? "destructive" : "secondary"}>{a.status}</Badge>
                 </Link>
+              ))}
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="assigned">
+          <section className="mt-6">
+            <h2 className="font-display text-xl font-semibold">Assigned Projects</h2>
+            <div className="mt-4 space-y-3">
+              {!assignedProjects || assignedProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">You haven't been assigned to any projects yet.</p>
+              ) : assignedProjects.map(a => (
+                <Link key={a.id} to="/projects/$projectId" params={{ projectId: a.project_id }}
+                  className="block rounded-xl border border-border bg-card p-5 shadow-card hover:border-accent/40 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold">{(a.projects as any)?.title}</h3>
+                      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{(a.projects as any)?.description}</p>
+                    </div>
+                    <Badge variant="success">Assigned</Badge>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="invites">
+          <section className="mt-6">
+            <h2 className="font-display text-xl font-semibold">Project Invites</h2>
+            <div className="mt-4 space-y-3">
+              {!incomingInvites || incomingInvites.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No invites yet.</p>
+              ) : incomingInvites.map(i => (
+                <div key={i.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={i.recruiter?.logo_url ?? undefined} />
+                        <AvatarFallback>{i.recruiter?.company_name?.[0] || i.recruiter?.full_name?.[0]}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold text-sm">{i.recruiter?.full_name}</p>
+                        <p className="text-xs text-muted-foreground">{i.recruiter?.company_name}</p>
+                        {i.projects && <p className="mt-1 text-xs font-medium">Project: {i.projects.title}</p>}
+                        {i.message && <p className="mt-2 text-sm text-muted-foreground italic">"{i.message}"</p>}
+                        <p className="mt-2 text-[10px] text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {i.status === "pending" ? (
+                      <div className="flex gap-2">
+                        <Button size="sm" onClick={() => respondToInvite(i.id, "accepted")} className="h-8 text-xs bg-gradient-accent text-primary-foreground">Accept</Button>
+                        <Button size="sm" variant="outline" onClick={() => respondToInvite(i.id, "rejected")} className="h-8 text-xs">Reject</Button>
+                      </div>
+                    ) : (
+                      <Badge variant={i.status === "accepted" ? "default" : i.status === "rejected" ? "destructive" : "secondary"}>{i.status}</Badge>
+                    )}
+                  </div>
+                </div>
               ))}
             </div>
           </section>
@@ -503,8 +772,8 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                     </div>
                     {r.status === "pending" ? (
                       <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => respond(r.id, "approved")} className="h-8 text-xs border-success/30 text-success hover:bg-success/10">Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => respond(r.id, "rejected")} className="h-8 text-xs text-destructive hover:bg-destructive/10">Reject</Button>
+                        <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "approved")} className="h-8 text-xs border-success/30 text-success hover:bg-success/10">Approve</Button>
+                        <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "rejected")} className="h-8 text-xs text-destructive hover:bg-destructive/10">Reject</Button>
                       </div>
                     ) : (
                       <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
@@ -534,6 +803,10 @@ function DeveloperDashboard({ userId }: { userId: string }) {
               ))}
             </div>
           </section>
+        </TabsContent>
+
+        <TabsContent value="notifications">
+           <NotificationCenter userId={userId} />
         </TabsContent>
 
         <TabsContent value="chats">

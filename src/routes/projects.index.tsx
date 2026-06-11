@@ -44,7 +44,7 @@ function ProjectsList() {
   const { data: projects } = useQuery({
     queryKey: ["projects-open"],
     queryFn: async () => {
-      const { data } = await supabase.from("projects").select("*").eq("status", "open").order("created_at", { ascending: false });
+      const { data } = await supabase.from("projects").select("*").in("status", ["open", "in_discussion"]).order("created_at", { ascending: false });
       return data ?? [];
     },
   });
