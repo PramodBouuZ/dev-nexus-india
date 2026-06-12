@@ -17,6 +17,8 @@ export function Navbar() {
     { to: "/developers", label: "Find Developers" },
     { to: "/pricing", label: "Pricing" },
     { to: "/faq", label: "FAQ" },
+    { to: "/privacy", label: "Privacy" },
+    { to: "/terms", label: "Terms" },
   ];
 
   return (

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
@@ -87,7 +87,7 @@ function TermsPage() {
           </Section>
 
           <Section title="10. Contact">
-            Questions about these Terms can be sent to <a className="text-accent" href="/contact">our contact page</a>.
+            Questions about these Terms can be sent to <Link className="text-accent hover:underline" to="/contact">our contact page</Link>.
           </Section>
         </article>
       </main>
@@ -100,7 +100,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div className="mb-8">
       <h2 className="font-display text-xl font-semibold">{title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</p>
+      <div className="mt-2 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </div>
   );
 }
