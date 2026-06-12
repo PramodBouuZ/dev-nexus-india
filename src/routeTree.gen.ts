@@ -15,6 +15,7 @@ import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SavedRouteImport } from './routes/saved'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -59,6 +60,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByTo {
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
@@ -194,6 +202,7 @@ export interface FileRoutesById {
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
   '/reset-password': typeof ResetPasswordRoute
   '/saved': typeof SavedRoute
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/forgot-password'
     | '/pricing'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/saved'
@@ -242,6 +252,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/forgot-password'
     | '/pricing'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/saved'
@@ -265,6 +276,7 @@ export interface FileRouteTypes {
     | '/faq'
     | '/forgot-password'
     | '/pricing'
+    | '/privacy'
     | '/profile'
     | '/reset-password'
     | '/saved'
@@ -289,6 +301,7 @@ export interface RootRouteChildren {
   FaqRoute: typeof FaqRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SavedRoute: typeof SavedRoute
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: '/profile'
       fullPath: '/profile'
       preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -476,6 +496,7 @@ const rootRouteChildren: RootRouteChildren = {
   FaqRoute: FaqRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SavedRoute: SavedRoute,

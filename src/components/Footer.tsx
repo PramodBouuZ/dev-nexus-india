@@ -35,6 +35,7 @@ export function Footer() {
           <FooterCol title="Company" links={[
             { to: "/contact", label: "Contact" },
             { to: "/terms", label: "Terms & Conditions" },
+            { to: "/privacy", label: "Privacy Policy" },
             { to: "/faq", label: "FAQ" },
           ]} />
         </div>
