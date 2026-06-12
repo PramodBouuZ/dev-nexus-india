@@ -145,4 +145,28 @@
     background-clip: text;
     color: transparent;
   }
+  @keyframes scroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(calc(-50% - 12px)); }
+  }
+  .animate-scroll {
+    animation: scroll 40s linear infinite;
+  }
+  @keyframes scroll-reverse {
+    0% { transform: translateX(calc(-50% - 12px)); }
+    100% { transform: translateX(0); }
+  }
+  .animate-scroll-reverse {
+    animation: scroll-reverse 50s linear infinite;
+  }
+  .glass {
+    background: color-mix(in oklch, var(--color-background) 40%, transparent);
+    backdrop-filter: blur(12px);
+    border: 1px solid color-mix(in oklch, var(--color-foreground) 10%, transparent);
+  }
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
 }
