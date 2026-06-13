@@ -12,32 +12,35 @@ export function Footer() {
               <BrandWordmark />
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Hire vetted part-time developers across India. Built for fair pricing and fast delivery.
+              Connecting top tech talent in India with global opportunities. Built for speed, quality, and fair pricing.
             </p>
             <div className="mt-4">
               <PoweredByBant />
             </div>
           </div>
 
-          <FooterCol title="Platform" links={[
+          <FooterCol title="Quick Links" links={[
             { to: "/projects", label: "Browse Projects" },
             { to: "/developers", label: "Find Developers" },
             { to: "/pricing", label: "Pricing" },
-            { to: "/auth", label: "Sign in" },
-          ]} />
-
-          <FooterCol title="For Developers" links={[
-            { to: "/faq", label: "Developer FAQ" },
-            { to: "/verification", label: "Get verified" },
-            { to: "/terms", label: "Code of Conduct" },
-          ]} />
-
-          <FooterCol title="Company" links={[
-            { to: "/contact", label: "Contact" },
-            { to: "/terms", label: "Terms & Conditions" },
-            { to: "/privacy", label: "Privacy Policy" },
             { to: "/faq", label: "FAQ" },
           ]} />
+
+          <FooterCol title="Legal" links={[
+            { to: "/privacy", label: "Privacy Policy" },
+            { to: "/terms", label: "Terms & Conditions" },
+          ]} />
+
+          <div>
+            <h4 className="font-display text-sm font-semibold">Contact</h4>
+            <ul className="mt-3 space-y-2 text-sm">
+              <li>
+                <a href="mailto:info.bouuz@gmail.com" className="text-muted-foreground transition-colors hover:text-foreground">
+                  info.bouuz@gmail.com
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-6 text-xs text-muted-foreground md:flex-row">

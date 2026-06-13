@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeProjectRequirement } from "@/utils/ai-analysis.functions";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/projects/new")({
   head: () => ({ meta: [{ title: "Post a project | DeveloperConnect" }] }),
@@ -35,6 +36,27 @@ const DEV_TYPES = [
 function NewProject() {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
+
+  const { data: userData } = useQuery({
+    queryKey: ["user-meta", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase.from("users").select("subscription_tier").eq("user_id", user!.id).maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: monthlyCount } = useQuery({
+    queryKey: ["monthly-project-count", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("count_monthly_projects", { _user_id: user!.id });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
+  const isLimitReached = userData?.subscription_tier === "free" && (monthlyCount ?? 0) >= 10;
   const analyze = useServerFn(analyzeProjectRequirement);
   const [busy, setBusy] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
@@ -145,7 +167,19 @@ function NewProject() {
         <h1 className="font-display text-3xl font-bold tracking-tight">Post a project</h1>
         <p className="mt-1 text-muted-foreground">Describe what you need built. AI will help structure it.</p>
 
-        <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+        {isLimitReached ? (
+          <div className="mt-8 rounded-xl border border-accent/30 bg-accent/5 p-10 text-center shadow-card">
+            <h2 className="text-xl font-bold">Monthly limit reached</h2>
+            <p className="mt-2 text-muted-foreground">
+              You have reached your limit of 10 project postings per month on the free plan.
+              Upgrade to Recruiter Pro for unlimited postings and premium features.
+            </p>
+            <Button asChild className="mt-6 bg-gradient-accent text-primary-foreground hover:opacity-90">
+              <Link to="/pricing">View Pricing Plans</Link>
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="mt-8 space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
           <Field label="Project title">
             <Input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="e.g. Build a Stripe-integrated checkout for our SaaS" maxLength={120} />
           </Field>
@@ -249,7 +283,8 @@ function NewProject() {
           <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">
             {busy ? "Posting..." : "Post project"}
           </Button>
-        </form>
+          </form>
+        )}
       </main>
       <Footer />
     </div>
