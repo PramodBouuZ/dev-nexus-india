@@ -11,12 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Briefcase, Plus, Users, FileText, MessageSquare, ShieldCheck, Search,
-  UserCog, Mail, Clock as ClockIcon, Phone, Globe, Github, Send, TrendingUp
+  UserCog, Mail, Clock as ClockIcon, Phone, Globe, Github, Send, TrendingUp, Star
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
+import { ReviewDialog } from "@/components/ReviewDialog";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
@@ -34,6 +35,7 @@ function Dashboard() {
     <div className="min-h-screen flex flex-col">
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+        <PendingReviews userId={user.id} />
         {role === "recruiter" ? (
           <RecruiterDashboard userId={user.id} />
         ) : role === "developer" ? (
@@ -46,6 +48,76 @@ function Dashboard() {
         )}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function PendingReviews({ userId }: { userId: string }) {
+  const { data: pending } = useQuery({
+    queryKey: ["needs-review", userId],
+    queryFn: async () => {
+      const { data } = await supabase.rpc("needs_review", { user_id: userId });
+      if (!data?.length) return [];
+
+      const otherPartyIds = data.map(r => r.other_party_id);
+      const [{ data: devs }, { data: recs }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name").in("id", otherPartyIds),
+        supabase.from("recruiter_profiles").select("id, company_name, full_name").in("id", otherPartyIds),
+      ]);
+
+      const projectsIds = data.map(r => r.project_id);
+      const { data: projects } = await supabase.from("projects").select("id, title").in("id", projectsIds);
+
+      return data.map(r => {
+        const party = devs?.find(d => d.id === r.other_party_id) || recs?.find(rc => rc.id === r.other_party_id);
+        const proj = projects?.find(p => p.id === r.project_id);
+        return {
+          ...r,
+          targetName: (party as any)?.company_name || (party as any)?.full_name || "Partner",
+          projectTitle: proj?.title || "Project"
+        };
+      });
+    },
+    staleTime: 1000 * 60 * 5
+  });
+
+  const [reviewing, setReviewing] = useState<{ contractId: string; targetId: string; targetName: string } | null>(null);
+
+  if (!pending?.length) return null;
+
+  return (
+    <div className="mb-8 p-6 bg-accent/10 border border-accent/20 rounded-2xl">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="h-10 w-10 rounded-full bg-accent flex items-center justify-center text-primary-foreground">
+          <Star className="h-5 w-5 fill-current" />
+        </div>
+        <div>
+          <h3 className="font-bold text-lg">Reviews Pending</h3>
+          <p className="text-sm text-muted-foreground">Please share your experience to help our community grow.</p>
+        </div>
+      </div>
+      <div className="space-y-3">
+        {pending.map(r => (
+          <div key={r.contract_id} className="flex items-center justify-between p-4 bg-card border border-border rounded-xl">
+             <div>
+               <p className="font-semibold">{r.targetName}</p>
+               <p className="text-xs text-muted-foreground">For: {r.projectTitle}</p>
+             </div>
+             <Button size="sm" onClick={() => setReviewing({ contractId: r.contract_id, targetId: r.other_party_id, targetName: r.targetName })}>
+               Review Now
+             </Button>
+          </div>
+        ))}
+      </div>
+      {reviewing && (
+        <ReviewDialog
+          open={!!reviewing}
+          onOpenChange={(open) => !open && setReviewing(null)}
+          contractId={reviewing.contractId}
+          targetId={reviewing.targetId}
+          targetName={reviewing.targetName}
+        />
+      )}
     </div>
   );
 }
