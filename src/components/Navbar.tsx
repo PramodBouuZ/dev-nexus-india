@@ -15,10 +15,6 @@ export function Navbar() {
   const navLinks = [
     { to: "/projects", label: "Browse Projects" },
     { to: "/developers", label: "Find Developers" },
-    { to: "/pricing", label: "Pricing" },
-    { to: "/faq", label: "FAQ" },
-    { to: "/privacy", label: "Privacy" },
-    { to: "/terms", label: "Terms" },
   ];
 
   return (

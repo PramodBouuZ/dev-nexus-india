@@ -179,6 +179,23 @@ function RecruiterDashboard({ userId }: { userId: string }) {
     },
   });
 
+  const { data: userData } = useQuery({
+    queryKey: ["user-meta", userId],
+    queryFn: async () => {
+      const { data } = await supabase.from("users").select("subscription_tier").eq("user_id", userId).maybeSingle();
+      return data;
+    },
+  });
+
+  const { data: monthlyCount } = useQuery({
+    queryKey: ["monthly-project-count", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("count_monthly_projects", { _user_id: userId });
+      if (error) throw error;
+      return data as number;
+    },
+  });
+
   const { data: contracts } = useQuery({
     queryKey: ["my-contracts-rec", userId],
     queryFn: async () => {
@@ -269,8 +286,26 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       <div className="mt-8 grid gap-4 md:grid-cols-4 sm:grid-cols-2">
         <StatCard icon={Briefcase} label="Active projects" value={projects?.filter(p => p.status === "open" || p.status === "in_progress" || p.status === "in_discussion").length ?? 0} />
         <StatCard icon={Users} label="Assigned Developers" value={assignedDevs?.length ?? 0} />
-        <StatCard icon={FileText} label="Total projects" value={projects?.length ?? 0} />
         <StatCard icon={TrendingUp} label="Invites Sent" value={invites?.length ?? 0} />
+        {userData?.subscription_tier === "free" ? (
+          <div className="rounded-xl border border-accent/20 bg-accent/5 p-5 shadow-card">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="text-xs uppercase tracking-wider text-muted-foreground">Projects Used</div>
+                <Badge variant="outline" className="text-[10px]">{monthlyCount ?? 0} / 10</Badge>
+              </div>
+              <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-accent transition-all"
+                  style={{ width: `${Math.min(((monthlyCount ?? 0) / 10) * 100, 100)}%` }}
+                />
+              </div>
+              <Link to="/pricing" className="text-[10px] text-accent hover:underline font-medium">Upgrade for unlimited</Link>
+            </div>
+          </div>
+        ) : (
+          <StatCard icon={FileText} label="Total projects" value={projects?.length ?? 0} />
+        )}
       </div>
 
       <Tabs defaultValue="projects" className="mt-10">
