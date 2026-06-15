@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as HireSlugRouteImport } from './routes/hire-$slug'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DevelopersRouteImport } from './routes/developers'
@@ -26,10 +27,12 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects.index'
+import { Route as BlogIndexRouteImport } from './routes/blog.index'
 import { Route as RecruitersRecIdRouteImport } from './routes/recruiters.$recId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
+import { Route as BlogPostSlugRouteImport } from './routes/blog.$postSlug'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
 
 const VerificationRoute = VerificationRouteImport.update({
@@ -70,6 +73,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HireSlugRoute = HireSlugRouteImport.update({
+  id: '/hire-$slug',
+  path: '/hire-$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -117,6 +125,11 @@ const ProjectsIndexRoute = ProjectsIndexRouteImport.update({
   path: '/projects/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BlogIndexRoute = BlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RecruitersRecIdRoute = RecruitersRecIdRouteImport.update({
   id: '/recruiters/$recId',
   path: '/recruiters/$recId',
@@ -137,6 +150,11 @@ const DevelopersDevIdRoute = DevelopersDevIdRouteImport.update({
   path: '/$devId',
   getParentRoute: () => DevelopersRoute,
 } as any)
+const BlogPostSlugRoute = BlogPostSlugRouteImport.update({
+  id: '/blog/$postSlug',
+  path: '/blog/$postSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApplicationsAppIdRoute = ApplicationsAppIdRouteImport.update({
   id: '/applications/$appId',
   path: '/applications/$appId',
@@ -152,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hire-$slug': typeof HireSlugRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -161,10 +180,12 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/projects/': typeof ProjectsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -176,6 +197,7 @@ export interface FileRoutesByTo {
   '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hire-$slug': typeof HireSlugRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -185,10 +207,12 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
+  '/blog': typeof BlogIndexRoute
   '/projects': typeof ProjectsIndexRoute
 }
 export interface FileRoutesById {
@@ -201,6 +225,7 @@ export interface FileRoutesById {
   '/developers': typeof DevelopersRouteWithChildren
   '/faq': typeof FaqRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/hire-$slug': typeof HireSlugRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/profile': typeof ProfileRoute
@@ -210,10 +235,12 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
+  '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
   '/recruiters/$recId': typeof RecruitersRecIdRoute
+  '/blog/': typeof BlogIndexRoute
   '/projects/': typeof ProjectsIndexRoute
 }
 export interface FileRouteTypes {
@@ -227,6 +254,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/faq'
     | '/forgot-password'
+    | '/hire-$slug'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -236,10 +264,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/blog/$postSlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/recruiters/$recId'
+    | '/blog/'
     | '/projects/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -251,6 +281,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/faq'
     | '/forgot-password'
+    | '/hire-$slug'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -260,10 +291,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/blog/$postSlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/recruiters/$recId'
+    | '/blog'
     | '/projects'
   id:
     | '__root__'
@@ -275,6 +308,7 @@ export interface FileRouteTypes {
     | '/developers'
     | '/faq'
     | '/forgot-password'
+    | '/hire-$slug'
     | '/pricing'
     | '/privacy'
     | '/profile'
@@ -284,10 +318,12 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verification'
     | '/applications/$appId'
+    | '/blog/$postSlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
     | '/recruiters/$recId'
+    | '/blog/'
     | '/projects/'
   fileRoutesById: FileRoutesById
 }
@@ -300,6 +336,7 @@ export interface RootRouteChildren {
   DevelopersRoute: typeof DevelopersRouteWithChildren
   FaqRoute: typeof FaqRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  HireSlugRoute: typeof HireSlugRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   ProfileRoute: typeof ProfileRoute
@@ -309,9 +346,11 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VerificationRoute: typeof VerificationRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
+  BlogPostSlugRoute: typeof BlogPostSlugRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
   RecruitersRecIdRoute: typeof RecruitersRecIdRoute
+  BlogIndexRoute: typeof BlogIndexRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
 }
 
@@ -371,6 +410,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/hire-$slug': {
+      id: '/hire-$slug'
+      path: '/hire-$slug'
+      fullPath: '/hire-$slug'
+      preLoaderRoute: typeof HireSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -436,6 +482,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/blog/': {
+      id: '/blog/'
+      path: '/blog'
+      fullPath: '/blog/'
+      preLoaderRoute: typeof BlogIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/recruiters/$recId': {
       id: '/recruiters/$recId'
       path: '/recruiters/$recId'
@@ -463,6 +516,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/developers/$devId'
       preLoaderRoute: typeof DevelopersDevIdRouteImport
       parentRoute: typeof DevelopersRoute
+    }
+    '/blog/$postSlug': {
+      id: '/blog/$postSlug'
+      path: '/blog/$postSlug'
+      fullPath: '/blog/$postSlug'
+      preLoaderRoute: typeof BlogPostSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/applications/$appId': {
       id: '/applications/$appId'
@@ -495,6 +555,7 @@ const rootRouteChildren: RootRouteChildren = {
   DevelopersRoute: DevelopersRouteWithChildren,
   FaqRoute: FaqRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  HireSlugRoute: HireSlugRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   ProfileRoute: ProfileRoute,
@@ -504,9 +565,11 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VerificationRoute: VerificationRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
+  BlogPostSlugRoute: BlogPostSlugRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
   RecruitersRecIdRoute: RecruitersRecIdRoute,
+  BlogIndexRoute: BlogIndexRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,
 }
 export const routeTree = rootRouteImport

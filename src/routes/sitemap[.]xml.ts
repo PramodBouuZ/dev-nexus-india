@@ -23,16 +23,41 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/contact", changefreq: "monthly", priority: "0.5" },
           { path: "/terms", changefreq: "yearly", priority: "0.3" },
           { path: "/auth", changefreq: "yearly", priority: "0.3" },
+          { path: "/blog", changefreq: "daily", priority: "0.8" },
         ];
+
+        const seoSlugs = [
+          "react-developers", "nodejs-developers", "python-developers", "flutter-developers",
+          "php-developers", "laravel-developers", "wordpress-developers", "java-developers",
+          "android-developers", "ios-developers", "ai-developers", "machine-learning-engineers",
+          "devops-engineers", "ui-ux-designers", "developers-in-delhi", "developers-in-noida",
+          "developers-in-gurgaon", "developers-in-bangalore", "developers-in-hyderabad",
+          "developers-in-pune", "developers-in-mumbai", "developers-in-chennai"
+        ];
+
+        seoSlugs.forEach(slug => {
+          staticEntries.push({ path: `/hire-${slug}`, changefreq: "weekly", priority: "0.8" });
+        });
+
+        const blogSlugs = [
+          "how-to-hire-developers-in-india", "best-platforms-to-hire-developers",
+          "hire-react-developers-in-india", "how-startups-can-hire-developers-faster"
+        ];
+
+        blogSlugs.forEach(slug => {
+          staticEntries.push({ path: `/blog/${slug}`, changefreq: "monthly", priority: "0.7" });
+        });
 
         const dynamic: SitemapEntry[] = [];
         try {
-          const [{ data: devs }, { data: projs }] = await Promise.all([
+          const [{ data: devs }, { data: projs }, { data: recs }] = await Promise.all([
             supabase.from("developer_profiles").select("id").limit(1000),
             supabase.from("projects").select("id").eq("status", "open").limit(1000),
+            supabase.from("recruiter_profiles").select("id").limit(1000),
           ]);
           devs?.forEach((d) => dynamic.push({ path: `/developers/${d.id}`, changefreq: "weekly", priority: "0.6" }));
           projs?.forEach((p) => dynamic.push({ path: `/projects/${p.id}`, changefreq: "weekly", priority: "0.7" }));
+          recs?.forEach((r) => dynamic.push({ path: `/recruiters/${r.id}`, changefreq: "weekly", priority: "0.6" }));
         } catch {
           // ignore — emit static-only sitemap on failure
         }

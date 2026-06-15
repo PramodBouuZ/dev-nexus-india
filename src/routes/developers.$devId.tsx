@@ -20,20 +20,21 @@ import {
 export const Route = createFileRoute("/developers/$devId")({
   loader: async ({ params }) => {
     const { devId } = params;
-    const { data: dev } = await supabase.from("developer_profiles").select("full_name, headline, bio, skills").eq("id", devId).maybeSingle();
-    return { dev, devId };
+    const { data: dev } = await supabase.from("developer_profiles").select("full_name, headline, bio, skills, is_verified").eq("id", devId).maybeSingle();
+    const { data: reviews } = await supabase.from("reviews").select("rating, comment, created_at").eq("reviewee_id", devId).limit(5);
+    return { dev, devId, reviews };
   },
   head: ({ loaderData }) => {
-    const name = loaderData?.dev?.full_name || "Developer";
-    const headline = loaderData?.dev?.headline || "Software Developer";
-    const bio = loaderData?.dev?.bio || "Expert developer available for hire on DeveloperConnect.";
-    const title = `${name} | ${headline} in India | DeveloperConnect`;
-    const description = `${name} is a skilled ${headline} in India. ${bio.slice(0, 150)}...`;
+    const name = loaderData?.dev?.full_name || "John Doe";
+    const headline = loaderData?.dev?.headline || "React Developer";
+    const title = `${name} – ${headline} | DeveloperConnect`;
+    const description = `Experienced ${headline} available for part-time and full-time projects. Connect with ${name} on DeveloperConnect.`;
 
     return {
       meta: [
         { title },
         { name: "description", content: description },
+        { name: "robots", content: loaderData?.dev?.is_verified ? "index, follow" : "noindex, nofollow" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:url", content: `https://developerconnect.in/developers/${loaderData?.devId}` },
@@ -49,9 +50,24 @@ export const Route = createFileRoute("/developers/$devId")({
             "@type": "Person",
             "name": name,
             "jobTitle": headline,
-            "description": bio,
+            "description": description,
             "url": `https://developerconnect.in/developers/${loaderData?.devId}`,
-            "knowsAbout": loaderData?.dev?.skills || []
+            "knowsAbout": loaderData?.dev?.skills || [],
+            ...(loaderData?.reviews?.length ? {
+              "review": loaderData.reviews.map((r: any) => ({
+                "@type": "Review",
+                "reviewRating": {
+                  "@type": "Rating",
+                  "ratingValue": r.rating
+                },
+                "author": {
+                  "@type": "Person",
+                  "name": "Verified Client"
+                },
+                "reviewBody": r.comment,
+                "datePublished": r.created_at
+              }))
+            } : {})
           })
         },
         {

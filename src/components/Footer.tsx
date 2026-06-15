@@ -49,8 +49,17 @@ export function Footer() {
           <FooterCol title="Quick Links" links={[
             { to: "/projects", label: "Browse Projects" },
             { to: "/developers", label: "Find Developers" },
+            { to: "/blog", label: "Blog" },
             { to: "/pricing", label: "Pricing" },
             { to: "/faq", label: "FAQ" },
+          ]} />
+
+          <FooterCol title="Hire Developers" links={[
+            { to: "/hire-react-developers", label: "Hire React Developers" },
+            { to: "/hire-nodejs-developers", label: "Hire Node.js Developers" },
+            { to: "/hire-python-developers", label: "Hire Python Developers" },
+            { to: "/hire-ai-developers", label: "Hire AI Developers" },
+            { to: "/hire-developers-in-bangalore", label: "Developers in Bangalore" },
           ]} />
 
           <FooterCol title="Legal" links={[

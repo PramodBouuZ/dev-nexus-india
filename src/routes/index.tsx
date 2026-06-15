@@ -21,11 +21,11 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Hire Developers in India Part-Time or Full-Time | DeveloperConnect" },
-      { name: "description", content: "DeveloperConnect is India's premium structured marketplace for hiring vetted part-time and full-time developers. Post projects, send invites, and collaborate securely with top Indian tech talent." },
-      { name: "keywords", content: "hire developers in India, part-time developers India, freelance developers India, hire React developers India, hire Node.js developers, full stack developers India, tech hiring marketplace, remote developers India, startup hiring platform India, developer marketplace India" },
-      { property: "og:title", content: "Hire Developers in India Part-Time or Full-Time | DeveloperConnect" },
-      { property: "og:description", content: "DeveloperConnect is India's premium structured marketplace for hiring vetted part-time and full-time developers. Post projects, send invites, and collaborate securely." },
+      { title: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect" },
+      { name: "description", content: "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect." },
+      { name: "keywords", content: "hire developers, hire software developers, hire web developers, hire app developers, hire developers in India, part time developers, full time developers, remote developers, freelance developers, react developers, node js developers, python developers, flutter developers, full stack developers, startup hiring, software engineers India, developer marketplace India" },
+      { property: "og:title", content: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect" },
+      { property: "og:description", content: "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect." },
       { property: "og:url", content: "https://developerconnect.in/" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/" },
     ],
