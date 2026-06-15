@@ -137,7 +137,7 @@ function NotificationCenter({ userId }: { userId: string }) {
   });
 
   async function markAsRead(id: string) {
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", userId] });
   }
 
@@ -148,13 +148,13 @@ function NotificationCenter({ userId }: { userId: string }) {
       {!notifications || notifications.length === 0 ? (
         <p className="text-center py-10 text-sm text-muted-foreground">No notifications yet.</p>
       ) : notifications.map(n => (
-        <div key={n.id} className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.read_at ? 'bg-accent/5' : 'bg-card'}`}>
+        <div key={n.id} className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.is_read ? 'bg-accent/5' : 'bg-card'}`}>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-semibold">{n.title}</h4>
-            <p className="text-xs text-muted-foreground mt-0.5">{n.body}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{n.message || (n as any).body}</p>
             <p className="text-[10px] text-muted-foreground mt-2">{new Date(n.created_at).toLocaleString()}</p>
           </div>
-          {!n.read_at && (
+          {!n.is_read && (
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => markAsRead(n.id)}>Mark as read</Button>
           )}
           {n.link && (
@@ -216,6 +216,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           if (proj?.recruiter_id === userId) {
             toast.success("New application received!");
             qc.invalidateQueries({ queryKey: ["my-projects", userId] });
+            qc.invalidateQueries({ queryKey: ["incoming-apps", userId] });
           }
         }
       )
@@ -223,8 +224,15 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
         () => {
-           toast.info("New contact access request");
-           qc.invalidateQueries({ queryKey: ["sent-contact-reqs", userId] }); // Note: recruiters also receive requests
+           toast.info("New contact access request received");
+           qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
+        () => {
+           qc.invalidateQueries({ queryKey: ["sent-contact-reqs", userId] });
         }
       )
       .on(
@@ -233,6 +241,13 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         () => {
            qc.invalidateQueries({ queryKey: ["assigned-devs", userId] });
            qc.invalidateQueries({ queryKey: ["my-projects", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => {
+           qc.invalidateQueries({ queryKey: ["notifications", userId] });
         }
       )
       .subscribe();
@@ -345,6 +360,66 @@ function RecruiterDashboard({ userId }: { userId: string }) {
     }
   });
 
+  const { data: incomingRequests } = useQuery({
+    queryKey: ["incoming-contact-reqs", userId],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data: reqs } = await supabase
+        .from("contact_access_requests")
+        .select("*")
+        .eq("target_id", userId)
+        .order("created_at", { ascending: false });
+      if (!reqs?.length) return [];
+      const ids = reqs.map(r => r.requester_id);
+      const [{ data: devs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, skills").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        dev: devs?.find(d => d.id === r.requester_id),
+        email: profs?.find(p => p.id === r.requester_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.developer_id === r.requester_id)?.phone ?? null,
+      }));
+    }
+  });
+
+  const { data: incomingApplications } = useQuery({
+    queryKey: ["incoming-apps", userId],
+    queryFn: async () => {
+      // First get recruiter's projects
+      const { data: myProjs } = await supabase.from("projects").select("id, title").eq("recruiter_id", userId);
+      if (!myProjs?.length) return [];
+      const projIds = myProjs.map(p => p.id);
+      const { data: apps } = await supabase
+        .from("applications")
+        .select("*")
+        .in("project_id", projIds)
+        .order("created_at", { ascending: false });
+      if (!apps?.length) return [];
+      const devIds = apps.map(a => a.developer_id);
+      const { data: devs } = await supabase
+        .from("developer_profiles")
+        .select("id, full_name, avatar_url, headline, skills")
+        .in("id", devIds);
+      return apps.map(a => ({
+        ...a,
+        dev: devs?.find(d => d.id === a.developer_id),
+        projectTitle: myProjs.find(p => p.id === a.project_id)?.title
+      }));
+    }
+  });
+
+  async function respondToRequest(reqId: string, status: "approved" | "rejected") {
+    const { error } = await supabase.from("contact_access_requests").update({ status, responded_at: new Date().toISOString() }).eq("id", reqId);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(status === "approved" ? "Contact shared" : "Request rejected");
+      qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+    }
+  }
+
   return (
     <>
       <DashboardHeader title="Recruiter dashboard" subtitle="Manage your projects and hires.">
@@ -383,10 +458,11 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       <Tabs defaultValue="projects" className="mt-10">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="projects">Projects</TabsTrigger>
+          <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="assigned">Assigned</TabsTrigger>
           <TabsTrigger value="invites">Invites</TabsTrigger>
           <TabsTrigger value="saved">Saved Developers</TabsTrigger>
-          <TabsTrigger value="contacts">Contact Requests</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
@@ -521,49 +597,134 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           </section>
         </TabsContent>
 
-        <TabsContent value="contacts">
+        <TabsContent value="applications">
           <section className="mt-6">
-            <h2 className="font-display text-xl font-semibold">Contact requests</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {!sentRequests || sentRequests.length === 0 ? (
-                <p className="col-span-full text-sm text-muted-foreground">No requests yet.</p>
-              ) : sentRequests.map(r => (
-                <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={r.dev?.avatar_url ?? undefined} />
-                        <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+            <h2 className="font-display text-xl font-semibold">Applications Received</h2>
+            <div className="mt-4 space-y-3">
+              {!incomingApplications || incomingApplications.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No applications received yet.</p>
+              ) : incomingApplications.map(a => (
+                <div key={a.id} className="rounded-xl border border-border bg-card p-5 shadow-card">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={a.dev?.avatar_url ?? undefined} />
+                        <AvatarFallback>{a.dev?.full_name?.[0]}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-semibold">{r.dev?.full_name}</p>
-                        <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                        <Link to="/developers/$devId" params={{ devId: a.developer_id }} className="font-semibold hover:text-accent transition-colors">
+                          {a.dev?.full_name}
+                        </Link>
+                        <p className="text-xs text-muted-foreground">Applied to: <span className="font-medium text-foreground">{a.projectTitle}</span></p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {a.dev?.skills?.slice(0, 3).map((s: string) => <Badge key={s} variant="secondary" className="text-[10px]">{s}</Badge>)}
+                        </div>
                       </div>
                     </div>
-                    <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
+                    <div className="flex flex-col items-end gap-2">
+                       <Badge variant={a.status === "accepted" ? "default" : a.status === "rejected" ? "destructive" : "secondary"}>
+                        {a.status}
+                      </Badge>
+                      <Button asChild size="sm" variant="outline" className="h-8 text-xs">
+                        <Link to="/applications/$appId" params={{ appId: a.id }}>View Application</Link>
+                      </Button>
+                    </div>
                   </div>
-                  {r.status === "approved" && (
-                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
-                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
-                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
-                      </div>
-                      {r.email && (
-                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
-                        </a>
-                      )}
-                      {r.phone && (
-                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
-                        </a>
-                      )}
-                      {!r.email && !r.phone && (
-                        <p className="text-xs text-muted-foreground">No contact details added yet by the developer.</p>
-                      )}
+                  {a.cover_message && (
+                    <div className="mt-4 p-3 bg-muted/30 rounded-lg text-sm text-muted-foreground italic">
+                      "{a.cover_message}"
                     </div>
                   )}
                 </div>
               ))}
+            </div>
+          </section>
+        </TabsContent>
+
+        <TabsContent value="contacts">
+          <section className="mt-6">
+            <div className="space-y-10">
+              {/* Incoming requests to recruiter */}
+              <div>
+                <h2 className="font-display text-xl font-semibold">Received Contact Requests</h2>
+                <p className="text-sm text-muted-foreground mb-4">Developers who want to connect with you.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {!incomingRequests || incomingRequests.length === 0 ? (
+                    <p className="col-span-full text-sm text-muted-foreground">No received requests yet.</p>
+                  ) : incomingRequests.map(r => (
+                    <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                            <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <Link to="/developers/$devId" params={{ devId: r.requester_id }} className="text-sm font-semibold hover:text-accent">{r.dev?.full_name}</Link>
+                            <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {r.status === "pending" ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "approved")} className="h-7 text-[10px] border-success/30 text-success hover:bg-success/10 px-2">Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "rejected")} className="h-7 text-[10px] text-destructive hover:bg-destructive/10 px-2">Reject</Button>
+                          </div>
+                        ) : (
+                          <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
+                        )}
+                      </div>
+                      {r.message && <p className="mt-2 text-xs text-muted-foreground italic">"{r.message}"</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Outgoing requests from recruiter */}
+              <div>
+                <h2 className="font-display text-xl font-semibold">Sent Contact Requests</h2>
+                <p className="text-sm text-muted-foreground mb-4">Developers you've requested contact details from.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {!sentRequests || sentRequests.length === 0 ? (
+                    <p className="col-span-full text-sm text-muted-foreground">No sent requests yet.</p>
+                  ) : sentRequests.map(r => (
+                    <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                            <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-semibold">{r.dev?.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
+                      </div>
+                      {r.status === "approved" && (
+                        <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                          <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                          </div>
+                          {r.email && (
+                            <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                            </a>
+                          )}
+                          {r.phone && (
+                            <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                            </a>
+                          )}
+                          {!r.email && !r.phone && (
+                            <p className="text-xs text-muted-foreground">No contact details added yet by the developer.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
         </TabsContent>
@@ -647,6 +808,31 @@ function DeveloperDashboard({ userId }: { userId: string }) {
     }
   });
 
+  const { data: sentRequests } = useQuery({
+    queryKey: ["sent-contact-reqs-dev", userId],
+    staleTime: 1000 * 60 * 5,
+    queryFn: async () => {
+      const { data: reqs } = await supabase
+        .from("contact_access_requests")
+        .select("*")
+        .eq("requester_id", userId)
+        .order("created_at", { ascending: false });
+      if (!reqs?.length) return [];
+      const ids = reqs.map(r => r.target_id);
+      const [{ data: recs }, { data: profs }, { data: phones }] = await Promise.all([
+        supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids),
+        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
+      ]);
+      return reqs.map(r => ({
+        ...r,
+        recruiter: recs?.find(rc => rc.id === r.target_id),
+        email: profs?.find(p => p.id === r.target_id)?.email ?? null,
+        phone: (phones as any[] | null)?.find((p: any) => p.recruiter_id === r.target_id)?.phone ?? null,
+      }));
+    }
+  });
+
   const { data: incomingInvites } = useQuery({
     queryKey: ["incoming-invites", userId],
     queryFn: async () => {
@@ -681,8 +867,15 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
         () => {
-          toast.info("New contact access request");
+          toast.info("New contact access request received");
           qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["sent-contact-reqs-dev", userId] });
         }
       )
       .on(
@@ -703,6 +896,13 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         () => {
           toast.success("You have been assigned to a new project!");
           qc.invalidateQueries({ queryKey: ["assigned-projects", userId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        () => {
+           qc.invalidateQueries({ queryKey: ["notifications", userId] });
         }
       )
       .subscribe();
@@ -773,7 +973,7 @@ function DeveloperDashboard({ userId }: { userId: string }) {
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="assigned">Assigned</TabsTrigger>
           <TabsTrigger value="invites">Invites</TabsTrigger>
-          <TabsTrigger value="contacts">Contact Requests</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
@@ -859,55 +1059,88 @@ function DeveloperDashboard({ userId }: { userId: string }) {
 
         <TabsContent value="contacts">
           <section className="mt-6">
-            <h2 className="font-display text-xl font-semibold">Contact requests</h2>
-            <div className="mt-4 space-y-3">
-              {!incomingRequests || incomingRequests.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No contact requests yet.</p>
-              ) : incomingRequests.map(r => (
-                <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={r.recruiter?.logo_url ?? undefined} />
-                        <AvatarFallback>{r.recruiter?.company_name?.[0] || r.recruiter?.full_name?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <p className="font-semibold text-sm">{r.recruiter?.company_name || r.recruiter?.full_name}</p>
-                        {r.message && <p className="mt-1 text-xs text-muted-foreground italic">"{r.message}"</p>}
-                        <p className="mt-1 text-[10px] text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</p>
+            <div className="space-y-10">
+              {/* Incoming requests to developer */}
+              <div>
+                <h2 className="font-display text-xl font-semibold">Received Contact Requests</h2>
+                <p className="text-sm text-muted-foreground mb-4">Recruiters who want to connect with you.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {!incomingRequests || incomingRequests.length === 0 ? (
+                    <p className="col-span-full text-sm text-muted-foreground">No received requests yet.</p>
+                  ) : incomingRequests.map(r => (
+                    <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={r.recruiter?.logo_url ?? undefined} />
+                            <AvatarFallback>{r.recruiter?.company_name?.[0] || r.recruiter?.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-sm">{r.recruiter?.company_name || r.recruiter?.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        {r.status === "pending" ? (
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "approved")} className="h-7 text-[10px] border-success/30 text-success hover:bg-success/10 px-2">Approve</Button>
+                            <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "rejected")} className="h-7 text-[10px] text-destructive hover:bg-destructive/10 px-2">Reject</Button>
+                          </div>
+                        ) : (
+                          <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
+                        )}
                       </div>
+                      {r.message && <p className="mt-2 text-xs text-muted-foreground italic">"{r.message}"</p>}
                     </div>
-                    {r.status === "pending" ? (
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "approved")} className="h-8 text-xs border-success/30 text-success hover:bg-success/10">Approve</Button>
-                        <Button size="sm" variant="outline" onClick={() => respondToRequest(r.id, "rejected")} className="h-8 text-xs text-destructive hover:bg-destructive/10">Reject</Button>
-                      </div>
-                    ) : (
-                      <Badge variant={r.status === "approved" ? "default" : "destructive"}>{r.status}</Badge>
-                    )}
-                  </div>
-                  {r.status === "approved" && (
-                    <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
-                      <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
-                        <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
-                      </div>
-                      {r.email && (
-                        <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
-                          <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
-                        </a>
-                      )}
-                      {r.phone && (
-                        <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
-                          <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
-                        </a>
-                      )}
-                      {!r.email && !r.phone && (
-                        <p className="text-xs text-muted-foreground">No contact details added yet by the recruiter.</p>
-                      )}
-                    </div>
-                  )}
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Outgoing requests from developer */}
+              <div>
+                <h2 className="font-display text-xl font-semibold">Sent Contact Requests</h2>
+                <p className="text-sm text-muted-foreground mb-4">Recruiters you've requested contact details from.</p>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {!sentRequests || sentRequests.length === 0 ? (
+                    <p className="col-span-full text-sm text-muted-foreground">No sent requests yet.</p>
+                  ) : sentRequests.map(r => (
+                    <div key={r.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={r.recruiter?.logo_url ?? undefined} />
+                            <AvatarFallback>{r.recruiter?.company_name?.[0] || r.recruiter?.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="text-sm font-semibold">{r.recruiter?.company_name || r.recruiter?.full_name}</p>
+                            <p className="text-[10px] text-muted-foreground">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <Badge variant={r.status === "approved" ? "default" : r.status === "rejected" ? "destructive" : "secondary"}>{r.status}</Badge>
+                      </div>
+                      {r.status === "approved" && (
+                        <div className="mt-3 space-y-1.5 rounded-md border border-success/30 bg-success/5 p-3 text-sm">
+                          <div className="flex items-center gap-2 text-xs font-medium text-success-foreground">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Contact unlocked
+                          </div>
+                          {r.email && (
+                            <a href={`mailto:${r.email}`} className="flex items-center gap-2 hover:underline">
+                              <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {r.email}
+                            </a>
+                          )}
+                          {r.phone && (
+                            <a href={`tel:${r.phone}`} className="flex items-center gap-2 hover:underline">
+                              <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {r.phone}
+                            </a>
+                          )}
+                          {!r.email && !r.phone && (
+                            <p className="text-xs text-muted-foreground">No contact details added yet by the recruiter.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </section>
         </TabsContent>

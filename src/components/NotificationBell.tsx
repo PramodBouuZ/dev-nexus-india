@@ -21,6 +21,7 @@ export function NotificationBell() {
       const { data } = await supabase
         .from("notifications")
         .select("*")
+        .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(20);
       return data ?? [];
@@ -44,19 +45,20 @@ export function NotificationBell() {
 
   if (!user) return null;
 
-  const unread = notifications?.filter((n) => !n.read_at) ?? [];
+  const unread = notifications?.filter((n) => !n.is_read) ?? [];
 
   async function markAllRead() {
     if (!user || unread.length === 0) return;
     await supabase
       .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .is("read_at", null);
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq("user_id", user.id)
+      .eq("is_read", false);
     qc.invalidateQueries({ queryKey: ["notifications", user.id] });
   }
 
   async function markRead(id: string) {
-    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", user!.id] });
   }
 
@@ -90,7 +92,7 @@ export function NotificationBell() {
                 <li
                   key={n.id}
                   className={`border-b border-border/60 p-3 text-sm last:border-0 ${
-                    !n.read_at ? "bg-accent/5" : ""
+                    !n.is_read ? "bg-accent/5" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -106,12 +108,16 @@ export function NotificationBell() {
                       ) : (
                         <p className="font-medium">{n.title}</p>
                       )}
-                      {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.body}</p>}
+                      {(n.message || (n as any).body) && (
+                        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                          {n.message || (n as any).body}
+                        </p>
+                      )}
                       <p className="mt-1 text-[10px] text-muted-foreground">
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                       </p>
                     </div>
-                    {!n.read_at && <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />}
+                    {!n.is_read && <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />}
                   </div>
                 </li>
               ))}
