@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { BrandMark, BrandWordmark, PoweredByBant } from "@/components/Brand";
+import { Facebook, Instagram, Linkedin } from "lucide-react";
 
 export function Footer() {
   return (
@@ -14,8 +15,34 @@ export function Footer() {
             <p className="mt-3 text-sm text-muted-foreground">
               Connecting top tech talent in India with global opportunities. Built for speed, quality, and fair pricing.
             </p>
-            <div className="mt-4">
-              <PoweredByBant />
+            <div className="mt-6 flex gap-4">
+              <a
+                href="https://www.facebook.com/share/193j3u6MSi/"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-muted p-2 text-muted-foreground transition-all hover:bg-accent/10 hover:text-accent"
+                aria-label="Facebook"
+              >
+                <Facebook className="h-4 w-4" />
+              </a>
+              <a
+                href="https://www.instagram.com/developerconnect.in?igsh=MTJyNzl3azlmbDh2dQ=="
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-muted p-2 text-muted-foreground transition-all hover:bg-accent/10 hover:text-accent"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-4 w-4" />
+              </a>
+              <a
+                href="https://www.linkedin.com/company/bouuz/"
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-full bg-muted p-2 text-muted-foreground transition-all hover:bg-accent/10 hover:text-accent"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-4 w-4" />
+              </a>
             </div>
           </div>
 

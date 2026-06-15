@@ -825,41 +825,45 @@ function DeveloperShowcaseCard({ dev }: { dev: DevCard }) {
     .join("")
     .toUpperCase();
   return (
-    <Card className="transition-all hover:border-accent/40 hover:shadow-elegant">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-3">
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-accent font-display text-sm font-bold text-primary-foreground">
-            {initials}
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate font-display font-semibold">{dev.full_name ?? "Developer"}</p>
-              {dev.is_verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />}
+    <Link to="/developers/$devId" params={{ devId: dev.id }} className="block group">
+      <Card className="transition-all group-hover:border-accent/40 group-hover:shadow-elegant">
+        <CardContent className="p-5">
+          <div className="flex items-start gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-accent font-display text-sm font-bold text-primary-foreground">
+              {initials}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate font-display font-semibold group-hover:text-accent transition-colors">
+                  {dev.full_name ?? "Developer"}
+                </p>
+                {dev.is_verified && <CheckCircle2 className="h-4 w-4 shrink-0 text-accent" />}
+              </div>
+              <p className="truncate text-sm text-muted-foreground">{dev.headline ?? "Full-stack developer"}</p>
+              {dev.location && (
+                <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <MapPin className="h-3 w-3" /> {dev.location}
+                </p>
+              )}
             </div>
-            <p className="truncate text-sm text-muted-foreground">{dev.headline ?? "Full-stack developer"}</p>
-            {dev.location && (
-              <p className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <MapPin className="h-3 w-3" /> {dev.location}
-              </p>
-            )}
           </div>
-        </div>
-        {dev.bio && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{dev.bio}</p>}
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {(dev.skills ?? []).slice(0, 4).map((s) => (
-            <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
-          ))}
-        </div>
-        <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
-          <span className="font-display font-semibold">
-            {dev.hourly_rate_inr ? `₹${dev.hourly_rate_inr}/hr` : "Rate on request"}
-          </span>
-          <Link to="/developers" className="text-xs font-medium text-accent hover:underline">
-            View profile
-          </Link>
-        </div>
-      </CardContent>
-    </Card>
+          {dev.bio && <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{dev.bio}</p>}
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {(dev.skills ?? []).slice(0, 4).map((s) => (
+              <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
+            <span className="font-display font-semibold">
+              {dev.hourly_rate_inr ? `₹${dev.hourly_rate_inr}/hr` : "Rate on request"}
+            </span>
+            <span className="text-xs font-medium text-accent group-hover:underline">
+              View full profile
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 }
 

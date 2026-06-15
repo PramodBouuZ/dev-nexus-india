@@ -450,7 +450,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
               {!savedDevs || savedDevs.length === 0 ? (
                 <p className="col-span-full text-sm text-muted-foreground">No developers saved yet.</p>
               ) : savedDevs.map(d => (
-                <Link key={d.id} to="/developers/$devId" params={{ devId: d.id }} className="block rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/40">
+                <Link key={d.id} to="/developers/$devId" params={{ devId: d.id }} className="group block rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/40 transition-all hover:shadow-elegant">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarImage src={d.avatar_url ?? undefined} />
@@ -458,7 +458,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                     </Avatar>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold truncate">{d.full_name}</p>
+                        <p className="text-sm font-semibold truncate group-hover:text-accent transition-colors">{d.full_name}</p>
                         {d.is_verified && <ShieldCheck className="h-3 w-3 text-accent" />}
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{d.headline}</p>
@@ -484,8 +484,8 @@ function RecruiterDashboard({ userId }: { userId: string }) {
               ) : invites.map(i => (
                 <div key={i.id} className="rounded-xl border border-border bg-card p-4 shadow-card">
                   <div className="flex items-start gap-3">
-                    <Link to="/developers/$devId" params={{ devId: i.developer_id }}>
-                      <Avatar className="h-12 w-12">
+                    <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="group">
+                      <Avatar className="h-12 w-12 transition-transform group-hover:scale-105">
                         {i.dev?.avatar_url && <AvatarImage src={i.dev.avatar_url} alt={i.dev?.full_name ?? "Developer"} />}
                         <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
                           {i.dev?.full_name?.[0] ?? "?"}
@@ -494,7 +494,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                     </Link>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="font-semibold hover:text-accent">
+                        <Link to="/developers/$devId" params={{ devId: i.developer_id }} className="font-semibold hover:text-accent transition-colors">
                           {i.dev?.full_name ?? "Developer"}
                         </Link>
                         {i.dev?.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-accent" />}
