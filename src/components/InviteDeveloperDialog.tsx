@@ -76,14 +76,6 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
       message: message.trim(),
     });
 
-    // Notify developer
-    await supabase.from("notifications").insert({
-      user_id: developerId,
-      title: "New invitation",
-      body: `A recruiter has invited you to work together.`,
-      type: "recruiter_invite",
-      link: "/dashboard"
-    });
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success(`Invite sent to ${developerName}`);

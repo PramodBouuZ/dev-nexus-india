@@ -121,14 +121,6 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
     }
     toast.success("Contact request sent");
 
-    // Notify target
-    await supabase.from("notifications").insert({
-      user_id: targetUserId,
-      title: "Contact request",
-      body: `${user.email?.split('@')[0]} requested your contact details.`,
-      type: "contact_request",
-      link: "/dashboard"
-    });
 
     setOpen(false);
     setMessage("");
@@ -149,14 +141,6 @@ export function ContactAccess({ targetUserId, targetName }: Props) {
     }
     toast.success(status === "approved" ? "Contact shared" : "Request rejected");
 
-    // Notify requester
-    await supabase.from("notifications").insert({
-      user_id: req.requester_id,
-      title: status === "approved" ? "Contact request approved" : "Contact request rejected",
-      body: status === "approved" ? "You can now view the user's contact details." : "Your request for contact details was declined.",
-      type: status === "approved" ? "contact_approved" : "contact_rejected",
-      link: "/dashboard"
-    });
 
     qc.invalidateQueries({ queryKey: ["contact-req", user!.id, targetUserId] });
   }
