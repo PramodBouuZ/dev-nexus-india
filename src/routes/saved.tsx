@@ -104,11 +104,11 @@ function SavedPage() {
             ) : (
               <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredDevs.map((d: any) => (
-                  <div key={d.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
-                    <div className="absolute right-3 top-3"><FavoriteButton kind="developer" targetId={d.id} /></div>
-                    <Link to="/developers/$devId" params={{ devId: d.id }} className="block">
+                  <div key={d.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
+                    <div className="absolute right-3 top-3 z-10"><FavoriteButton kind="developer" targetId={d.id} /></div>
+                    <Link to="/developers/$devId" params={{ devId: d.id }} className="group block">
                       <div className="flex items-center gap-1.5 pr-8">
-                        <h3 className="truncate font-semibold">{d.full_name ?? "Developer"}</h3>
+                        <h3 className="truncate font-semibold group-hover:text-accent transition-colors">{d.full_name ?? "Developer"}</h3>
                         {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
                       </div>
                       {d.headline && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>}
