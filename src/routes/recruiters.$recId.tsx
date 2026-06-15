@@ -16,19 +16,33 @@ import {
 } from "lucide-react";
 
 export const Route = createFileRoute("/recruiters/$recId")({
-  head: ({ loaderData, params }: { loaderData?: { rec: { company_name: string | null } | null }; params: { recId: string } }) => {
-    const title = `${loaderData?.rec?.company_name || "Recruiter"} | Hiring on DeveloperConnect`;
-    const description = `Hire developers from ${loaderData?.rec?.company_name || "this recruiter"} on DeveloperConnect. Top Indian tech talent for part-time and full-time roles.`;
+  head: ({ loaderData, params }: { loaderData?: { rec: { company_name: string | null; is_verified?: boolean } | null }; params: { recId: string } }) => {
+    const companyName = loaderData?.rec?.company_name || "ABC Technologies";
+    const title = `${companyName} Hiring Developers | DeveloperConnect`;
+    const description = `${companyName} is hiring skilled developers for part-time and full-time projects. Connect and apply directly on DeveloperConnect.`;
     return {
       meta: [
         { title },
         { name: "description", content: description },
+        { name: "robots", content: loaderData?.rec?.is_verified ? "index, follow" : "noindex, nofollow" },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:url", content: `https://developerconnect.in/recruiters/${params.recId}` },
+        { property: "og:type", content: "business.business" },
         { tag: "link", rel: "canonical", href: `https://developerconnect.in/recruiters/${params.recId}` },
       ],
       scripts: [
+        {
+          type: "application/ld+json",
+          children: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            "name": companyName,
+            "url": `https://developerconnect.in/recruiters/${params.recId}`,
+            "logo": loaderData?.rec?.logo_url || "https://developerconnect.in/logo.png",
+            "description": `Hire developers from ${companyName} on DeveloperConnect.`
+          })
+        },
         {
           type: "application/ld+json",
           children: JSON.stringify({
@@ -37,7 +51,7 @@ export const Route = createFileRoute("/recruiters/$recId")({
             "itemListElement": [
               { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
               { "@type": "ListItem", "position": 2, "name": "Recruiters", "item": "https://developerconnect.in/projects" },
-              { "@type": "ListItem", "position": 3, "name": loaderData?.rec?.company_name || "Recruiter", "item": `https://developerconnect.in/recruiters/${params.recId}` }
+              { "@type": "ListItem", "position": 3, "name": companyName, "item": `https://developerconnect.in/recruiters/${params.recId}` }
             ]
           })
         }
@@ -45,8 +59,8 @@ export const Route = createFileRoute("/recruiters/$recId")({
     };
   },
   loader: async ({ params }) => {
-    const { data: rec } = await supabase.from("recruiter_profiles").select("company_name").eq("id", params.recId).maybeSingle();
-    return { rec: rec as { company_name: string | null } | null };
+    const { data: rec } = await supabase.from("recruiter_profiles").select("company_name, is_verified, logo_url").eq("id", params.recId).maybeSingle();
+    return { rec: rec as { company_name: string | null; is_verified: boolean; logo_url: string | null } | null };
   },
   component: RecProfile,
 });
