@@ -1664,6 +1664,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND tablename='contact_access_requests') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.contact_access_requests;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND tablename='notifications') THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname='supabase_realtime' AND tablename='verification_requests') THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.verification_requests;
   END IF;

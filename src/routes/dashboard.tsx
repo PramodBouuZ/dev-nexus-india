@@ -29,8 +29,6 @@ function Dashboard() {
   if (loading) return <FullPageSpinner />;
   if (!user) return <Navigate to="/auth" />;
 
-  console.log("Dashboard Role:", role);
-
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -190,28 +188,29 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       .channel(`recruiter-dashboard-${userId}`)
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "invites", filter: `recruiter_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "invites", filter: `recruiter_id=eq.${userId}` },
         async (payload) => {
-          const next = payload.new as { developer_id: string; status: string };
-          const prev = payload.old as { status: string };
-          if (next.status !== prev.status && (next.status === "accepted" || next.status === "rejected")) {
-            const { data: dev } = await supabase
-              .from("developer_profiles").select("full_name").eq("id", next.developer_id).maybeSingle();
-            const name = dev?.full_name ?? "A developer";
-            if (next.status === "accepted") {
-              toast.success(`${name} accepted your invite`);
-            } else {
-              toast(`${name} declined your invite`);
+          if (payload.eventType === "UPDATE") {
+            const next = payload.new as { developer_id: string; status: string };
+            const prev = payload.old as { status: string };
+            if (next.status !== prev.status && (next.status === "accepted" || next.status === "rejected")) {
+              const { data: dev } = await supabase
+                .from("developer_profiles").select("full_name").eq("id", next.developer_id).maybeSingle();
+              const name = dev?.full_name ?? "A developer";
+              if (next.status === "accepted") {
+                toast.success(`${name} accepted your invite`);
+              } else {
+                toast(`${name} declined your invite`);
+              }
             }
-            qc.invalidateQueries({ queryKey: ["sent-invites", userId] });
           }
+          qc.invalidateQueries({ queryKey: ["sent-invites", userId] });
         },
       )
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "applications" },
         async (payload) => {
-          // Verify if it's for one of recruiter's projects
           const { data: proj } = await supabase.from("projects").select("recruiter_id").eq("id", payload.new.project_id).maybeSingle();
           if (proj?.recruiter_id === userId) {
             toast.success("New application received!");
@@ -222,22 +221,22 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
-        () => {
-           toast.info("New contact access request received");
+        { event: "*", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
+        (payload) => {
+           if (payload.eventType === "INSERT") toast.info("New contact access request received");
            qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
         () => {
            qc.invalidateQueries({ queryKey: ["sent-contact-reqs", userId] });
         }
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "project_assignments", filter: `recruiter_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "project_assignments", filter: `recruiter_id=eq.${userId}` },
         () => {
            qc.invalidateQueries({ queryKey: ["assigned-devs", userId] });
            qc.invalidateQueries({ queryKey: ["my-projects", userId] });
@@ -346,17 +345,23 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.target_id);
-      const [{ data: devs }, { data: profs }, { data: phones }] = await Promise.all([
+      const [{ data: devs }, { data: recs }, { data: phones }, { data: recPhones }] = await Promise.all([
         supabase.from("developer_profiles").select("id, full_name, avatar_url, headline").in("id", ids),
-        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("recruiter_profiles").select("id, full_name, company_name, avatar_url").in("id", ids),
         supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
       ]);
-      return reqs.map(r => ({
-        ...r,
-        dev: devs?.find(d => d.id === r.target_id),
-        email: profs?.find(p => p.id === r.target_id)?.email ?? null,
-        phone: (phones as any[] | null)?.find((p: any) => p.developer_id === r.target_id)?.phone ?? null,
-      }));
+      return reqs.map(r => {
+        const dev = devs?.find(d => d.id === r.target_id);
+        const rec = recs?.find(rc => rc.id === r.target_id);
+        const phone = (phones as any[] | null)?.find((p: any) => p.developer_id === r.target_id)?.phone
+                   ?? (recPhones as any[] | null)?.find((p: any) => p.recruiter_id === r.target_id)?.phone;
+        return {
+          ...r,
+          dev: dev || rec,
+          phone: phone ?? null,
+        };
+      });
     }
   });
 
@@ -371,17 +376,23 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.requester_id);
-      const [{ data: devs }, { data: profs }, { data: phones }] = await Promise.all([
+      const [{ data: devs }, { data: recs }, { data: phones }, { data: recPhones }] = await Promise.all([
         supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, skills").in("id", ids),
-        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("recruiter_profiles").select("id, full_name, company_name, avatar_url").in("id", ids),
         supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
+        supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
       ]);
-      return reqs.map(r => ({
-        ...r,
-        dev: devs?.find(d => d.id === r.requester_id),
-        email: profs?.find(p => p.id === r.requester_id)?.email ?? null,
-        phone: (phones as any[] | null)?.find((p: any) => p.developer_id === r.requester_id)?.phone ?? null,
-      }));
+      return reqs.map(r => {
+        const dev = devs?.find(d => d.id === r.requester_id);
+        const rec = recs?.find(rc => rc.id === r.requester_id);
+        const phone = (phones as any[] | null)?.find((p: any) => p.developer_id === r.requester_id)?.phone
+                   ?? (recPhones as any[] | null)?.find((p: any) => p.recruiter_id === r.requester_id)?.phone;
+        return {
+          ...r,
+          dev: dev || rec,
+          phone: phone ?? null,
+        };
+      });
     }
   });
 
@@ -794,17 +805,23 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.requester_id);
-      const [{ data: recs }, { data: profs }, { data: phones }] = await Promise.all([
+      const [{ data: devs }, { data: recs }, { data: phones }, { data: recPhones }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, skills").in("id", ids),
         supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids),
-        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
         supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
       ]);
-      return reqs.map(r => ({
-        ...r,
-        recruiter: recs?.find(rc => rc.id === r.requester_id),
-        email: profs?.find(p => p.id === r.requester_id)?.email ?? null,
-        phone: (phones as any[] | null)?.find((p: any) => p.recruiter_id === r.requester_id)?.phone ?? null,
-      }));
+      return reqs.map(r => {
+        const dev = devs?.find(d => d.id === r.requester_id);
+        const rec = recs?.find(rc => rc.id === r.requester_id);
+        const phone = (phones as any[] | null)?.find((p: any) => p.developer_id === r.requester_id)?.phone
+                   ?? (recPhones as any[] | null)?.find((p: any) => p.recruiter_id === r.requester_id)?.phone;
+        return {
+          ...r,
+          recruiter: rec || dev,
+          phone: phone ?? null,
+        };
+      });
     }
   });
 
@@ -819,17 +836,23 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         .order("created_at", { ascending: false });
       if (!reqs?.length) return [];
       const ids = reqs.map(r => r.target_id);
-      const [{ data: recs }, { data: profs }, { data: phones }] = await Promise.all([
+      const [{ data: devs }, { data: recs }, { data: phones }, { data: recPhones }] = await Promise.all([
+        supabase.from("developer_profiles").select("id, full_name, avatar_url, headline, skills").in("id", ids),
         supabase.from("recruiter_profiles").select("id, company_name, logo_url, full_name").in("id", ids),
-        supabase.from("profiles").select("id, email").in("id", ids),
+        supabase.from("developer_phones" as any).select("developer_id, phone").in("developer_id", ids),
         supabase.from("recruiter_phones" as any).select("recruiter_id, phone").in("recruiter_id", ids),
       ]);
-      return reqs.map(r => ({
-        ...r,
-        recruiter: recs?.find(rc => rc.id === r.target_id),
-        email: profs?.find(p => p.id === r.target_id)?.email ?? null,
-        phone: (phones as any[] | null)?.find((p: any) => p.recruiter_id === r.target_id)?.phone ?? null,
-      }));
+      return reqs.map(r => {
+        const dev = devs?.find(d => d.id === r.target_id);
+        const rec = recs?.find(rc => rc.id === r.target_id);
+        const phone = (phones as any[] | null)?.find((p: any) => p.developer_id === r.target_id)?.phone
+                   ?? (recPhones as any[] | null)?.find((p: any) => p.recruiter_id === r.target_id)?.phone;
+        return {
+          ...r,
+          recruiter: rec || dev,
+          phone: phone ?? null,
+        };
+      });
     }
   });
 
@@ -857,25 +880,25 @@ function DeveloperDashboard({ userId }: { userId: string }) {
       .channel(`developer-dashboard-${userId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "invites", filter: `developer_id=eq.${userId}` },
-        () => {
-          toast.success("You received a new project invite!");
+        { event: "*", schema: "public", table: "invites", filter: `developer_id=eq.${userId}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") toast.success("You received a new project invite!");
           qc.invalidateQueries({ queryKey: ["incoming-invites", userId] });
         }
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
-        () => {
-          toast.info("New contact access request received");
-          qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
+        { event: "*", schema: "public", table: "contact_access_requests", filter: `target_id=eq.${userId}` },
+        (payload) => {
+           if (payload.eventType === "INSERT") toast.info("New contact access request received");
+           qc.invalidateQueries({ queryKey: ["incoming-contact-reqs", userId] });
         }
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
+        { event: "*", schema: "public", table: "contact_access_requests", filter: `requester_id=eq.${userId}` },
         () => {
-          qc.invalidateQueries({ queryKey: ["sent-contact-reqs-dev", userId] });
+           qc.invalidateQueries({ queryKey: ["sent-contact-reqs-dev", userId] });
         }
       )
       .on(
@@ -892,9 +915,9 @@ function DeveloperDashboard({ userId }: { userId: string }) {
       )
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "project_assignments", filter: `developer_id=eq.${userId}` },
-        () => {
-          toast.success("You have been assigned to a new project!");
+        { event: "*", schema: "public", table: "project_assignments", filter: `developer_id=eq.${userId}` },
+        (payload) => {
+          if (payload.eventType === "INSERT") toast.success("You have been assigned to a new project!");
           qc.invalidateQueries({ queryKey: ["assigned-projects", userId] });
         }
       )
