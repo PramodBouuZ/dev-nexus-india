@@ -70,6 +70,19 @@ export function ProjectStages({ projectId }: { projectId: string }) {
           type: "stage_update",
           link: `/projects/${projectId}`
         });
+
+        // Rule 7: Project Completed notification
+        if (status === "completed" && stages.every(s => s.id === id || s.status === "completed")) {
+           await supabase.from("projects").update({ status: "completed" }).eq("id", projectId);
+           await supabase.from("notifications").insert({
+             user_id: targetId,
+             title: "Project Completed!",
+             body: `The project "${project.title}" has been marked as completed.`,
+             type: "project_update",
+             link: `/projects/${projectId}`
+           });
+           toast.success("Project marked as completed!");
+        }
       }
     }
   }

@@ -45,20 +45,20 @@ export function NotificationBell() {
 
   if (!user) return null;
 
-  const unread = notifications?.filter((n) => !n.is_read) ?? [];
+  const unread = notifications?.filter((n) => !n.read_at) ?? [];
 
   async function markAllRead() {
     if (!user || unread.length === 0) return;
     await supabase
       .from("notifications")
-      .update({ is_read: true, read_at: new Date().toISOString() })
+      .update({ read_at: new Date().toISOString() })
       .eq("user_id", user.id)
-      .eq("is_read", false);
+      .is_null("read_at");
     qc.invalidateQueries({ queryKey: ["notifications", user.id] });
   }
 
   async function markRead(id: string) {
-    await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", user!.id] });
   }
 
@@ -92,7 +92,7 @@ export function NotificationBell() {
                 <li
                   key={n.id}
                   className={`border-b border-border/60 p-3 text-sm last:border-0 ${
-                    !n.is_read ? "bg-accent/5" : ""
+                    !n.read_at ? "bg-accent/5" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -117,7 +117,7 @@ export function NotificationBell() {
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                       </p>
                     </div>
-                    {!n.is_read && <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />}
+                    {!n.read_at && <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />}
                   </div>
                 </li>
               ))}

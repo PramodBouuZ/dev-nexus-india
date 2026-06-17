@@ -70,6 +70,17 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
 
     const { error } = await supabase.from("reviews").insert(reviewData);
 
+    if (!error) {
+      // Notify reviewee
+      await supabase.from("notifications").insert({
+        user_id: targetId,
+        title: "New Review Received",
+        body: `You have received a new ${rating}-star review on your profile.`,
+        type: "account_update",
+        link: role === "developer" ? `/recruiters/${user.id}` : `/developers/${user.id}`
+      });
+    }
+
     setBusy(false);
     if (error) {
       toast.error(error.message);

@@ -70,33 +70,44 @@ export function ChatThread({ appId, userId }: { appId: string; userId: string })
     return Array.from(set);
   }, [messages]);
 
-  const { data: hasContactAccess } = useQuery({
-    queryKey: ["has-contact-access", userId, appId],
+  const { data: appInfo } = useQuery({
+    queryKey: ["chat-app-info", appId],
     queryFn: async () => {
-      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id)").eq("id", appId).maybeSingle();
-      if (!app) return false;
-      const partnerId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
-      const { data } = await supabase.rpc("has_contact_access", { _a: userId, _b: partnerId });
-      return !!data;
+      const { data: app } = await supabase
+        .from("applications")
+        .select("status, developer_id, projects(recruiter_id)")
+        .eq("id", appId)
+        .maybeSingle();
+      return app;
     }
   });
 
-  const { data: inviteAccepted } = useQuery({
-    queryKey: ["invite-accepted", userId, appId],
+  const { data: chatEnabledStatus } = useQuery({
+    queryKey: ["chat-enabled", userId, appId, appInfo?.status],
+    enabled: !!appInfo,
     queryFn: async () => {
-      const { data: app } = await supabase.from("applications").select("developer_id, projects(recruiter_id, id)").eq("id", appId).maybeSingle();
-      if (!app) return false;
-      const partnerId = userId === app.developer_id ? (app.projects as any)?.recruiter_id : app.developer_id;
-      const { data } = await supabase.from("invites")
-        .select("status")
+      if (appInfo?.status === "accepted") return true;
+
+      const partnerId = userId === appInfo?.developer_id ? (appInfo?.projects as any)?.recruiter_id : appInfo?.developer_id;
+      if (!partnerId) return false;
+
+      // Check Contact Access Approved
+      const { data: hasContact } = await supabase.rpc("has_contact_access", { _a: userId, _b: partnerId });
+      if (hasContact) return true;
+
+      // Check Invite Accepted
+      const { data: invite } = await supabase.from("invites")
+        .select("id")
         .eq("status", "accepted")
         .or(`and(recruiter_id.eq.${userId},developer_id.eq.${partnerId}),and(recruiter_id.eq.${partnerId},developer_id.eq.${userId})`)
+        .limit(1)
         .maybeSingle();
-      return !!data;
+
+      return !!invite;
     }
   });
 
-  const chatEnabled = hasContactAccess || inviteAccepted;
+  const chatEnabled = !!chatEnabledStatus;
 
   // Resolve signed URLs for stored paths (refresh every hour)
   const { data: urlMap } = useQuery({
