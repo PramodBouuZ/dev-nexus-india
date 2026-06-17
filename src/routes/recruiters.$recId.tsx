@@ -121,7 +121,7 @@ function RecProfile() {
                     </div>
                     <div className="mt-4 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h1 className="font-display text-3xl font-bold tracking-tight">{rec.company_name ?? rec.full_name ?? "Company"}</h1>
+                        <h1 className="font-display text-3xl font-bold tracking-tight">{rec.company_name ?? "Company"}</h1>
                         {rec.is_verified && (
                           <Badge className="bg-success/10 text-success border-success/20 gap-1 hover:bg-success/20 transition-colors">
                             <ShieldCheck className="h-3.5 w-3.5" /> Verified Recruiter
@@ -134,10 +134,7 @@ function RecProfile() {
                         )}
                       </div>
                       <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground font-medium">
-                        {rec.avatar_url ? (
-                          <img src={rec.avatar_url} alt="" className="h-5 w-5 rounded-full object-cover" />
-                        ) : null}
-                        <span>Posted by {rec.full_name ?? "—"}</span>
+                        <span>{rec.industry ?? "Technology"}</span>
                       </div>
                     </div>
                   </div>
@@ -229,10 +226,10 @@ function RecProfile() {
                   <TrendingUp className="h-5 w-5 text-primary" /> Hiring Stats
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
-                  <StatBox label="Posted" value={data.projs.length} icon={FileText} />
-                  <StatBox label="Hired" value={rec.developers_hired ?? 0} icon={CheckCircle2} />
-                  <StatBox label="Rating" value={data.avg.toFixed(1)} icon={Award} />
-                  <StatBox label="Success" value={rec.developers_hired > 0 ? "100%" : "—"} icon={TrendingUp} />
+                  <StatBox label="Total Projects" value={data.projs.length} icon={FileText} />
+                  <StatBox label="Active" value={openCount} icon={CheckCircle2} />
+                  <StatBox label="Completed" value={(data.projs ?? []).filter((p: any) => p.status === 'completed').length} icon={Award} />
+                  <StatBox label="Success Rate" value={rec.hiring_success_rate ?? "100%"} icon={TrendingUp} />
                 </div>
               </div>
 

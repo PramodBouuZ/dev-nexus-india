@@ -219,9 +219,9 @@ function ProjectDetail() {
           {user && role === "developer" && project.status === "open" && (
             myApp ? (
               <div className="rounded-xl border border-success/30 bg-success/10 p-5 text-sm">
-                <p className="font-medium">You've applied. Status: <Badge>{myApp.status}</Badge></p>
+                <p className="font-medium">Interest expressed. Status: <Badge>{myApp.status}</Badge></p>
                 <Button asChild variant="outline" className="mt-3 w-full">
-                  <Link to="/applications/$appId" params={{ appId: myApp.id }}>View application & chat</Link>
+                  <Link to="/applications/$appId" params={{ appId: myApp.id }}>View conversation & chat</Link>
                 </Button>
               </div>
             ) : (
@@ -269,25 +269,25 @@ function ApplyForm({ projectId }: { projectId: string }) {
     if (proj) {
       await supabase.from("notifications").insert({
         user_id: proj.recruiter_id,
-        title: "New application",
-        body: `A developer applied for ${proj.title}`,
+        title: "Interest Expressed",
+        body: `A developer expressed interest in ${proj.title}`,
         type: "new_application",
         link: `/projects/${projectId}`
       });
     }
 
-    toast.success("Application submitted!");
+    toast.success("Interest expressed successfully!");
     qc.invalidateQueries({ queryKey: ["my-app", projectId] });
   }
 
   return (
     <form onSubmit={submit} className="rounded-xl border border-border bg-card p-5 shadow-card">
-      <h3 className="font-semibold">Apply to this project</h3>
+      <h3 className="font-semibold">Express interest in this project</h3>
       <div className="mt-4 space-y-3">
-        <div className="space-y-1.5"><Label>Cover message</Label><Textarea required rows={4} value={cover} onChange={e => setCover(e.target.value)} placeholder="Why you're a fit, similar work..." maxLength={2000} /></div>
-        <div className="space-y-1.5"><Label>Proposed rate (₹)</Label><Input type="number" min={0} value={rate} onChange={e => setRate(e.target.value)} /></div>
+        <div className="space-y-1.5"><Label>Short message</Label><Textarea required rows={4} value={cover} onChange={e => setCover(e.target.value)} placeholder="Introduce yourself, why you're a fit..." maxLength={2000} /></div>
+        <div className="space-y-1.5"><Label>Proposed rate (₹) (optional)</Label><Input type="number" min={0} value={rate} onChange={e => setRate(e.target.value)} /></div>
       </div>
-      <Button type="submit" disabled={busy} className="mt-4 w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Sending..." : "Apply"}</Button>
+      <Button type="submit" disabled={busy} className="mt-4 w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Sending..." : "Express Interest"}</Button>
     </form>
   );
 }
@@ -406,6 +406,20 @@ function AssignButton({ projectId, developerId, recruiterId }: { projectId: stri
        developer_id: developerId,
        recruiter_id: recruiterId
     });
+
+    if (!error) {
+      // Notify developer
+      const { data: proj } = await supabase.from("projects").select("title").eq("id", projectId).maybeSingle();
+      await supabase.from("notifications").insert({
+        user_id: developerId,
+        title: "Project Assigned!",
+        body: `You have been officially assigned to the project: ${proj?.title || "Project"}`,
+        type: "project_assigned",
+        link: `/projects/${projectId}`
+      });
+      await supabase.from("projects").update({ status: "assigned" }).eq("id", projectId);
+    }
+
     setBusy(false);
     if (error) return toast.error(error.message);
     toast.success("Project assigned!");

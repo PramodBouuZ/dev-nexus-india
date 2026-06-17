@@ -26,7 +26,7 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
   const { user, role } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [projectId, setProjectId] = useState<string>("none");
+  const [projectId, setProjectId] = useState<string>("");
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -38,10 +38,17 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
         .from("projects")
         .select("id, title, status")
         .eq("recruiter_id", user!.id)
+        .in("status", ["open", "in_discussion"])
         .order("created_at", { ascending: false });
       return data ?? [];
     },
   });
+
+  useEffect(() => {
+    if (projects?.length && !projectId) {
+      setProjectId(projects[0].id);
+    }
+  }, [projects, projectId]);
 
   const { data: existing } = useQuery({
     enabled: open && !!user,
@@ -72,7 +79,7 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
     const { error } = await supabase.from("invites").insert({
       recruiter_id: user.id,
       developer_id: developerId,
-      project_id: projectId === "none" ? null : projectId,
+      project_id: projectId,
       message: message.trim(),
     });
 
@@ -109,16 +116,23 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
         )}
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>Project (optional)</Label>
+            <Label>Select Project</Label>
             <Select value={projectId} onValueChange={setProjectId}>
-              <SelectTrigger><SelectValue placeholder="No specific project" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder={projects?.length ? "Select a project" : "No open projects found"} />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No specific project</SelectItem>
                 {projects?.map(p => (
                   <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
                 ))}
+                {!projects?.length && (
+                  <SelectItem value="none" disabled>No open projects found</SelectItem>
+                )}
               </SelectContent>
             </Select>
+            {!projects?.length && (
+              <p className="text-[10px] text-destructive">You must have an open project to invite developers.</p>
+            )}
           </div>
           <div className="space-y-2">
             <Label>Message</Label>
@@ -134,7 +148,7 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
           <Button
-            disabled={busy || !message.trim()}
+            disabled={busy || !message.trim() || !projectId || projectId === "none"}
             onClick={send}
             className="bg-gradient-accent text-primary-foreground hover:opacity-90"
           >

@@ -135,7 +135,7 @@ function NotificationCenter({ userId }: { userId: string }) {
   });
 
   async function markAsRead(id: string) {
-    await supabase.from("notifications").update({ is_read: true, read_at: new Date().toISOString() }).eq("id", id);
+    await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", userId] });
   }
 
@@ -146,13 +146,13 @@ function NotificationCenter({ userId }: { userId: string }) {
       {!notifications || notifications.length === 0 ? (
         <p className="text-center py-10 text-sm text-muted-foreground">No notifications yet.</p>
       ) : notifications.map(n => (
-        <div key={n.id} className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.is_read ? 'bg-accent/5' : 'bg-card'}`}>
+        <div key={n.id} className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.read_at ? 'bg-accent/5' : 'bg-card'}`}>
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-semibold">{n.title}</h4>
             <p className="text-xs text-muted-foreground mt-0.5">{n.message || (n as any).body}</p>
             <p className="text-[10px] text-muted-foreground mt-2">{new Date(n.created_at).toLocaleString()}</p>
           </div>
-          {!n.is_read && (
+          {!n.read_at && (
             <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => markAsRead(n.id)}>Mark as read</Button>
           )}
           {n.link && (
@@ -944,12 +944,44 @@ function DeveloperDashboard({ userId }: { userId: string }) {
   }
 
   async function respondToInvite(inviteId: string, status: "accepted" | "rejected") {
+    const { data: invite } = await supabase.from("invites").select("*").eq("id", inviteId).maybeSingle();
+    if (!invite) return toast.error("Invite not found");
+
     const { error } = await supabase.from("invites").update({ status }).eq("id", inviteId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(status === "accepted" ? "Invite accepted" : "Invite declined");
-      qc.invalidateQueries({ queryKey: ["incoming-invites", userId] });
+    if (error) return toast.error(error.message);
+
+    if (status === "accepted" && invite.project_id) {
+      // Rule 2 Step 3: Create application & contract immediately to unlock chat
+      const { data: app, error: appErr } = await supabase.from("applications").insert({
+        project_id: invite.project_id,
+        developer_id: userId,
+        status: "accepted",
+        cover_message: `Invite accepted: ${invite.message || ""}`
+      }).select().maybeSingle();
+
+      if (!appErr && app) {
+        await supabase.from("contracts").insert({
+          project_id: invite.project_id,
+          application_id: app.id,
+          recruiter_id: invite.recruiter_id,
+          developer_id: userId,
+        });
+        await supabase.from("projects").update({ status: "in_discussion" }).eq("id", invite.project_id);
+      }
+    } else if (status === "accepted" && !invite.project_id) {
+      // General invite accepted, can we still unlock chat?
+      // Rule 2 says: Automatically: Chat becomes unlocked, Messaging becomes active
+      // Since chat currently relies on application_id, we might need a general conversation or a dummy application
+      // Let's create a "General Inquiry" project/application if none exists?
+      // Actually, Rule 2 Step 3 says "Messaging becomes active".
+      // Our chat logic in ChatThread currently requires appId.
+      // If no project_id, we might need to handle this differently.
+      // For now, let's assume most invites have a project_id.
     }
+
+    toast.success(status === "accepted" ? "Invite accepted" : "Invite declined");
+    qc.invalidateQueries({ queryKey: ["incoming-invites", userId] });
+    qc.invalidateQueries({ queryKey: ["my-apps", userId] });
   }
 
   async function toggleAvailability() {
