@@ -460,6 +460,8 @@ CREATE POLICY car_insert_requester ON public.contact_access_requests FOR INSERT 
   WITH CHECK (auth.uid() = requester_id);
 CREATE POLICY car_update_target ON public.contact_access_requests FOR UPDATE TO authenticated
   USING (auth.uid() = target_id) WITH CHECK (auth.uid() = target_id);
+CREATE POLICY car_delete_requester ON public.contact_access_requests FOR DELETE TO authenticated
+  USING (auth.uid() = requester_id OR public.has_role(auth.uid(), 'admin'));
 CREATE TRIGGER trg_car_touch BEFORE UPDATE ON public.contact_access_requests
   FOR EACH ROW EXECUTE FUNCTION public.touch_updated_at();
 
@@ -1213,14 +1215,6 @@ CREATE INDEX IF NOT EXISTS idx_messages_app_created ON public.messages(applicati
 CREATE INDEX IF NOT EXISTS idx_contact_req_parties ON public.contact_access_requests(requester_id, target_id);
 
 -- Ensure RLS for contact access requests is robust
-CREATE POLICY "Users can view requests they are party to" ON public.contact_access_requests
-  FOR SELECT TO authenticated USING (auth.uid() = requester_id OR auth.uid() = target_id);
-
-CREATE POLICY "Users can insert requests" ON public.contact_access_requests
-  FOR INSERT TO authenticated WITH CHECK (auth.uid() = requester_id);
-
-CREATE POLICY "Targets can respond to requests" ON public.contact_access_requests
-  FOR UPDATE TO authenticated USING (auth.uid() = target_id OR auth.uid() = requester_id);
 
 -- Function to increment profile views safely
 CREATE OR REPLACE FUNCTION increment_profile_view(profile_id UUID)
