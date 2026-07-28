@@ -18,6 +18,7 @@ import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { triggerEmailsServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
@@ -26,6 +27,16 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const { user, role, loading } = useAuth();
+
+  useEffect(() => {
+    if (user?.id) {
+      // Trigger welcome and reminder email checks on landing
+      triggerEmailsServerFn({ data: { userId: user.id } }).catch(err =>
+        console.error("Error triggering email service:", err)
+      );
+    }
+  }, [user?.id]);
+
   if (loading) return <FullPageSpinner />;
   if (!user) return <Navigate to="/auth" />;
 
