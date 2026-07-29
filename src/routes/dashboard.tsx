@@ -1,5 +1,6 @@
 import { createFileRoute, Navigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
@@ -18,6 +19,7 @@ import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { triggerEmailsServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
@@ -26,6 +28,17 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const { user, role, loading } = useAuth();
+  const triggerEmails = useServerFn(triggerEmailsServerFn);
+
+  useEffect(() => {
+    if (user?.id) {
+      // Trigger welcome and reminder email checks on landing
+      triggerEmails({ data: { userId: user.id } }).catch(err =>
+        console.error("Error triggering email service:", err)
+      );
+    }
+  }, [user?.id, triggerEmails]);
+
   if (loading) return <FullPageSpinner />;
   if (!user) return <Navigate to="/auth" />;
 
