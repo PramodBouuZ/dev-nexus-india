@@ -34,6 +34,7 @@ import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projec
 import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
 import { Route as BlogPostSlugRouteImport } from './routes/blog.$postSlug'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
+import { Route as ApiSendEmailsRouteImport } from './routes/api.send-emails'
 
 const VerificationRoute = VerificationRouteImport.update({
   id: '/verification',
@@ -160,6 +161,11 @@ const ApplicationsAppIdRoute = ApplicationsAppIdRouteImport.update({
   path: '/applications/$appId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSendEmailsRoute = ApiSendEmailsRouteImport.update({
+  id: '/api/send-emails',
+  path: '/api/send-emails',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -179,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
+  '/api/send-emails': typeof ApiSendEmailsRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
+  '/api/send-emails': typeof ApiSendEmailsRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
@@ -234,6 +242,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/verification': typeof VerificationRoute
+  '/api/send-emails': typeof ApiSendEmailsRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
@@ -263,6 +272,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/verification'
+    | '/api/send-emails'
     | '/applications/$appId'
     | '/blog/$postSlug'
     | '/developers/$devId'
@@ -290,6 +300,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/verification'
+    | '/api/send-emails'
     | '/applications/$appId'
     | '/blog/$postSlug'
     | '/developers/$devId'
@@ -317,6 +328,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/verification'
+    | '/api/send-emails'
     | '/applications/$appId'
     | '/blog/$postSlug'
     | '/developers/$devId'
@@ -345,6 +357,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   VerificationRoute: typeof VerificationRoute
+  ApiSendEmailsRoute: typeof ApiSendEmailsRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
   BlogPostSlugRoute: typeof BlogPostSlugRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
@@ -531,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsAppIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/send-emails': {
+      id: '/api/send-emails'
+      path: '/api/send-emails'
+      fullPath: '/api/send-emails'
+      preLoaderRoute: typeof ApiSendEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -564,6 +584,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   VerificationRoute: VerificationRoute,
+  ApiSendEmailsRoute: ApiSendEmailsRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
   BlogPostSlugRoute: BlogPostSlugRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,

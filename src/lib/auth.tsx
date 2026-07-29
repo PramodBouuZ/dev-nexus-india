@@ -47,16 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function fetchRole(uid: string) {
-    // 1. Hardcode superadmin check for specific email
     const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser?.email === 'info.bouuz@gmail.com') {
-      setRole("admin");
+    if (!currentUser) {
+      setRole(null);
       return;
     }
 
-    // Check if there's a pending role from Google Sign Up
+    // 1. Check if there's a pending role from Google Sign Up
     const pendingRole = localStorage.getItem("pending_role") as AppRole | null;
-    if (pendingRole && currentUser) {
+    if (pendingRole) {
       console.log("Applying pending role from Google Sign Up:", pendingRole);
       localStorage.removeItem("pending_role");
 
@@ -71,14 +70,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 2. Try auth metadata first for speed and session consistency
     const metaRole = currentUser?.user_metadata?.role as AppRole;
-
     if (metaRole) {
       console.log("Saved Role (from meta):", metaRole);
       setRole(metaRole);
       return;
     }
 
-    // 2. Fallback to user_roles table
+    // 3. Fallback to user_roles table
     const { data } = await supabase
       .from("user_roles")
       .select("role")
@@ -86,7 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
 
     const dbRole = data?.role as AppRole | undefined;
-    setRole(dbRole ?? null);
+    if (dbRole) {
+      console.log("Loaded role from database:", dbRole);
+      setRole(dbRole);
+      return;
+    }
+
+    // 4. Hardcode superadmin check for specific email as a final fallback
+    if (currentUser?.email === 'info.bouuz@gmail.com') {
+      console.log("Falling back to hardcoded admin role for:", currentUser.email);
+      setRole("admin");
+      return;
+    }
+
+    setRole(null);
   }
 
   async function signOut() {
