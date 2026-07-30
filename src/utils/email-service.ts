@@ -916,10 +916,19 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" })
     };
   });
 
-const SendIndividualSchema = z.object({
+const SendIndividualSchema = z.preprocess((val: any) => {
+  if (!val) return {};
+  if (val && typeof val === "object") {
+    if ("data" in val) {
+      return val.data || {};
+    }
+    return val;
+  }
+  return {};
+}, z.object({
   userId: z.string(),
   adminEmail: z.string(),
-});
+}));
 
 export const sendIndividualReminderServerFn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SendIndividualSchema.parse(input))
@@ -1007,10 +1016,19 @@ export const sendIndividualReminderServerFn = createServerFn({ method: "POST" })
     }
   });
 
-const SendBulkSchema = z.object({
+const SendBulkSchema = z.preprocess((val: any) => {
+  if (!val) return {};
+  if (val && typeof val === "object") {
+    if ("data" in val) {
+      return val.data || {};
+    }
+    return val;
+  }
+  return {};
+}, z.object({
   userIds: z.array(z.string()),
   adminEmail: z.string(),
-});
+}));
 
 export const sendBulkRemindersServerFn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SendBulkSchema.parse(input))
@@ -1108,10 +1126,19 @@ export const sendBulkRemindersServerFn = createServerFn({ method: "POST" })
     return { success: true, totalSent, delivered, failed };
   });
 
-const ToggleDisabledSchema = z.object({
+const ToggleDisabledSchema = z.preprocess((val: any) => {
+  if (!val) return {};
+  if (val && typeof val === "object") {
+    if ("data" in val) {
+      return val.data || {};
+    }
+    return val;
+  }
+  return {};
+}, z.object({
   userId: z.string(),
   disabled: z.boolean(),
-});
+}));
 
 export const toggleUserRemindersDisabledServerFn = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => ToggleDisabledSchema.parse(input))
