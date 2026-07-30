@@ -8,15 +8,51 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
-  ShieldCheck, ExternalLink, CheckCircle2, XCircle, Clock, Mail, Phone,
-  Users, Search, Download, Edit2, BarChart3, TrendingUp, AlertTriangle, UserMinus, UserCheck,
-  LayoutDashboard, Briefcase, FileText, Send, UserRound, MessageSquare, Bell, Trash2, Star, Eye, Filter, Menu
+  ShieldCheck,
+  ExternalLink,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Mail,
+  Phone,
+  Users,
+  Search,
+  Download,
+  Edit2,
+  BarChart3,
+  TrendingUp,
+  AlertTriangle,
+  UserMinus,
+  UserCheck,
+  LayoutDashboard,
+  Briefcase,
+  FileText,
+  Send,
+  UserRound,
+  MessageSquare,
+  Bell,
+  Trash2,
+  Star,
+  Eye,
+  Filter,
+  Menu,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -25,21 +61,45 @@ import {
   getAdminReminderManagerData,
   sendIndividualReminderServerFn,
   sendBulkRemindersServerFn,
-  toggleUserRemindersDisabledServerFn
+  toggleUserRemindersDisabledServerFn,
 } from "@/utils/email-service";
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell, PieChart, Pie } from "recharts";
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie,
+} from "recharts";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: "Admin Panel | DeveloperConnect" },
-      { name: "robots", content: "noindex, nofollow" }
-    ]
+      { name: "robots", content: "noindex, nofollow" },
+    ],
   }),
   component: AdminPage,
 });
 
-type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" | "applications" | "contacts" | "invites" | "chats" | "alerts" | "reminders";
+type TabView =
+  | "overview"
+  | "users"
+  | "developers"
+  | "recruiters"
+  | "projects"
+  | "applications"
+  | "contacts"
+  | "invites"
+  | "chats"
+  | "alerts"
+  | "reminders";
 
 function AdminPage() {
   const { user, role, loading } = useAuth();
@@ -51,15 +111,26 @@ function AdminPage() {
     if (role !== "admin") return;
 
     const tables = [
-      "profiles", "user_roles", "developer_profiles", "recruiter_profiles",
-      "projects", "applications", "invites",
-      "contact_access_requests", "messages", "verification_requests", "admin_alerts"
+      "profiles",
+      "user_roles",
+      "developer_profiles",
+      "recruiter_profiles",
+      "projects",
+      "applications",
+      "invites",
+      "contact_access_requests",
+      "messages",
+      "verification_requests",
+      "admin_alerts",
+      "profile_email_reminders",
+      "users",
     ];
 
-    const channels = tables.map(table =>
-      supabase.channel(`admin-rt-${table}`)
-        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
-          console.log(`Realtime update for ${table}`);
+    const channels = tables.map((table) =>
+      supabase
+        .channel(`admin-rt-${table}`)
+        .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
+          console.log(`Realtime update for ${table}`, payload);
           qc.invalidateQueries({ queryKey: ["admin-stats-full"] });
           qc.invalidateQueries({ queryKey: ["admin-recent-activity"] });
           qc.invalidateQueries({ queryKey: ["admin-users-all"] });
@@ -70,16 +141,32 @@ function AdminPage() {
           qc.invalidateQueries({ queryKey: ["admin-contacts"] });
           qc.invalidateQueries({ queryKey: ["admin-invites"] });
           qc.invalidateQueries({ queryKey: ["admin-chats"] });
+          qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+
+          // If a specific user reminder or user setting changed, invalidate details as well
+          const userId =
+            (payload.new as any)?.user_id ||
+            (payload.new as any)?.id ||
+            (payload.old as any)?.user_id ||
+            (payload.old as any)?.id;
+          if (userId) {
+            qc.invalidateQueries({ queryKey: ["admin-user-details", userId] });
+          }
         })
-        .subscribe()
+        .subscribe(),
     );
 
     return () => {
-      channels.forEach(ch => supabase.removeChannel(ch));
+      channels.forEach((ch) => supabase.removeChannel(ch));
     };
   }, [role, qc]);
 
-  if (loading) return <div className="flex h-screen items-center justify-center font-display font-medium text-muted-foreground animate-pulse">Initializing Admin...</div>;
+  if (loading)
+    return (
+      <div className="flex h-screen items-center justify-center font-display font-medium text-muted-foreground animate-pulse">
+        Initializing Admin...
+      </div>
+    );
   if (!user) return <Navigate to="/auth" />;
   if (role !== "admin") {
     return (
@@ -87,27 +174,125 @@ function AdminPage() {
         <AlertTriangle className="mb-4 h-12 w-12 text-destructive" />
         <h1 className="font-display text-2xl font-bold">Access Denied</h1>
         <p className="mt-2 text-muted-foreground">Admin privileges required.</p>
-        <Button asChild className="mt-6"><Link to="/">Return Home</Link></Button>
+        <Button asChild className="mt-6">
+          <Link to="/">Return Home</Link>
+        </Button>
       </div>
     );
   }
 
   const navContent = (
     <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-64px)]">
-      <SidebarItem icon={LayoutDashboard} label="Overview" active={activeTab === "overview"} onClick={() => { setActiveTab("overview"); setMobileNavOpen(false); }} />
-      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Management</div>
-      <SidebarItem icon={Users} label="All Users" active={activeTab === "users"} onClick={() => { setActiveTab("users"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={UserRound} label="Developers" active={activeTab === "developers"} onClick={() => { setActiveTab("developers"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={Briefcase} label="Recruiters" active={activeTab === "recruiters"} onClick={() => { setActiveTab("recruiters"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={FileText} label="Projects" active={activeTab === "projects"} onClick={() => { setActiveTab("projects"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={Star} label="Applications" active={activeTab === "applications"} onClick={() => { setActiveTab("applications"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={Users} label="Contact Requests" active={activeTab === "contacts"} onClick={() => { setActiveTab("contacts"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={Send} label="Invites" active={activeTab === "invites"} onClick={() => { setActiveTab("invites"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={MessageSquare} label="Chats" active={activeTab === "chats"} onClick={() => { setActiveTab("chats"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={Mail} label="Profile Reminders" active={activeTab === "reminders"} onClick={() => { setActiveTab("reminders"); setMobileNavOpen(false); }} />
-      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">System</div>
-      <SidebarItem icon={Bell} label="Alerts" active={activeTab === "alerts"} onClick={() => { setActiveTab("alerts"); setMobileNavOpen(false); }} />
-      <SidebarItem icon={ExternalLink} label="Main Site" onClick={() => window.open('/', '_blank')} />
+      <SidebarItem
+        icon={LayoutDashboard}
+        label="Overview"
+        active={activeTab === "overview"}
+        onClick={() => {
+          setActiveTab("overview");
+          setMobileNavOpen(false);
+        }}
+      />
+      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        Management
+      </div>
+      <SidebarItem
+        icon={Users}
+        label="All Users"
+        active={activeTab === "users"}
+        onClick={() => {
+          setActiveTab("users");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={UserRound}
+        label="Developers"
+        active={activeTab === "developers"}
+        onClick={() => {
+          setActiveTab("developers");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Briefcase}
+        label="Recruiters"
+        active={activeTab === "recruiters"}
+        onClick={() => {
+          setActiveTab("recruiters");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={FileText}
+        label="Projects"
+        active={activeTab === "projects"}
+        onClick={() => {
+          setActiveTab("projects");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Star}
+        label="Applications"
+        active={activeTab === "applications"}
+        onClick={() => {
+          setActiveTab("applications");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Users}
+        label="Contact Requests"
+        active={activeTab === "contacts"}
+        onClick={() => {
+          setActiveTab("contacts");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Send}
+        label="Invites"
+        active={activeTab === "invites"}
+        onClick={() => {
+          setActiveTab("invites");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={MessageSquare}
+        label="Chats"
+        active={activeTab === "chats"}
+        onClick={() => {
+          setActiveTab("chats");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Mail}
+        label="Profile Reminders"
+        active={activeTab === "reminders"}
+        onClick={() => {
+          setActiveTab("reminders");
+          setMobileNavOpen(false);
+        }}
+      />
+      <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+        System
+      </div>
+      <SidebarItem
+        icon={Bell}
+        label="Alerts"
+        active={activeTab === "alerts"}
+        onClick={() => {
+          setActiveTab("alerts");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={ExternalLink}
+        label="Main Site"
+        onClick={() => window.open("/", "_blank")}
+      />
     </nav>
   );
 
@@ -116,7 +301,9 @@ function AdminPage() {
       <aside className="fixed inset-y-0 left-0 z-50 w-64 border-r border-border bg-card hidden lg:block">
         <div className="flex h-16 items-center px-6 border-b">
           <Link to="/" className="flex items-center gap-2 font-display font-bold text-lg">
-            <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-accent text-primary-foreground shadow-glow">D</div>
+            <div className="flex h-8 w-8 items-center justify-center rounded bg-gradient-accent text-primary-foreground shadow-glow">
+              D
+            </div>
             <span>AdminPanel</span>
           </Link>
         </div>
@@ -135,23 +322,38 @@ function AdminPage() {
       <main className="flex-1 lg:ml-64 flex flex-col min-w-0">
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-card/80 px-3 sm:px-6 backdrop-blur-xl">
           <div className="flex items-center gap-2 min-w-0">
-            <Button variant="ghost" size="icon" className="lg:hidden shrink-0" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden shrink-0"
+              onClick={() => setMobileNavOpen(true)}
+              aria-label="Open menu"
+            >
               <Menu className="h-5 w-5" />
             </Button>
-            <h2 className="font-display text-base sm:text-lg font-bold capitalize truncate">{activeTab.replace('_', ' ')}</h2>
+            <h2 className="font-display text-base sm:text-lg font-bold capitalize truncate">
+              {activeTab.replace("_", " ")}
+            </h2>
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
-             <Button variant="ghost" size="icon" onClick={() => setActiveTab("alerts")} className="relative">
-                <Bell className="h-5 w-5" />
-                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive animate-pulse" />
-             </Button>
-             <div className="hidden sm:flex items-center gap-3 pr-2 border-r">
-                <div className="text-right">
-                  <p className="text-xs font-bold leading-none">{user.email?.split('@')[0]}</p>
-                  <p className="text-[10px] text-muted-foreground">Platform Admin</p>
-                </div>
-                <div className="h-8 w-8 rounded-full bg-gradient-accent text-primary-foreground flex items-center justify-center text-xs font-bold">AD</div>
-             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setActiveTab("alerts")}
+              className="relative"
+            >
+              <Bell className="h-5 w-5" />
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive animate-pulse" />
+            </Button>
+            <div className="hidden sm:flex items-center gap-3 pr-2 border-r">
+              <div className="text-right">
+                <p className="text-xs font-bold leading-none">{user.email?.split("@")[0]}</p>
+                <p className="text-[10px] text-muted-foreground">Platform Admin</p>
+              </div>
+              <div className="h-8 w-8 rounded-full bg-gradient-accent text-primary-foreground flex items-center justify-center text-xs font-bold">
+                AD
+              </div>
+            </div>
           </div>
         </header>
 
@@ -173,9 +375,22 @@ function AdminPage() {
   );
 }
 
-function SidebarItem({ icon: Icon, label, active, onClick }: { icon: any; label: string; active?: boolean; onClick?: () => void }) {
+function SidebarItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: any;
+  label: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <button onClick={onClick} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}>
+    <button
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? "bg-accent text-accent-foreground shadow-sm" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+    >
       <Icon className="h-4 w-4" />
       <span>{label}</span>
     </button>
@@ -198,8 +413,14 @@ function OverviewTab() {
         supabase.from("messages").select("id", { count: "exact", head: true }),
       ]);
       const [vDevs, vRecs] = await Promise.all([
-        supabase.from("developer_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
-        supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
+        supabase
+          .from("developer_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_verified", true),
+        supabase
+          .from("recruiter_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_verified", true),
       ]);
       return {
         users: users.count || 0,
@@ -211,51 +432,119 @@ function OverviewTab() {
         contacts: contacts.count || 0,
         vDevs: vDevs.count || 0,
         vRecs: vRecs.count || 0,
-        msgs: msgs.count || 0
+        msgs: msgs.count || 0,
       };
-    }
+    },
   });
 
-  const chartData = [ { name: "Mon", u: 40, p: 12 }, { name: "Tue", u: 65, p: 18 }, { name: "Wed", u: 58, p: 15 }, { name: "Thu", u: 82, p: 25 }, { name: "Fri", u: 74, p: 20 }, { name: "Sat", u: 45, p: 10 }, { name: "Sun", u: 52, p: 14 } ];
+  const chartData = [
+    { name: "Mon", u: 40, p: 12 },
+    { name: "Tue", u: 65, p: 18 },
+    { name: "Wed", u: 58, p: 15 },
+    { name: "Thu", u: 82, p: 25 },
+    { name: "Fri", u: 74, p: 20 },
+    { name: "Sat", u: 45, p: 10 },
+    { name: "Sun", u: 52, p: 14 },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Registrations" value={stats?.users || 0} sub="Registered users" icon={Users} color="text-blue-500" />
-        <StatCard label="Total Developers" value={stats?.devs || 0} sub={`${stats?.vDevs} verified`} icon={UserRound} />
-        <StatCard label="Total Recruiters" value={stats?.recs || 0} sub={`${stats?.vRecs} verified`} icon={Briefcase} />
-        <StatCard label="Active Projects" value={stats?.projs || 0} sub="Open for hire" icon={FileText} color="text-success" />
+        <StatCard
+          label="Total Registrations"
+          value={stats?.users || 0}
+          sub="Registered users"
+          icon={Users}
+          color="text-blue-500"
+        />
+        <StatCard
+          label="Total Developers"
+          value={stats?.devs || 0}
+          sub={`${stats?.vDevs} verified`}
+          icon={UserRound}
+        />
+        <StatCard
+          label="Total Recruiters"
+          value={stats?.recs || 0}
+          sub={`${stats?.vRecs} verified`}
+          icon={Briefcase}
+        />
+        <StatCard
+          label="Active Projects"
+          value={stats?.projs || 0}
+          sub="Open for hire"
+          icon={FileText}
+          color="text-success"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Platform Growth</CardTitle><CardDescription>Daily active users and new projects</CardDescription></CardHeader>
+          <CardHeader>
+            <CardTitle>Platform Growth</CardTitle>
+            <CardDescription>Daily active users and new projects</CardDescription>
+          </CardHeader>
           <CardContent className="h-[300px]">
-             <ResponsiveContainer width="100%" height="100%">
-               <AreaChart data={chartData}>
-                  <defs><linearGradient id="gU" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1}/><stop offset="95%" stopColor="#0ea5e9" stopOpacity={0}/></linearGradient></defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10}} />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="u" name="Users" stroke="#0ea5e9" fill="url(#gU)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="p" name="Projects" stroke="#10b981" fill="transparent" strokeWidth={2} />
-               </AreaChart>
-             </ResponsiveContainer>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                <Tooltip />
+                <Area
+                  type="monotone"
+                  dataKey="u"
+                  name="Users"
+                  stroke="#0ea5e9"
+                  fill="url(#gU)"
+                  strokeWidth={2}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="p"
+                  name="Projects"
+                  stroke="#10b981"
+                  fill="transparent"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
         <Card>
-           <CardHeader><CardTitle>Hiring Tech</CardTitle></CardHeader>
-           <CardContent className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={[{n:'React',v:45},{n:'Node',v:30},{n:'Python',v:25}]} dataKey="v" nameKey="n" cx="50%" cy="50%" innerRadius={60} outerRadius={80}>
-                    <Cell fill="#0ea5e9" /><Cell fill="#8b5cf6" /><Cell fill="#10b981" />
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-           </CardContent>
+          <CardHeader>
+            <CardTitle>Hiring Tech</CardTitle>
+          </CardHeader>
+          <CardContent className="h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { n: "React", v: 45 },
+                    { n: "Node", v: 30 },
+                    { n: "Python", v: 25 },
+                  ]}
+                  dataKey="v"
+                  nameKey="n"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                >
+                  <Cell fill="#0ea5e9" />
+                  <Cell fill="#8b5cf6" />
+                  <Cell fill="#10b981" />
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
         </Card>
       </div>
       <VisitorAnalytics />
@@ -267,31 +556,89 @@ function OverviewTab() {
   );
 }
 
-function StatCard({ label, value, icon: Icon, sub, trend, color }: { label: string; value: number; icon: any; sub?: string; trend?: string; color?: string }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  sub,
+  trend,
+  color,
+}: {
+  label: string;
+  value: number;
+  icon: any;
+  sub?: string;
+  trend?: string;
+  color?: string;
+}) {
   return (
-    <Card><CardContent className="p-5 flex flex-col gap-1">
-      <div className="flex items-center justify-between"><div className={`p-2 rounded-lg bg-muted/50 ${color || "text-muted-foreground"}`}><Icon className="h-4 w-4" /></div>{trend && <Badge variant="outline" className="text-[10px] text-success border-success/20">+{trend}</Badge>}</div>
-      <div className="mt-2"><p className="text-2xl font-bold">{value.toLocaleString()}</p><p className="text-xs font-medium text-muted-foreground">{label}</p></div>
-      {sub && <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>}
-    </CardContent></Card>
+    <Card>
+      <CardContent className="p-5 flex flex-col gap-1">
+        <div className="flex items-center justify-between">
+          <div className={`p-2 rounded-lg bg-muted/50 ${color || "text-muted-foreground"}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+          {trend && (
+            <Badge variant="outline" className="text-[10px] text-success border-success/20">
+              +{trend}
+            </Badge>
+          )}
+        </div>
+        <div className="mt-2">
+          <p className="text-2xl font-bold">{value.toLocaleString()}</p>
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+        </div>
+        {sub && <p className="text-[10px] text-muted-foreground mt-1">{sub}</p>}
+      </CardContent>
+    </Card>
   );
 }
 
 function VisitorAnalytics() {
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between"><div><CardTitle>Global Traffic</CardTitle><CardDescription>Real-time visitors and device share.</CardDescription></div><div className="flex gap-2"><Badge variant="outline" className="bg-success/5 text-success">Live: 42 users</Badge></div></CardHeader>
-      <CardContent><div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Global Traffic</CardTitle>
+          <CardDescription>Real-time visitors and device share.</CardDescription>
+        </div>
+        <div className="flex gap-2">
+          <Badge variant="outline" className="bg-success/5 text-success">
+            Live: 42 users
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           <AnalyticsMini title="Unique Visitors" val="4.2k" p={70} color="bg-accent" />
           <AnalyticsMini title="Avg. Duration" val="5m 12s" p={45} color="bg-success" />
           <AnalyticsMini title="Mobile Users" val="28%" p={28} color="bg-blue-500" />
           <AnalyticsMini title="Desktop Users" val="72%" p={72} color="bg-amber-500" />
-      </div></CardContent>
+        </div>
+      </CardContent>
     </Card>
   );
 }
-function AnalyticsMini({title,val,p,color}:{title:string,val:string,p:number,color:string}) {
-  return (<div><p className="text-xs text-muted-foreground font-medium">{title}</p><p className="text-xl font-bold mt-1">{val}</p><div className="h-1 w-full bg-muted rounded-full mt-2 overflow-hidden"><div className={`h-full ${color}`} style={{width:`${p}%`}}></div></div></div>);
+function AnalyticsMini({
+  title,
+  val,
+  p,
+  color,
+}: {
+  title: string;
+  val: string;
+  p: number;
+  color: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground font-medium">{title}</p>
+      <p className="text-xl font-bold mt-1">{val}</p>
+      <div className="h-1 w-full bg-muted rounded-full mt-2 overflow-hidden">
+        <div className={`h-full ${color}`} style={{ width: `${p}%` }}></div>
+      </div>
+    </div>
+  );
 }
 
 function VisitorFlow() {
@@ -315,7 +662,9 @@ function VisitorFlow() {
             <div key={item.name} className="space-y-1">
               <div className="flex justify-between text-xs">
                 <span className="font-medium">{item.name}</span>
-                <span className="text-muted-foreground">{item.visitors.toLocaleString()} views</span>
+                <span className="text-muted-foreground">
+                  {item.visitors.toLocaleString()} views
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-2 flex-1 bg-muted rounded-full overflow-hidden">
@@ -324,7 +673,9 @@ function VisitorFlow() {
                     style={{ width: `${(item.visitors / 4200) * 100}%` }}
                   ></div>
                 </div>
-                <span className="text-[10px] text-destructive font-medium">{item.bounce}% exit</span>
+                <span className="text-[10px] text-destructive font-medium">
+                  {item.bounce}% exit
+                </span>
               </div>
             </div>
           ))}
@@ -339,10 +690,26 @@ function RecentActivity() {
     queryKey: ["admin-recent-activity"],
     queryFn: async () => {
       const [users, apps, projs, msgs, devs, recs] = await Promise.all([
-        supabase.from("profiles").select("id, created_at, full_name").order("created_at", { ascending: false }).limit(5),
-        supabase.from("applications").select("id, created_at, developer_id, project_id").order("created_at", { ascending: false }).limit(3),
-        supabase.from("projects").select("id, created_at, title, recruiter_id").order("created_at", { ascending: false }).limit(3),
-        supabase.from("messages").select("id, created_at, body, sender_id").order("created_at", { ascending: false }).limit(3),
+        supabase
+          .from("profiles")
+          .select("id, created_at, full_name")
+          .order("created_at", { ascending: false })
+          .limit(5),
+        supabase
+          .from("applications")
+          .select("id, created_at, developer_id, project_id")
+          .order("created_at", { ascending: false })
+          .limit(3),
+        supabase
+          .from("projects")
+          .select("id, created_at, title, recruiter_id")
+          .order("created_at", { ascending: false })
+          .limit(3),
+        supabase
+          .from("messages")
+          .select("id, created_at, body, sender_id")
+          .order("created_at", { ascending: false })
+          .limit(3),
         supabase.from("developer_profiles").select("id, full_name"),
         supabase.from("recruiter_profiles").select("id, company_name"),
       ]);
@@ -351,14 +718,40 @@ function RecentActivity() {
       const projMap = new Map((projs.data || []).map((p: any) => [p.id, p.title]));
 
       const formatted = [
-        ...(users.data || []).map(u => ({ user: u.full_name || "New user", action: "joined the platform", target: "", time: u.created_at, type: "user" })),
-        ...(apps.data || []).map(a => ({ user: devMap.get(a.developer_id) || "Someone", action: "applied for", target: projMap.get(a.project_id) || "", time: a.created_at, type: "app" })),
-        ...(projs.data || []).map(p => ({ user: recMap.get(p.recruiter_id) || "Company", action: "posted", target: p.title, time: p.created_at, type: "proj" })),
-        ...(msgs.data || []).map(m => ({ user: (m.sender_id || "").slice(0,8), action: "sent a message", target: (m.body?.slice(0,20) || "Attachment") + "...", time: m.created_at, type: "msg" })),
-      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 10);
+        ...(users.data || []).map((u) => ({
+          user: u.full_name || "New user",
+          action: "joined the platform",
+          target: "",
+          time: u.created_at,
+          type: "user",
+        })),
+        ...(apps.data || []).map((a) => ({
+          user: devMap.get(a.developer_id) || "Someone",
+          action: "applied for",
+          target: projMap.get(a.project_id) || "",
+          time: a.created_at,
+          type: "app",
+        })),
+        ...(projs.data || []).map((p) => ({
+          user: recMap.get(p.recruiter_id) || "Company",
+          action: "posted",
+          target: p.title,
+          time: p.created_at,
+          type: "proj",
+        })),
+        ...(msgs.data || []).map((m) => ({
+          user: (m.sender_id || "").slice(0, 8),
+          action: "sent a message",
+          target: (m.body?.slice(0, 20) || "Attachment") + "...",
+          time: m.created_at,
+          type: "msg",
+        })),
+      ]
+        .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+        .slice(0, 10);
 
       return formatted;
-    }
+    },
   });
 
   return (
@@ -369,18 +762,29 @@ function RecentActivity() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {isLoading ? <p className="text-center animate-pulse text-sm">Loading activity...</p> :
-           !activities?.length ? <p className="text-center text-sm text-muted-foreground">No recent activity.</p> :
-           activities.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 text-sm">
-              <div className={`h-2 w-2 rounded-full ${a.type === 'user' ? 'bg-blue-400' : a.type === 'app' ? 'bg-blue-600' : a.type === 'proj' ? 'bg-success' : a.type === 'msg' ? 'bg-accent' : 'bg-amber-500'}`} />
-              <div className="flex-1">
-                <span className="font-bold">{a.user}</span> {a.action} <span className="font-medium text-muted-foreground">{a.target}</span>
+          {isLoading ? (
+            <p className="text-center animate-pulse text-sm">Loading activity...</p>
+          ) : !activities?.length ? (
+            <p className="text-center text-sm text-muted-foreground">No recent activity.</p>
+          ) : (
+            activities.map((a, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <div
+                  className={`h-2 w-2 rounded-full ${a.type === "user" ? "bg-blue-400" : a.type === "app" ? "bg-blue-600" : a.type === "proj" ? "bg-success" : a.type === "msg" ? "bg-accent" : "bg-amber-500"}`}
+                />
+                <div className="flex-1">
+                  <span className="font-bold">{a.user}</span> {a.action}{" "}
+                  <span className="font-medium text-muted-foreground">{a.target}</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground uppercase">
+                  {new Date(a.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </div>
               </div>
-              <div className="text-[10px] text-muted-foreground uppercase">{new Date(a.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-            </div>
-          ))}
-          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground mt-2">View Full Audit Log</Button>
+            ))
+          )}
+          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground mt-2">
+            View Full Audit Log
+          </Button>
         </div>
       </CardContent>
     </Card>
@@ -391,48 +795,124 @@ function RecentActivity() {
 function UsersTab() {
   const [search, setSearch] = useState("");
   const qc = useQueryClient();
-  const { data: users, isLoading, error } = useQuery({
+  const {
+    data: users,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-users-all"],
     queryFn: async () => {
-      const [{ data: profs, error: pErr }, { data: roles, error: rErr }, { data: emails }] = await Promise.all([
-        supabase.from("profiles").select("id, full_name, avatar_url, created_at, updated_at, is_suspended").order("created_at", { ascending: false }),
-        supabase.from("user_roles").select("user_id, role"),
-        supabase.rpc("admin_list_user_emails" as any),
-      ]);
+      const [{ data: profs, error: pErr }, { data: roles, error: rErr }, { data: emails }] =
+        await Promise.all([
+          supabase
+            .from("profiles")
+            .select("id, full_name, avatar_url, created_at, updated_at, is_suspended")
+            .order("created_at", { ascending: false }),
+          supabase.from("user_roles").select("user_id, role"),
+          supabase.rpc("admin_list_user_emails" as any),
+        ]);
       if (pErr) throw pErr;
       if (rErr) throw rErr;
       const roleMap = new Map((roles || []).map((r: any) => [r.user_id, r.role]));
       const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
-      return (profs || []).map((u: any) => ({ ...u, email: emailMap.get(u.id), role: roleMap.get(u.id) || 'unknown' }));
-    }
+      return (profs || []).map((u: any) => ({
+        ...u,
+        email: emailMap.get(u.id),
+        role: roleMap.get(u.id) || "unknown",
+      }));
+    },
   });
-  const filtered = users?.filter(u => !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = users?.filter(
+    (u) =>
+      !search ||
+      u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.email?.toLowerCase().includes(search.toLowerCase()),
+  );
 
   async function deleteUser(id: string) {
     if (!confirm("Delete this user? This will remove all their data.")) return;
     const { error } = await supabase.from("profiles").delete().eq("id", id);
     if (error) toast.error(error.message);
-    else { toast.success("User deleted"); qc.invalidateQueries({ queryKey: ["admin-users-all"] }); }
+    else {
+      toast.success("User deleted");
+      qc.invalidateQueries({ queryKey: ["admin-users-all"] });
+    }
   }
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load users: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load users: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search users..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">User</th><th className="p-4">Email</th><th className="p-4">Role</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={5} className="p-12 text-center animate-pulse">Loading all users...</td></tr> :
-         !filtered?.length ? <tr><td colSpan={5} className="p-12 text-center text-muted-foreground">No users found.</td></tr> :
-         filtered.map(u => (
-          <tr key={u.id} className="hover:bg-muted/30 transition-colors">
-            <td className="p-4"><div className="font-bold">{u.full_name || "Anonymous"}</div><div className="text-[10px] text-muted-foreground font-mono">{u.id}</div></td>
-            <td className="p-4 text-muted-foreground">{u.email}</td>
-            <td className="p-4"><Badge variant="outline" className="capitalize">{u.role}</Badge></td>
-            <td className="p-4 text-xs text-muted-foreground">{new Date(u.created_at).toLocaleDateString()}</td>
-            <td className="p-4 text-right"><Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteUser(u.id)}><Trash2 className="h-4 w-4" /></Button></td>
-          </tr>
-        ))}
-      </tbody></table></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search users..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
+            <tr>
+              <th className="p-4">User</th>
+              <th className="p-4">Email</th>
+              <th className="p-4">Role</th>
+              <th className="p-4">Joined</th>
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="p-12 text-center animate-pulse">
+                  Loading all users...
+                </td>
+              </tr>
+            ) : !filtered?.length ? (
+              <tr>
+                <td colSpan={5} className="p-12 text-center text-muted-foreground">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((u) => (
+                <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-4">
+                    <div className="font-bold">{u.full_name || "Anonymous"}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">{u.id}</div>
+                  </td>
+                  <td className="p-4 text-muted-foreground">{u.email}</td>
+                  <td className="p-4">
+                    <Badge variant="outline" className="capitalize">
+                      {u.role}
+                    </Badge>
+                  </td>
+                  <td className="p-4 text-xs text-muted-foreground">
+                    {new Date(u.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="p-4 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => deleteUser(u.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -442,15 +922,20 @@ function DevelopersTab() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const qc = useQueryClient();
-  const { data: devs, isLoading, error } = useQuery({
+  const {
+    data: devs,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-developers"],
     queryFn: async () => {
-      const [{ data: dvs, error: dErr }, { data: profs }, { data: emails }, { data: phones }] = await Promise.all([
-        supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("profiles").select("id, is_suspended"),
-        supabase.rpc("admin_list_user_emails" as any),
-        supabase.from("developer_phones" as any).select("developer_id, phone"),
-      ]);
+      const [{ data: dvs, error: dErr }, { data: profs }, { data: emails }, { data: phones }] =
+        await Promise.all([
+          supabase.from("developer_profiles").select("*").order("created_at", { ascending: false }),
+          supabase.from("profiles").select("id, is_suspended"),
+          supabase.rpc("admin_list_user_emails" as any),
+          supabase.from("developer_phones" as any).select("developer_id, phone"),
+        ]);
       if (dErr) throw dErr;
       const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
       const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
@@ -461,12 +946,23 @@ function DevelopersTab() {
         phone: phoneMap.get(d.id),
         is_suspended: pMap.get(d.id)?.is_suspended,
       }));
-    }
+    },
   });
-  const filtered = devs?.filter(d => (!search || d.full_name?.toLowerCase().includes(search.toLowerCase()) || d.email?.toLowerCase().includes(search.toLowerCase())) && (filter === "all" || (filter === "verified" && d.is_verified) || (filter === "unverified" && !d.is_verified)));
+  const filtered = devs?.filter(
+    (d) =>
+      (!search ||
+        d.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        d.email?.toLowerCase().includes(search.toLowerCase())) &&
+      (filter === "all" ||
+        (filter === "verified" && d.is_verified) ||
+        (filter === "unverified" && !d.is_verified)),
+  );
 
   async function toggleVerify(id: string, current: boolean) {
-    const { error } = await supabase.from("developer_profiles").update({ is_verified: !current } as any).eq("id", id);
+    const { error } = await supabase
+      .from("developer_profiles")
+      .update({ is_verified: !current } as any)
+      .eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success(current ? "Unverified" : "Verified");
@@ -475,7 +971,10 @@ function DevelopersTab() {
   }
 
   async function toggleSuspend(id: string, current: boolean) {
-    const { error } = await supabase.from("profiles").update({ is_suspended: !current } as any).eq("id", id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_suspended: !current } as any)
+      .eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success(current ? "Unsuspended" : "Suspended");
@@ -484,9 +983,28 @@ function DevelopersTab() {
   }
 
   const exportCSV = () => {
-    const headers = ["Name", "Email", "Headline", "Skills", "Exp", "Location", "Verified", "Joined"];
-    const rows = filtered?.map(d => [d.full_name, d.email || 'N/A', d.headline, (d.skills || []).join("|"), d.experience_years, d.location, d.is_verified, d.created_at]) || [];
-    const content = [headers, ...rows].map(e => e.join(",")).join("\n");
+    const headers = [
+      "Name",
+      "Email",
+      "Headline",
+      "Skills",
+      "Exp",
+      "Location",
+      "Verified",
+      "Joined",
+    ];
+    const rows =
+      filtered?.map((d) => [
+        d.full_name,
+        d.email || "N/A",
+        d.headline,
+        (d.skills || []).join("|"),
+        d.experience_years,
+        d.location,
+        d.is_verified,
+        d.created_at,
+      ]) || [];
+    const content = [headers, ...rows].map((e) => e.join(",")).join("\n");
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([content], { type: "text/csv" }));
     link.download = "developers_export.csv";
@@ -505,45 +1023,189 @@ function DevelopersTab() {
     else toast.success("Deleted");
   }
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load developers: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load developers: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-4 items-center justify-between">
-        <div className="relative flex-1 max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search developers by name or email..." className="pl-9 bg-card" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} /></div>
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Search developers by name or email..."
+            className="pl-9 bg-card"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+          />
+        </div>
         <div className="flex gap-2">
-          <Select value={filter} onValueChange={v => { setFilter(v); setCurrentPage(1); }}><SelectTrigger className="w-32"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="verified">Verified</SelectItem><SelectItem value="unverified">Unverified</SelectItem></SelectContent></Select>
-          <Button variant="outline" size="sm" onClick={exportCSV}><Download className="mr-2 h-4 w-4" /> Export</Button>
+          <Select
+            value={filter}
+            onValueChange={(v) => {
+              setFilter(v);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="verified">Verified</SelectItem>
+              <SelectItem value="unverified">Unverified</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={exportCSV}>
+            <Download className="mr-2 h-4 w-4" /> Export
+          </Button>
         </div>
       </div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Developer</th><th className="p-4">Contact Info</th><th className="p-4">Skills</th><th className="p-4">Status</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading talent pool...</td></tr> :
-         !paginated?.length ? <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No developers found.</td></tr> :
-         paginated?.map(d => (
-          <tr key={d.id} className="hover:bg-muted/30">
-            <td className="p-4"><div><p className="font-bold">{d.full_name || "Anonymous"}</p><p className="text-xs text-muted-foreground truncate max-w-[200px]">{d.headline}</p></div></td>
-            <td className="p-4">
-              <div className="flex flex-col gap-1 text-xs">
-                <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {d.email || 'No Email'}</div>
-                <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" /> {d.phone || 'No Phone'}</div>
-              </div>
-            </td>
-            <td className="p-4"><div className="flex flex-wrap gap-1 max-w-[200px]">{d.skills?.slice(0, 3).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}{d.skills?.length > 3 && <span className="text-[10px] text-muted-foreground">+{d.skills.length - 3}</span>}</div></td>
-            <td className="p-4">
-              <button onClick={() => toggleVerify(d.id, d.is_verified)}>
-                {d.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
-              </button>
-            </td>
-            <td className="p-4 text-xs text-muted-foreground">{new Date(d.created_at).toLocaleDateString()}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><ViewUserDialog user={d} kind="developer" /><Button variant="ghost" size="icon" asChild title="Public Profile"><Link to="/developers/$devId" params={{ devId: d.id }}><ExternalLink className="h-4 w-4" /></Link></Button><EditDeveloperDialog developer={d} user={{id: d.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })} /><Button variant="ghost" size="icon" className={d.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={d.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(d.id, d.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteDev(d.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
-          </tr>
-        ))}
-      </tbody></table></div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
+            <tr>
+              <th className="p-4">Developer</th>
+              <th className="p-4">Contact Info</th>
+              <th className="p-4">Skills</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Joined</th>
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center animate-pulse">
+                  Loading talent pool...
+                </td>
+              </tr>
+            ) : !paginated?.length ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                  No developers found.
+                </td>
+              </tr>
+            ) : (
+              paginated?.map((d) => (
+                <tr key={d.id} className="hover:bg-muted/30">
+                  <td className="p-4">
+                    <div>
+                      <p className="font-bold">{d.full_name || "Anonymous"}</p>
+                      <p className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        {d.headline}
+                      </p>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Mail className="h-3 w-3" /> {d.email || "No Email"}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Phone className="h-3 w-3" /> {d.phone || "No Phone"}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex flex-wrap gap-1 max-w-[200px]">
+                      {d.skills?.slice(0, 3).map((s: string) => (
+                        <Badge key={s} variant="outline" className="text-[10px]">
+                          {s}
+                        </Badge>
+                      ))}
+                      {d.skills?.length > 3 && (
+                        <span className="text-[10px] text-muted-foreground">
+                          +{d.skills.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <button onClick={() => toggleVerify(d.id, d.is_verified)}>
+                      {d.is_verified ? (
+                        <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-muted transition-colors"
+                        >
+                          <Clock className="mr-1 h-3 w-3" /> Pending
+                        </Badge>
+                      )}
+                    </button>
+                  </td>
+                  <td className="p-4 text-xs text-muted-foreground">
+                    {new Date(d.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-1">
+                      <ViewUserDialog user={d} kind="developer" />
+                      <Button variant="ghost" size="icon" asChild title="Public Profile">
+                        <Link to="/developers/$devId" params={{ devId: d.id }}>
+                          <ExternalLink className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <EditDeveloperDialog
+                        developer={d}
+                        user={{ id: d.id }}
+                        onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-developers"] })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={d.is_suspended ? "text-amber-500" : "text-muted-foreground"}
+                        title={d.is_suspended ? "Unsuspend User" : "Suspend User"}
+                        onClick={() => toggleSuspend(d.id, d.is_suspended)}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        title="Delete Profile"
+                        onClick={() => deleteDev(d.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
-          <span className="flex items-center px-3 text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="flex items-center px-3 text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
@@ -557,12 +1219,14 @@ function RecruitersTab() {
   const { data: recs, isLoading } = useQuery({
     queryKey: ["admin-recruiters"],
     queryFn: async () => {
-      const [{ data: rs }, { data: profs }, { data: emails }, { data: phones }] = await Promise.all([
-        supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }),
-        supabase.from("profiles").select("id, is_suspended"),
-        supabase.rpc("admin_list_user_emails" as any),
-        supabase.from("recruiter_phones" as any).select("recruiter_id, phone"),
-      ]);
+      const [{ data: rs }, { data: profs }, { data: emails }, { data: phones }] = await Promise.all(
+        [
+          supabase.from("recruiter_profiles").select("*").order("created_at", { ascending: false }),
+          supabase.from("profiles").select("id, is_suspended"),
+          supabase.rpc("admin_list_user_emails" as any),
+          supabase.from("recruiter_phones" as any).select("recruiter_id, phone"),
+        ],
+      );
       const pMap = new Map((profs || []).map((p: any) => [p.id, p]));
       const emailMap = new Map((emails || []).map((e: any) => [e.user_id, e.email]));
       const phoneMap = new Map((phones || []).map((p: any) => [p.recruiter_id, p.phone]));
@@ -572,12 +1236,20 @@ function RecruitersTab() {
         phone: phoneMap.get(r.id),
         is_suspended: pMap.get(r.id)?.is_suspended,
       }));
-    }
+    },
   });
-  const filtered = recs?.filter(r => !search || r.company_name?.toLowerCase().includes(search.toLowerCase()) || r.email?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = recs?.filter(
+    (r) =>
+      !search ||
+      r.company_name?.toLowerCase().includes(search.toLowerCase()) ||
+      r.email?.toLowerCase().includes(search.toLowerCase()),
+  );
 
   async function toggleVerify(id: string, current: boolean) {
-    const { error } = await supabase.from("recruiter_profiles").update({ is_verified: !current } as any).eq("id", id);
+    const { error } = await supabase
+      .from("recruiter_profiles")
+      .update({ is_verified: !current } as any)
+      .eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success(current ? "Unverified" : "Verified");
@@ -586,7 +1258,10 @@ function RecruitersTab() {
   }
 
   async function toggleSuspend(id: string, current: boolean) {
-    const { error } = await supabase.from("profiles").update({ is_suspended: !current } as any).eq("id", id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_suspended: !current } as any)
+      .eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success(current ? "Unsuspended" : "Suspended");
@@ -608,35 +1283,140 @@ function RecruitersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search recruiters by name or email..." className="pl-9 bg-card" value={search} onChange={e => { setSearch(e.target.value); setCurrentPage(1); }} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground"><tr><th className="p-4">Company</th><th className="p-4">Contact Info</th><th className="p-4">Status</th><th className="p-4">Industry</th><th className="p-4">Joined</th><th className="p-4 text-right">Actions</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={6} className="p-12 text-center animate-pulse">Loading partners...</td></tr> :
-         !paginated?.length ? <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No recruiters found.</td></tr> :
-         paginated?.map(r => (
-          <tr key={r.id} className="hover:bg-muted/30 transition-colors">
-            <td className="p-4"><div className="font-bold">{r.company_name}</div><div className="text-xs text-muted-foreground">{r.full_name}</div></td>
-            <td className="p-4">
-              <div className="flex flex-col gap-1 text-xs">
-                <div className="flex items-center gap-1.5 text-muted-foreground"><Mail className="h-3 w-3" /> {r.email || 'No Email'}</div>
-                <div className="flex items-center gap-1.5 text-muted-foreground"><Phone className="h-3 w-3" /> {r.phone || 'No Phone'}</div>
-              </div>
-            </td>
-            <td className="p-4">
-              <button onClick={() => toggleVerify(r.id, r.is_verified)}>
-                {r.is_verified ? <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors"><CheckCircle2 className="mr-1 h-3 w-3" /> Verified</Badge> : <Badge variant="secondary" className="cursor-pointer hover:bg-muted transition-colors"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>}
-              </button>
-            </td>
-            <td className="p-4 text-muted-foreground">{r.industry || 'Tech'}</td>
-            <td className="p-4 text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</td>
-            <td className="p-4 text-right"><div className="flex justify-end gap-1"><ViewUserDialog user={r} kind="recruiter" /><Button variant="ghost" size="icon" asChild title="Public Profile"><Link to="/recruiters/$recId" params={{ recId: r.id }}><ExternalLink className="h-4 w-4" /></Link></Button><EditRecruiterDialog recruiter={r} user={{id: r.id}} onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })} /><Button variant="ghost" size="icon" className={r.is_suspended ? "text-amber-500" : "text-muted-foreground"} title={r.is_suspended ? "Unsuspend User" : "Suspend User"} onClick={() => toggleSuspend(r.id, r.is_suspended)}><UserMinus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="text-destructive" title="Delete Profile" onClick={() => deleteRec(r.id)}><Trash2 className="h-4 w-4" /></Button></div></td>
-          </tr>
-        ))}
-      </tbody></table></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search recruiters by name or email..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1);
+          }}
+        />
+      </div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
+            <tr>
+              <th className="p-4">Company</th>
+              <th className="p-4">Contact Info</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Industry</th>
+              <th className="p-4">Joined</th>
+              <th className="p-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center animate-pulse">
+                  Loading partners...
+                </td>
+              </tr>
+            ) : !paginated?.length ? (
+              <tr>
+                <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                  No recruiters found.
+                </td>
+              </tr>
+            ) : (
+              paginated?.map((r) => (
+                <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                  <td className="p-4">
+                    <div className="font-bold">{r.company_name}</div>
+                    <div className="text-xs text-muted-foreground">{r.full_name}</div>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex flex-col gap-1 text-xs">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Mail className="h-3 w-3" /> {r.email || "No Email"}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Phone className="h-3 w-3" /> {r.phone || "No Phone"}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <button onClick={() => toggleVerify(r.id, r.is_verified)}>
+                      {r.is_verified ? (
+                        <Badge className="bg-success/10 text-success border-success/20 cursor-pointer hover:bg-success/20 transition-colors">
+                          <CheckCircle2 className="mr-1 h-3 w-3" /> Verified
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="secondary"
+                          className="cursor-pointer hover:bg-muted transition-colors"
+                        >
+                          <Clock className="mr-1 h-3 w-3" /> Pending
+                        </Badge>
+                      )}
+                    </button>
+                  </td>
+                  <td className="p-4 text-muted-foreground">{r.industry || "Tech"}</td>
+                  <td className="p-4 text-xs text-muted-foreground">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="p-4 text-right">
+                    <div className="flex justify-end gap-1">
+                      <ViewUserDialog user={r} kind="recruiter" />
+                      <Button variant="ghost" size="icon" asChild title="Public Profile">
+                        <Link to="/recruiters/$recId" params={{ recId: r.id }}>
+                          <ExternalLink className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <EditRecruiterDialog
+                        recruiter={r}
+                        user={{ id: r.id }}
+                        onUpdate={() => qc.invalidateQueries({ queryKey: ["admin-recruiters"] })}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={r.is_suspended ? "text-amber-500" : "text-muted-foreground"}
+                        title={r.is_suspended ? "Unsuspend User" : "Suspend User"}
+                        onClick={() => toggleSuspend(r.id, r.is_suspended)}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        title="Delete Profile"
+                        onClick={() => deleteRec(r.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
       {totalPages > 1 && (
         <div className="flex justify-center gap-2 mt-4">
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>Previous</Button>
-          <span className="flex items-center px-3 text-sm text-muted-foreground">Page {currentPage} of {totalPages}</span>
-          <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Next</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            Previous
+          </Button>
+          <span className="flex items-center px-3 text-sm text-muted-foreground">
+            Page {currentPage} of {totalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            Next
+          </Button>
         </div>
       )}
     </div>
@@ -647,7 +1427,11 @@ function RecruitersTab() {
 function ProjectsTab() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
-  const { data: projs, isLoading, error } = useQuery({
+  const {
+    data: projs,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-projects"],
     queryFn: async () => {
       const [{ data: ps, error: pErr }, { data: recs }] = await Promise.all([
@@ -657,26 +1441,115 @@ function ProjectsTab() {
       if (pErr) throw pErr;
       const rMap = new Map((recs || []).map((r: any) => [r.id, r.company_name]));
       return (ps || []).map((p: any) => ({ ...p, company_name: rMap.get(p.recruiter_id) }));
-    }
+    },
   });
-  const filtered = projs?.filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.company_name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = projs?.filter(
+    (p) =>
+      !search ||
+      p.title?.toLowerCase().includes(search.toLowerCase()) ||
+      p.company_name?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  async function toggleFeatured(id: string, current: boolean) { const { error } = await supabase.from("projects").update({ is_featured: !current } as any).eq("id", id); if (error) toast.error(error.message); else { toast.success("Featured status updated"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
-  async function closeProj(id: string) { if (!confirm("Close this project?")) return; const { error } = await supabase.from("projects").update({ status: "closed" }).eq("id", id); if (error) toast.error(error.message); else { toast.success("Project closed"); qc.invalidateQueries({ queryKey: ["admin-projects"] }); } }
-  async function deleteProj(id: string) { if (!confirm("Delete project?")) return; const { error } = await supabase.from("projects").delete().eq("id", id); if (error) toast.error(error.message); else toast.success("Deleted"); }
+  async function toggleFeatured(id: string, current: boolean) {
+    const { error } = await supabase
+      .from("projects")
+      .update({ is_featured: !current } as any)
+      .eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Featured status updated");
+      qc.invalidateQueries({ queryKey: ["admin-projects"] });
+    }
+  }
+  async function closeProj(id: string) {
+    if (!confirm("Close this project?")) return;
+    const { error } = await supabase.from("projects").update({ status: "closed" }).eq("id", id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Project closed");
+      qc.invalidateQueries({ queryKey: ["admin-projects"] });
+    }
+  }
+  async function deleteProj(id: string) {
+    if (!confirm("Delete project?")) return;
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) toast.error(error.message);
+    else toast.success("Deleted");
+  }
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search projects or companies..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search projects or companies..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
-        {isLoading ? <p className="p-12 text-center animate-pulse col-span-full">Loading projects...</p> :
-         !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No projects found.</p> :
-         filtered.map(p => (
-          <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
-            <CardHeader className="p-4 pb-2"><div className="flex justify-between items-start"><Badge variant="secondary" className="capitalize">{p.status}</Badge><div className="flex gap-2"><Button variant="ghost" size="icon" onClick={() => toggleFeatured(p.id, p.is_featured)} title="Toggle Featured"><Star className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`} /></Button>{p.status !== 'closed' && <Button variant="ghost" size="icon" className="text-warning" onClick={() => closeProj(p.id)} title="Close Project"><XCircle className="h-4 w-4" /></Button>}<Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteProj(p.id)} title="Delete Project"><Trash2 className="h-4 w-4" /></Button></div></div><CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle><CardDescription>{p.company_name || "—"}</CardDescription></CardHeader>
-            <CardContent className="p-4 pt-0 flex justify-between items-center mt-2"><span className="text-xs font-bold text-accent">Budget: ₹{p.budget_min_inr?.toLocaleString()}</span><Button variant="link" size="sm" asChild className="p-0 h-auto"><Link to="/projects/$projectId" params={{ projectId: p.id }}>Details →</Link></Button></CardContent>
-          </Card>
-        ))}
+        {isLoading ? (
+          <p className="p-12 text-center animate-pulse col-span-full">Loading projects...</p>
+        ) : !filtered?.length ? (
+          <p className="p-12 text-center text-muted-foreground col-span-full">No projects found.</p>
+        ) : (
+          filtered.map((p) => (
+            <Card key={p.id} className={p.is_featured ? "border-accent ring-1 ring-accent/20" : ""}>
+              <CardHeader className="p-4 pb-2">
+                <div className="flex justify-between items-start">
+                  <Badge variant="secondary" className="capitalize">
+                    {p.status}
+                  </Badge>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => toggleFeatured(p.id, p.is_featured)}
+                      title="Toggle Featured"
+                    >
+                      <Star
+                        className={`h-4 w-4 ${p.is_featured ? "fill-accent text-accent" : ""}`}
+                      />
+                    </Button>
+                    {p.status !== "closed" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-warning"
+                        onClick={() => closeProj(p.id)}
+                        title="Close Project"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      onClick={() => deleteProj(p.id)}
+                      title="Delete Project"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <CardTitle className="text-base mt-2 line-clamp-1">{p.title}</CardTitle>
+                <CardDescription>{p.company_name || "—"}</CardDescription>
+              </CardHeader>
+              <CardContent className="p-4 pt-0 flex justify-between items-center mt-2">
+                <span className="text-xs font-bold text-accent">
+                  Budget: ₹{p.budget_min_inr?.toLocaleString()}
+                </span>
+                <Button variant="link" size="sm" asChild className="p-0 h-auto">
+                  <Link to="/projects/$projectId" params={{ projectId: p.id }}>
+                    Details →
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
@@ -685,7 +1558,11 @@ function ProjectsTab() {
 // --- APPLICATIONS ---
 function ApplicationsTab() {
   const [search, setSearch] = useState("");
-  const { data: apps, isLoading, error } = useQuery({
+  const {
+    data: apps,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-applications"],
     queryFn: async () => {
       const [{ data: as, error: aErr }, { data: ps }, { data: dvs }] = await Promise.all([
@@ -696,23 +1573,80 @@ function ApplicationsTab() {
       if (aErr) throw aErr;
       const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
       const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
-      return (as || []).map((a: any) => ({ ...a, project_title: pMap.get(a.project_id), developer_name: dMap.get(a.developer_id) }));
-    }
+      return (as || []).map((a: any) => ({
+        ...a,
+        project_title: pMap.get(a.project_id),
+        developer_name: dMap.get(a.developer_id),
+      }));
+    },
   });
-  const filtered = apps?.filter(a => !search || a.project_title?.toLowerCase().includes(search.toLowerCase()) || a.developer_name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = apps?.filter(
+    (a) =>
+      !search ||
+      a.project_title?.toLowerCase().includes(search.toLowerCase()) ||
+      a.developer_name?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by project or developer..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Developer</th><th className="p-4">Status</th><th className="p-4">Created</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
-         !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No applications found.</td></tr> :
-         filtered.map(a => (
-          <tr key={a.id}><td className="p-4 font-medium truncate max-w-[200px]">{a.project_title || "—"}</td><td className="p-4">{a.developer_name || "—"}</td><td className="p-4"><Badge variant="outline">{a.status}</Badge></td><td className="p-4 text-xs text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</td></tr>
-        ))}
-      </tbody></table></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by project or developer..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground">
+            <tr>
+              <th className="p-4">Project</th>
+              <th className="p-4">Developer</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="p-10 text-center animate-pulse">
+                  Loading...
+                </td>
+              </tr>
+            ) : !filtered?.length ? (
+              <tr>
+                <td colSpan={4} className="p-10 text-center text-muted-foreground">
+                  No applications found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((a) => (
+                <tr key={a.id}>
+                  <td className="p-4 font-medium truncate max-w-[200px]">
+                    {a.project_title || "—"}
+                  </td>
+                  <td className="p-4">{a.developer_name || "—"}</td>
+                  <td className="p-4">
+                    <Badge variant="outline">{a.status}</Badge>
+                  </td>
+                  <td className="p-4 text-xs text-muted-foreground">
+                    {new Date(a.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -720,39 +1654,80 @@ function ApplicationsTab() {
 // --- CONTACTS ---
 function ContactsTab() {
   const [search, setSearch] = useState("");
-  const { data: contacts, isLoading, error } = useQuery({
+  const {
+    data: contacts,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-contacts"],
     queryFn: async () => {
       const [{ data: cs, error: cErr }, { data: profs }] = await Promise.all([
-        supabase.from("contact_access_requests").select("*").order("created_at", { ascending: false }),
+        supabase
+          .from("contact_access_requests")
+          .select("*")
+          .order("created_at", { ascending: false }),
         supabase.from("profiles").select("id, full_name"),
       ]);
       if (cErr) throw cErr;
       const pMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
-      return (cs || []).map((c: any) => ({ ...c, requester_name: pMap.get(c.requester_id), target_name: pMap.get(c.target_id) }));
-    }
+      return (cs || []).map((c: any) => ({
+        ...c,
+        requester_name: pMap.get(c.requester_id),
+        target_name: pMap.get(c.target_id),
+      }));
+    },
   });
-  const filtered = contacts?.filter(c => !search || c.requester_name?.toLowerCase().includes(search.toLowerCase()) || c.target_name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = contacts?.filter(
+    (c) =>
+      !search ||
+      c.requester_name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.target_name?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by participant name..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by participant name..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        {isLoading ? <p className="p-12 text-center animate-pulse col-span-full">Loading requests...</p> :
-         !filtered?.length ? <p className="p-12 text-center text-muted-foreground col-span-full">No requests found.</p> :
-         filtered.map(c => (
-          <Card key={c.id}>
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold">{c.requester_name || "—"} → {c.target_name || "—"}</p>
-                <p className="text-xs text-muted-foreground">{new Date(c.created_at).toLocaleDateString()} · {c.status}</p>
-              </div>
-              <Badge className={c.status === 'approved' ? 'bg-success text-success-foreground' : ''}>{c.status}</Badge>
-            </CardContent>
-          </Card>
-        ))}
+        {isLoading ? (
+          <p className="p-12 text-center animate-pulse col-span-full">Loading requests...</p>
+        ) : !filtered?.length ? (
+          <p className="p-12 text-center text-muted-foreground col-span-full">No requests found.</p>
+        ) : (
+          filtered.map((c) => (
+            <Card key={c.id}>
+              <CardContent className="p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold">
+                    {c.requester_name || "—"} → {c.target_name || "—"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(c.created_at).toLocaleDateString()} · {c.status}
+                  </p>
+                </div>
+                <Badge
+                  className={c.status === "approved" ? "bg-success text-success-foreground" : ""}
+                >
+                  {c.status}
+                </Badge>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
     </div>
   );
@@ -761,7 +1736,11 @@ function ContactsTab() {
 // --- INVITES ---
 function InvitesTab() {
   const [search, setSearch] = useState("");
-  const { data: invites, isLoading, error } = useQuery({
+  const {
+    data: invites,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-invites"],
     queryFn: async () => {
       const [{ data: invs, error: iErr }, { data: ps }, { data: dvs }] = await Promise.all([
@@ -772,28 +1751,78 @@ function InvitesTab() {
       if (iErr) throw iErr;
       const pMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
       const dMap = new Map((dvs || []).map((d: any) => [d.id, d.full_name]));
-      return (invs || []).map((i: any) => ({ ...i, project_title: pMap.get(i.project_id), developer_name: dMap.get(i.developer_id) }));
-    }
+      return (invs || []).map((i: any) => ({
+        ...i,
+        project_title: pMap.get(i.project_id),
+        developer_name: dMap.get(i.developer_id),
+      }));
+    },
   });
-  const filtered = invites?.filter(i => !search || i.project_title?.toLowerCase().includes(search.toLowerCase()) || i.developer_name?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = invites?.filter(
+    (i) =>
+      !search ||
+      i.project_title?.toLowerCase().includes(search.toLowerCase()) ||
+      i.developer_name?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search by project or developer..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
-      <div className="rounded-xl border bg-card overflow-hidden"><table className="w-full text-sm text-left"><thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground"><tr><th className="p-4">Project</th><th className="p-4">Developer</th><th className="p-4">Status</th><th className="p-4">Created</th></tr></thead><tbody className="divide-y">
-        {isLoading ? <tr><td colSpan={4} className="p-10 text-center animate-pulse">Loading...</td></tr> :
-         !filtered?.length ? <tr><td colSpan={4} className="p-10 text-center text-muted-foreground">No invites found.</td></tr> :
-         filtered.map(i => (
-          <tr key={i.id}>
-            <td className="p-4 font-medium">{i.project_title || "—"}</td>
-            <td className="p-4">{i.developer_name || "—"}</td>
-            <td className="p-4"><Badge variant="outline">{i.status}</Badge></td>
-            <td className="p-4 text-xs text-muted-foreground">{new Date(i.created_at).toLocaleDateString()}</td>
-          </tr>
-        ))}
-      </tbody></table></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search by project or developer..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+      <div className="rounded-xl border bg-card overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b text-xs font-semibold uppercase text-muted-foreground">
+            <tr>
+              <th className="p-4">Project</th>
+              <th className="p-4">Developer</th>
+              <th className="p-4">Status</th>
+              <th className="p-4">Created</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {isLoading ? (
+              <tr>
+                <td colSpan={4} className="p-10 text-center animate-pulse">
+                  Loading...
+                </td>
+              </tr>
+            ) : !filtered?.length ? (
+              <tr>
+                <td colSpan={4} className="p-10 text-center text-muted-foreground">
+                  No invites found.
+                </td>
+              </tr>
+            ) : (
+              filtered.map((i) => (
+                <tr key={i.id}>
+                  <td className="p-4 font-medium">{i.project_title || "—"}</td>
+                  <td className="p-4">{i.developer_name || "—"}</td>
+                  <td className="p-4">
+                    <Badge variant="outline">{i.status}</Badge>
+                  </td>
+                  <td className="p-4 text-xs text-muted-foreground">
+                    {new Date(i.created_at).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -801,15 +1830,24 @@ function InvitesTab() {
 // --- CHATS ---
 function ChatsTab() {
   const [search, setSearch] = useState("");
-  const { data: messages, isLoading, error } = useQuery({
+  const {
+    data: messages,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["admin-chats"],
     queryFn: async () => {
-      const [{ data: msgs, error: mErr }, { data: profs }, { data: apps }, { data: ps }] = await Promise.all([
-        supabase.from("messages").select("*").order("created_at", { ascending: false }).limit(100),
-        supabase.from("profiles").select("id, full_name"),
-        supabase.from("applications").select("id, project_id"),
-        supabase.from("projects").select("id, title"),
-      ]);
+      const [{ data: msgs, error: mErr }, { data: profs }, { data: apps }, { data: ps }] =
+        await Promise.all([
+          supabase
+            .from("messages")
+            .select("*")
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase.from("profiles").select("id, full_name"),
+          supabase.from("applications").select("id, project_id"),
+          supabase.from("projects").select("id, title"),
+        ]);
       if (mErr) throw mErr;
       const profMap = new Map((profs || []).map((p: any) => [p.id, p.full_name]));
       const projMap = new Map((ps || []).map((p: any) => [p.id, p.title]));
@@ -819,34 +1857,68 @@ function ChatsTab() {
         sender_name: profMap.get(m.sender_id),
         project_title: appMap.get(m.application_id),
       }));
-    }
+    },
   });
-  const filtered = messages?.filter(m => !search || m.sender_name?.toLowerCase().includes(search.toLowerCase()) || m.project_title?.toLowerCase().includes(search.toLowerCase()) || m.body?.toLowerCase().includes(search.toLowerCase()));
+  const filtered = messages?.filter(
+    (m) =>
+      !search ||
+      m.sender_name?.toLowerCase().includes(search.toLowerCase()) ||
+      m.project_title?.toLowerCase().includes(search.toLowerCase()) ||
+      m.body?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load chats: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load chats: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Search messages, senders, or projects..." className="pl-9 bg-card" value={search} onChange={e => setSearch(e.target.value)} /></div>
+      <div className="relative max-w-md">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Search messages, senders, or projects..."
+          className="pl-9 bg-card"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
       <div className="flex items-center gap-2 text-amber-600 bg-amber-50 p-4 rounded-xl border border-amber-200">
         <AlertTriangle className="h-4 w-4" />
         <p className="text-xs font-medium">Platform-wide chat monitoring enabled for safety.</p>
       </div>
       <div className="space-y-2">
-        {isLoading ? <p className="p-12 text-center animate-pulse">Loading logs...</p> :
-         !filtered?.length ? <p className="p-12 text-center text-muted-foreground">No messages found.</p> :
-         filtered.map(m => (
-          <div key={m.id} className="p-4 rounded-lg border bg-card text-sm flex justify-between items-start gap-4 hover:bg-muted/30 transition-colors">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="font-bold text-accent">{m.sender_name || (m.sender_id || "").slice(0,8)}</span>
-                <span className="text-[10px] text-muted-foreground uppercase">in {m.project_title || "Unknown Project"}</span>
+        {isLoading ? (
+          <p className="p-12 text-center animate-pulse">Loading logs...</p>
+        ) : !filtered?.length ? (
+          <p className="p-12 text-center text-muted-foreground">No messages found.</p>
+        ) : (
+          filtered.map((m) => (
+            <div
+              key={m.id}
+              className="p-4 rounded-lg border bg-card text-sm flex justify-between items-start gap-4 hover:bg-muted/30 transition-colors"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-bold text-accent">
+                    {m.sender_name || (m.sender_id || "").slice(0, 8)}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground uppercase">
+                    in {m.project_title || "Unknown Project"}
+                  </span>
+                </div>
+                <p className="text-muted-foreground break-words">
+                  {m.body || ((m.attachments?.length ?? 0) > 0 ? "📎 Attachment" : "Empty Message")}
+                </p>
               </div>
-              <p className="text-muted-foreground break-words">{m.body || ((m.attachments?.length ?? 0) > 0 ? "📎 Attachment" : "Empty Message")}</p>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap pt-1">
+                {new Date(m.created_at).toLocaleString()}
+              </span>
             </div>
-            <span className="text-[10px] text-muted-foreground whitespace-nowrap pt-1">{new Date(m.created_at).toLocaleString()}</span>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
@@ -854,12 +1926,57 @@ function ChatsTab() {
 
 // --- ALERTS ---
 function AlertsTab() {
-  const { data: alerts, isLoading } = useQuery({ queryKey: ["admin-alerts"], queryFn: async () => { const { data } = await supabase.from("admin_alerts").select("*").order("created_at", { ascending: false }).limit(50); return data || []; } });
-  return (<div className="max-w-2xl mx-auto space-y-3">{isLoading ? <p>Loading alerts...</p> : alerts?.map(a => (<div key={a.id} className="flex gap-4 p-4 rounded-xl border bg-card shadow-sm"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">{a.type === 'registration' ? <UserRound className="h-5 w-5" /> : <Bell className="h-5 w-5" />}</div><div className="flex-1"><div className="flex items-center justify-between"><h4 className="font-bold text-sm">{a.title}</h4><span className="text-[10px] text-muted-foreground">{new Date(a.created_at).toLocaleDateString()}</span></div><p className="text-xs text-muted-foreground mt-1">{a.message}</p></div></div>))}</div>);
+  const { data: alerts, isLoading } = useQuery({
+    queryKey: ["admin-alerts"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("admin_alerts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      return data || [];
+    },
+  });
+  return (
+    <div className="max-w-2xl mx-auto space-y-3">
+      {isLoading ? (
+        <p>Loading alerts...</p>
+      ) : (
+        alerts?.map((a) => (
+          <div key={a.id} className="flex gap-4 p-4 rounded-xl border bg-card shadow-sm">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+              {a.type === "registration" ? (
+                <UserRound className="h-5 w-5" />
+              ) : (
+                <Bell className="h-5 w-5" />
+              )}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm">{a.title}</h4>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(a.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">{a.message}</p>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }
 
 // --- MODALS ---
-function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; user: any; onUpdate: () => void }) {
+function EditDeveloperDialog({
+  developer,
+  user,
+  onUpdate,
+}: {
+  developer: any;
+  user: any;
+  onUpdate: () => void;
+}) {
   const [form, setForm] = useState({
     full_name: developer.full_name || "",
     headline: developer.headline || "",
@@ -869,53 +1986,152 @@ function EditDeveloperDialog({ developer, user, onUpdate }: { developer: any; us
     location: developer.location || "",
     hourly_rate_inr: developer.hourly_rate_inr || 0,
     experience_years: developer.experience_years || 0,
-    phone: developer.phone || ""
+    phone: developer.phone || "",
   });
   const [open, setOpen] = useState(false);
   async function handleSave() {
-    const { error } = await supabase.from("developer_profiles").update({
-      full_name: form.full_name,
-      headline: form.headline,
-      skills: form.skills.split(",").map((s: string) => s.trim()).filter(Boolean),
-      is_verified: form.is_verified,
-      bio: form.bio,
-      location: form.location,
-      hourly_rate_inr: form.hourly_rate_inr,
-      experience_years: form.experience_years,
-    }).eq("id", user.id);
+    const { error } = await supabase
+      .from("developer_profiles")
+      .update({
+        full_name: form.full_name,
+        headline: form.headline,
+        skills: form.skills
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean),
+        is_verified: form.is_verified,
+        bio: form.bio,
+        location: form.location,
+        hourly_rate_inr: form.hourly_rate_inr,
+        experience_years: form.experience_years,
+      })
+      .eq("id", user.id);
     if (form.phone) {
-      await supabase.from("developer_phones" as any).upsert({ developer_id: user.id, phone: form.phone, updated_at: new Date().toISOString() } as any);
+      await supabase
+        .from("developer_phones" as any)
+        .upsert({
+          developer_id: user.id,
+          phone: form.phone,
+          updated_at: new Date().toISOString(),
+        } as any);
     }
     if (error) toast.error(error.message);
-    else { toast.success("Profile Updated"); setOpen(false); onUpdate(); }
+    else {
+      toast.success("Profile Updated");
+      setOpen(false);
+      onUpdate();
+    }
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="ghost" size="icon" title="Edit Profile"><Edit2 className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" title="Edit Profile">
+          <Edit2 className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Moderate Developer Profile</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Moderate Developer Profile</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1"><Label>Full Name</Label><Input value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} /></div>
-            <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
+            <div className="space-y-1">
+              <Label>Full Name</Label>
+              <Input
+                value={form.full_name}
+                onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Location</Label>
+              <Input
+                value={form.location}
+                onChange={(e) => setForm({ ...form, location: e.target.value })}
+              />
+            </div>
           </div>
-          <div className="space-y-1"><Label>Headline</Label><Input value={form.headline} onChange={e => setForm({...form, headline: e.target.value})} /></div>
+          <div className="space-y-1">
+            <Label>Headline</Label>
+            <Input
+              value={form.headline}
+              onChange={(e) => setForm({ ...form, headline: e.target.value })}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1"><Label>Hourly Rate (INR)</Label><Input type="number" value={form.hourly_rate_inr} onChange={e => setForm({...form, hourly_rate_inr: parseInt(e.target.value) || 0})} /></div>
-            <div className="space-y-1"><Label>Exp. Years</Label><Input type="number" value={form.experience_years} onChange={e => setForm({...form, experience_years: parseInt(e.target.value) || 0})} /></div>
+            <div className="space-y-1">
+              <Label>Hourly Rate (INR)</Label>
+              <Input
+                type="number"
+                value={form.hourly_rate_inr}
+                onChange={(e) =>
+                  setForm({ ...form, hourly_rate_inr: parseInt(e.target.value) || 0 })
+                }
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Exp. Years</Label>
+              <Input
+                type="number"
+                value={form.experience_years}
+                onChange={(e) =>
+                  setForm({ ...form, experience_years: parseInt(e.target.value) || 0 })
+                }
+              />
+            </div>
           </div>
-          <div className="space-y-1"><Label>Phone Number</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} placeholder="+91 ..." /></div>
-          <div className="space-y-1"><Label>Skills (comma separated)</Label><Input value={form.skills} onChange={e => setForm({...form, skills: e.target.value})} /></div>
-          <div className="space-y-1"><Label>Bio</Label><Textarea className="h-32" value={form.bio} onChange={e => setForm({...form, bio: e.target.value})} /></div>
-          <div className="flex items-center space-x-2 pt-2"><Checkbox id="v" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="v" className="font-bold text-success">Verified Badge Active</Label></div>
+          <div className="space-y-1">
+            <Label>Phone Number</Label>
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+91 ..."
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Skills (comma separated)</Label>
+            <Input
+              value={form.skills}
+              onChange={(e) => setForm({ ...form, skills: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Bio</Label>
+            <Textarea
+              className="h-32"
+              value={form.bio}
+              onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox
+              id="v"
+              checked={form.is_verified}
+              onCheckedChange={(v) => setForm({ ...form, is_verified: !!v })}
+            />
+            <Label htmlFor="v" className="font-bold text-success">
+              Verified Badge Active
+            </Label>
+          </div>
         </div>
-        <DialogFooter><Button onClick={handleSave} className="w-full">Save Changes</Button></DialogFooter>
+        <DialogFooter>
+          <Button onClick={handleSave} className="w-full">
+            Save Changes
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; user: any; onUpdate: () => void }) {
+function EditRecruiterDialog({
+  recruiter,
+  user,
+  onUpdate,
+}: {
+  recruiter: any;
+  user: any;
+  onUpdate: () => void;
+}) {
   const [form, setForm] = useState({
     company_name: recruiter.company_name || "",
     is_verified: recruiter.is_verified || false,
@@ -923,43 +2139,112 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
     location: recruiter.location || "",
     company_description: recruiter.company_description || "",
     company_website: recruiter.company_website || "",
-    phone: recruiter.phone || ""
+    phone: recruiter.phone || "",
   });
   const [open, setOpen] = useState(false);
   async function handleSave() {
-    const { error } = await supabase.from("recruiter_profiles").update({
-      company_name: form.company_name,
-      is_verified: form.is_verified,
-      industry: form.industry,
-      location: form.location,
-      company_description: form.company_description,
-      company_website: form.company_website,
-    }).eq("id", user.id);
+    const { error } = await supabase
+      .from("recruiter_profiles")
+      .update({
+        company_name: form.company_name,
+        is_verified: form.is_verified,
+        industry: form.industry,
+        location: form.location,
+        company_description: form.company_description,
+        company_website: form.company_website,
+      })
+      .eq("id", user.id);
     if (form.phone) {
-      await supabase.from("recruiter_phones" as any).upsert({ recruiter_id: user.id, phone: form.phone, updated_at: new Date().toISOString() } as any);
+      await supabase
+        .from("recruiter_phones" as any)
+        .upsert({
+          recruiter_id: user.id,
+          phone: form.phone,
+          updated_at: new Date().toISOString(),
+        } as any);
     }
     if (error) toast.error(error.message);
-    else { toast.success("Company Updated"); setOpen(false); onUpdate(); }
+    else {
+      toast.success("Company Updated");
+      setOpen(false);
+      onUpdate();
+    }
   }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="ghost" size="icon" title="Edit Company"><Edit2 className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" title="Edit Company">
+          <Edit2 className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader><DialogTitle>Moderate Company Profile</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Moderate Company Profile</DialogTitle>
+        </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1"><Label>Company Name</Label><Input value={form.company_name} onChange={e => setForm({...form, company_name: e.target.value})} /></div>
-            <div className="space-y-1"><Label>Industry</Label><Input value={form.industry} onChange={e => setForm({...form, industry: e.target.value})} /></div>
+            <div className="space-y-1">
+              <Label>Company Name</Label>
+              <Input
+                value={form.company_name}
+                onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Industry</Label>
+              <Input
+                value={form.industry}
+                onChange={(e) => setForm({ ...form, industry: e.target.value })}
+              />
+            </div>
           </div>
-          <div className="space-y-1"><Label>Location</Label><Input value={form.location} onChange={e => setForm({...form, location: e.target.value})} /></div>
+          <div className="space-y-1">
+            <Label>Location</Label>
+            <Input
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1"><Label>Website</Label><Input value={form.company_website} onChange={e => setForm({...form, company_website: e.target.value})} /></div>
-            <div className="space-y-1"><Label>Phone</Label><Input value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} /></div>
+            <div className="space-y-1">
+              <Label>Website</Label>
+              <Input
+                value={form.company_website}
+                onChange={(e) => setForm({ ...form, company_website: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label>Phone</Label>
+              <Input
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
+            </div>
           </div>
-          <div className="space-y-1"><Label>Description</Label><Textarea className="h-24" value={form.company_description} onChange={e => setForm({...form, company_description: e.target.value})} /></div>
-          <div className="flex items-center space-x-2 pt-2"><Checkbox id="rv" checked={form.is_verified} onCheckedChange={v => setForm({...form, is_verified: !!v})} /><Label htmlFor="rv" className="font-bold text-success">Verified Company Badge</Label></div>
+          <div className="space-y-1">
+            <Label>Description</Label>
+            <Textarea
+              className="h-24"
+              value={form.company_description}
+              onChange={(e) => setForm({ ...form, company_description: e.target.value })}
+            />
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            <Checkbox
+              id="rv"
+              checked={form.is_verified}
+              onCheckedChange={(v) => setForm({ ...form, is_verified: !!v })}
+            />
+            <Label htmlFor="rv" className="font-bold text-success">
+              Verified Company Badge
+            </Label>
+          </div>
         </div>
-        <DialogFooter><Button onClick={handleSave} className="w-full">Save Changes</Button></DialogFooter>
+        <DialogFooter>
+          <Button onClick={handleSave} className="w-full">
+            Save Changes
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -977,8 +2262,16 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
     queryFn: async () => {
       // Query profile_email_reminders logs count & last reminder sent
       const [{ data: remLogs }, { data: usersDb }] = await Promise.all([
-        supabase.from("profile_email_reminders" as any).select("*").eq("user_id", user.id).order("sent_at", { ascending: false }),
-        supabase.from("users" as any).select("reminders_disabled").eq("user_id", user.id).maybeSingle(),
+        supabase
+          .from("profile_email_reminders" as any)
+          .select("*")
+          .eq("user_id", user.id)
+          .order("sent_at", { ascending: false }),
+        supabase
+          .from("users" as any)
+          .select("reminders_disabled")
+          .eq("user_id", user.id)
+          .maybeSingle(),
       ]);
 
       const sentReminders = (remLogs || []).filter((r: any) => r.email_status === "sent");
@@ -989,9 +2282,19 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
       const cachedUser = allRemindersData?.users?.find((u: any) => u.id === user.id);
 
       // Re-fetch profile & subprofile to calculate completion percent accurately
-      const { data: p } = await supabase.from("profiles").select("avatar_url, full_name, created_at, updated_at").eq("id", user.id).maybeSingle();
-      const { data: dev } = kind === "developer" ? await supabase.from("developer_profiles").select("*").eq("id", user.id).maybeSingle() : { data: null };
-      const { data: rec } = kind === "recruiter" ? await supabase.from("recruiter_profiles").select("*").eq("id", user.id).maybeSingle() : { data: null };
+      const { data: p } = await supabase
+        .from("profiles")
+        .select("avatar_url, full_name, created_at, updated_at")
+        .eq("id", user.id)
+        .maybeSingle();
+      const { data: dev } =
+        kind === "developer"
+          ? await supabase.from("developer_profiles").select("*").eq("id", user.id).maybeSingle()
+          : { data: null };
+      const { data: rec } =
+        kind === "recruiter"
+          ? await supabase.from("recruiter_profiles").select("*").eq("id", user.id).maybeSingle()
+          : { data: null };
 
       // Calculate completion %
       const totalFields = kind === "developer" ? 7 : 5;
@@ -1021,7 +2324,7 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
         lastSignInAt: cachedUser?.lastSignInAt || user.last_sign_in_at || null,
         createdAt: p?.created_at || user.created_at,
       };
-    }
+    },
   });
 
   async function handleSendReminder() {
@@ -1031,8 +2334,8 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
       const res = await sendIndividualReminderServerFn({
         data: {
           userId: user.id,
-          adminEmail: currentUser.email
-        }
+          adminEmail: currentUser.email,
+        },
       });
       if (res.success) {
         toast.success("Profile reminder sent successfully!", { id: toastId });
@@ -1052,11 +2355,13 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
       const res = await toggleUserRemindersDisabledServerFn({
         data: {
           userId: user.id,
-          disabled: !details.remindersDisabled
-        }
+          disabled: !details.remindersDisabled,
+        },
       });
       if (res.success) {
-        toast.success(`Reminders ${!details.remindersDisabled ? "disabled" : "enabled"} for this user.`);
+        toast.success(
+          `Reminders ${!details.remindersDisabled ? "disabled" : "enabled"} for this user.`,
+        );
         qc.invalidateQueries({ queryKey: ["admin-user-details", user.id] });
         qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
       } else {
@@ -1069,10 +2374,21 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild><Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button></DialogTrigger>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" title="View Details">
+          <Eye className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">{user.full_name || (kind === "recruiter" ? user.company_name : "Anonymous")} {user.is_verified && <Badge className="bg-success text-success-foreground"><ShieldCheck className="mr-1 h-3 w-3" /> Verified</Badge>}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            {user.full_name || (kind === "recruiter" ? user.company_name : "Anonymous")}{" "}
+            {user.is_verified && (
+              <Badge className="bg-success text-success-foreground">
+                <ShieldCheck className="mr-1 h-3 w-3" /> Verified
+              </Badge>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="grid gap-3 py-2 text-sm">
           <Row k="User ID" v={<span className="font-mono text-xs">{user.id}</span>} />
@@ -1082,57 +2398,185 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
             <>
               <Row k="Headline" v={user.headline || "—"} />
               <Row k="Location" v={user.location || "—"} />
-              <Row k="Experience" v={user.experience_years ? `${user.experience_years} yrs` : "—"} />
-              <Row k="Hourly Rate" v={user.hourly_rate_inr ? `₹${user.hourly_rate_inr.toLocaleString()}` : "—"} />
+              <Row
+                k="Experience"
+                v={user.experience_years ? `${user.experience_years} yrs` : "—"}
+              />
+              <Row
+                k="Hourly Rate"
+                v={user.hourly_rate_inr ? `₹${user.hourly_rate_inr.toLocaleString()}` : "—"}
+              />
               <Row k="Available" v={user.is_available ? "Yes" : "No"} />
-              <Row k="Skills" v={<div className="flex flex-wrap gap-1 justify-end max-w-[60%]">{(user.skills || []).map((s: string) => <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>)}</div>} />
+              <Row
+                k="Skills"
+                v={
+                  <div className="flex flex-wrap gap-1 justify-end max-w-[60%]">
+                    {(user.skills || []).map((s: string) => (
+                      <Badge key={s} variant="outline" className="text-[10px]">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                }
+              />
               <Row k="Bio" v={<span className="text-right text-xs">{user.bio || "—"}</span>} />
-              <Row k="GitHub" v={user.github_url ? <a className="text-accent" href={user.github_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
-              <Row k="Portfolio" v={user.portfolio_url ? <a className="text-accent" href={user.portfolio_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
-              <Row k="LinkedIn" v={user.linkedin_url ? <a className="text-accent" href={user.linkedin_url} target="_blank" rel="noreferrer">Link</a> : "—"} />
+              <Row
+                k="GitHub"
+                v={
+                  user.github_url ? (
+                    <a
+                      className="text-accent"
+                      href={user.github_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Link
+                    </a>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <Row
+                k="Portfolio"
+                v={
+                  user.portfolio_url ? (
+                    <a
+                      className="text-accent"
+                      href={user.portfolio_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Link
+                    </a>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <Row
+                k="LinkedIn"
+                v={
+                  user.linkedin_url ? (
+                    <a
+                      className="text-accent"
+                      href={user.linkedin_url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Link
+                    </a>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
             </>
           ) : (
             <>
               <Row k="Company" v={user.company_name || "—"} />
               <Row k="Industry" v={user.industry || "—"} />
               <Row k="Location" v={user.location || "—"} />
-              <Row k="Website" v={user.company_website ? <a className="text-accent" href={user.company_website} target="_blank" rel="noreferrer">Link</a> : "—"} />
-              <Row k="About" v={<span className="text-right text-xs">{user.company_description || "—"}</span>} />
+              <Row
+                k="Website"
+                v={
+                  user.company_website ? (
+                    <a
+                      className="text-accent"
+                      href={user.company_website}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Link
+                    </a>
+                  ) : (
+                    "—"
+                  )
+                }
+              />
+              <Row
+                k="About"
+                v={<span className="text-right text-xs">{user.company_description || "—"}</span>}
+              />
             </>
           )}
-          <Row k="Suspended" v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"} />
+          <Row
+            k="Suspended"
+            v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"}
+          />
           <Row k="Joined" v={new Date(user.created_at).toLocaleString()} />
 
           {/* Detailed Reminders Stats and Actions */}
           <div className="border-t pt-3 mt-2">
-            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Reminder & Profile Status</h4>
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+              Reminder & Profile Status
+            </h4>
             {isLoading ? (
-              <div className="text-xs text-muted-foreground animate-pulse">Loading reminder details...</div>
+              <div className="text-xs text-muted-foreground animate-pulse">
+                Loading reminder details...
+              </div>
             ) : details ? (
               <div className="space-y-2">
-                <Row k="Profile Completion" v={
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">{details.completionPercentage}%</span>
-                    <div className="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
-                      <div className={`h-full rounded-full ${details.completionPercentage === 100 ? "bg-success" : "bg-amber-500"}`} style={{ width: `${details.completionPercentage}%` }}></div>
+                <Row
+                  k="Profile Completion"
+                  v={
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold">{details.completionPercentage}%</span>
+                      <div className="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${details.completionPercentage === 100 ? "bg-success" : "bg-amber-500"}`}
+                          style={{ width: `${details.completionPercentage}%` }}
+                        ></div>
+                      </div>
                     </div>
-                  </div>
-                } />
-                <Row k="Last Reminder Sent" v={details.lastReminderSentAt ? new Date(details.lastReminderSentAt).toLocaleString() : "Never"} />
+                  }
+                />
+                <Row
+                  k="Last Reminder Sent"
+                  v={
+                    details.lastReminderSentAt
+                      ? new Date(details.lastReminderSentAt).toLocaleString()
+                      : "Never"
+                  }
+                />
                 <Row k="Reminder Count" v={details.remindersCount} />
-                <Row k="Last Login" v={details.lastSignInAt ? new Date(details.lastSignInAt).toLocaleString() : "Never"} />
+                <Row
+                  k="Last Login"
+                  v={
+                    details.lastSignInAt ? new Date(details.lastSignInAt).toLocaleString() : "Never"
+                  }
+                />
                 <Row k="Registration Date" v={new Date(details.createdAt).toLocaleString()} />
 
                 <div className="flex flex-wrap gap-2 pt-3 justify-end">
-                  <Button size="xs" variant="outline" className="text-xs flex items-center gap-1" asChild>
-                    <Link to={kind === "developer" ? "/developers/$devId" : "/recruiters/$recId"} params={kind === "developer" ? { devId: user.id } : { recId: user.id }} onClick={() => setOpen(false)}>
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    className="text-xs flex items-center gap-1"
+                    asChild
+                  >
+                    <Link
+                      to={kind === "developer" ? "/developers/$devId" : "/recruiters/$recId"}
+                      params={kind === "developer" ? { devId: user.id } : { recId: user.id }}
+                      onClick={() => setOpen(false)}
+                    >
                       <ExternalLink className="h-3 w-3" /> View Profile
                     </Link>
                   </Button>
-                  <Button size="xs" variant={details.remindersDisabled ? "success" : "outline"} className="text-xs" onClick={handleToggleDisabled}>
+                  <Button
+                    size="xs"
+                    variant={details.remindersDisabled ? "success" : "outline"}
+                    className="text-xs"
+                    onClick={handleToggleDisabled}
+                  >
                     {details.remindersDisabled ? "Enable Reminders" : "Disable Reminders"}
                   </Button>
-                  <Button size="xs" className="bg-gradient-accent text-xs flex items-center gap-1" disabled={details.completionPercentage === 100 || details.remindersDisabled} onClick={handleSendReminder}>
+                  <Button
+                    size="xs"
+                    className="bg-gradient-accent text-xs flex items-center gap-1"
+                    disabled={details.completionPercentage === 100 || details.remindersDisabled}
+                    onClick={handleSendReminder}
+                  >
                     <Mail className="h-3 w-3" /> Send Reminder
                   </Button>
                 </div>
@@ -1148,7 +2592,12 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
 }
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return <div className="flex items-start justify-between gap-3 border-b pb-2"><span className="text-muted-foreground text-xs uppercase font-semibold">{k}</span><span className="font-medium text-right">{v}</span></div>;
+  return (
+    <div className="flex items-start justify-between gap-3 border-b pb-2">
+      <span className="text-muted-foreground text-xs uppercase font-semibold">{k}</span>
+      <span className="font-medium text-right">{v}</span>
+    </div>
+  );
 }
 
 function RemindersTab() {
@@ -1161,9 +2610,15 @@ function RemindersTab() {
 
   // Bulk action confirmation dialog state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkTarget, setBulkTarget] = useState<"selected" | "devs" | "recs" | "incomplete" | "google" | "manual" | null>(null);
+  const [bulkTarget, setBulkTarget] = useState<
+    "selected" | "devs" | "recs" | "incomplete" | "google" | "manual" | null
+  >(null);
   const [isSending, setIsSending] = useState(false);
-  const [sendingResult, setSendingResult] = useState<{ total: number; delivered: number; failed: number } | null>(null);
+  const [sendingResult, setSendingResult] = useState<{
+    total: number;
+    delivered: number;
+    failed: number;
+  } | null>(null);
 
   const qc = useQueryClient();
 
@@ -1171,7 +2626,7 @@ function RemindersTab() {
     queryKey: ["admin-reminders-data"],
     queryFn: async () => {
       return getAdminReminderManagerData();
-    }
+    },
   });
 
   const users = data?.users || [];
@@ -1184,14 +2639,15 @@ function RemindersTab() {
     incompleteProfiles: 0,
     completionRate: 0,
     sentToday: 0,
-    pendingReminders: 0
+    pendingReminders: 0,
   };
 
   // Filter users
   const filteredUsers = useMemo(() => {
-    return users.filter(u => {
+    return users.filter((u) => {
       // Search
-      const matchesSearch = !search ||
+      const matchesSearch =
+        !search ||
         u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase());
 
@@ -1199,26 +2655,39 @@ function RemindersTab() {
 
       // Filter
       switch (filter) {
-        case "dev": return u.role === "developer";
-        case "rec": return u.role === "recruiter";
-        case "google": return u.isGoogle;
-        case "manual": return !u.isGoogle;
-        case "below30": return u.completionPercentage < 30;
-        case "below50": return u.completionPercentage < 50;
-        case "below80": return u.completionPercentage < 80;
-        case "neverUpdated": return u.neverUpdated;
-        case "neverLoggedInAgain": return u.neverLoggedInAgain;
-        case "active": return u.isActive;
-        case "inactive": return !u.isActive;
-        default: return true;
+        case "dev":
+          return u.role === "developer";
+        case "rec":
+          return u.role === "recruiter";
+        case "google":
+          return u.isGoogle;
+        case "manual":
+          return !u.isGoogle;
+        case "below30":
+          return u.completionPercentage < 30;
+        case "below50":
+          return u.completionPercentage < 50;
+        case "below80":
+          return u.completionPercentage < 80;
+        case "neverUpdated":
+          return u.neverUpdated;
+        case "neverLoggedInAgain":
+          return u.neverLoggedInAgain;
+        case "active":
+          return u.isActive;
+        case "inactive":
+          return !u.isActive;
+        default:
+          return true;
       }
     });
   }, [users, search, filter]);
 
   // Filter history
   const filteredHistory = useMemo(() => {
-    return history.filter(h => {
-      const matchesSearch = !historySearch ||
+    return history.filter((h) => {
+      const matchesSearch =
+        !historySearch ||
         h.userName?.toLowerCase().includes(historySearch.toLowerCase()) ||
         h.email?.toLowerCase().includes(historySearch.toLowerCase());
 
@@ -1232,22 +2701,22 @@ function RemindersTab() {
   // Bulk target users calculation
   const bulkTargetUsers = useMemo(() => {
     if (bulkTarget === "selected") {
-      return users.filter(u => selectedUserIds.includes(u.id));
+      return users.filter((u) => selectedUserIds.includes(u.id));
     }
     if (bulkTarget === "devs") {
-      return users.filter(u => u.role === "developer" && u.completionPercentage < 100);
+      return users.filter((u) => u.role === "developer" && u.completionPercentage < 100);
     }
     if (bulkTarget === "recs") {
-      return users.filter(u => u.role === "recruiter" && u.completionPercentage < 100);
+      return users.filter((u) => u.role === "recruiter" && u.completionPercentage < 100);
     }
     if (bulkTarget === "incomplete") {
-      return users.filter(u => u.completionPercentage < 100);
+      return users.filter((u) => u.completionPercentage < 100);
     }
     if (bulkTarget === "google") {
-      return users.filter(u => u.isGoogle && u.completionPercentage < 100);
+      return users.filter((u) => u.isGoogle && u.completionPercentage < 100);
     }
     if (bulkTarget === "manual") {
-      return users.filter(u => !u.isGoogle && u.completionPercentage < 100);
+      return users.filter((u) => !u.isGoogle && u.completionPercentage < 100);
     }
     return [];
   }, [users, bulkTarget, selectedUserIds]);
@@ -1259,15 +2728,15 @@ function RemindersTab() {
     try {
       const res = await sendBulkRemindersServerFn({
         data: {
-          userIds: bulkTargetUsers.map(u => u.id),
-          adminEmail: currentUser.email
-        }
+          userIds: bulkTargetUsers.map((u) => u.id),
+          adminEmail: currentUser.email,
+        },
       });
       if (res.success) {
         setSendingResult({
           total: res.totalSent,
           delivered: res.delivered,
-          failed: res.failed
+          failed: res.failed,
         });
         toast.success(`Sent bulk reminders to ${res.totalSent} users.`);
         qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
@@ -1289,8 +2758,8 @@ function RemindersTab() {
       const res = await sendIndividualReminderServerFn({
         data: {
           userId,
-          adminEmail: currentUser.email
-        }
+          adminEmail: currentUser.email,
+        },
       });
       if (res.success) {
         toast.success("Profile reminder sent successfully!", { id: toastId });
@@ -1309,8 +2778,8 @@ function RemindersTab() {
       const res = await toggleUserRemindersDisabledServerFn({
         data: {
           userId,
-          disabled: !currentVal
-        }
+          disabled: !currentVal,
+        },
       });
       if (res.success) {
         toast.success(`Reminders ${!currentVal ? "disabled" : "enabled"} for this user.`);
@@ -1327,19 +2796,24 @@ function RemindersTab() {
     if (selectedUserIds.length === filteredUsers.length) {
       setSelectedUserIds([]);
     } else {
-      setSelectedUserIds(filteredUsers.map(u => u.id));
+      setSelectedUserIds(filteredUsers.map((u) => u.id));
     }
   };
 
   const toggleSelectUser = (id: string) => {
     if (selectedUserIds.includes(id)) {
-      setSelectedUserIds(selectedUserIds.filter(userId => userId !== id));
+      setSelectedUserIds(selectedUserIds.filter((userId) => userId !== id));
     } else {
       setSelectedUserIds([...selectedUserIds, id]);
     }
   };
 
-  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load reminder manager: {(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+        Failed to load reminder manager: {(error as Error).message}
+      </div>
+    );
 
   return (
     <div className="space-y-6">
@@ -1347,40 +2821,95 @@ function RemindersTab() {
       {isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-pulse">
           {[...Array(8)].map((_, i) => (
-            <Card key={i} className="bg-card"><CardContent className="p-6"><div className="h-4 w-24 bg-muted rounded mb-2"></div><div className="h-8 w-12 bg-muted rounded"></div></CardContent></Card>
+            <Card key={i} className="bg-card">
+              <CardContent className="p-6">
+                <div className="h-4 w-24 bg-muted rounded mb-2"></div>
+                <div className="h-8 w-12 bg-muted rounded"></div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard title="Total Users" value={stats.totalUsers} desc="All registered users" icon={Users} />
-          <SummaryCard title="Total Developers" value={stats.totalDevelopers} desc="Users with developer role" icon={UserRound} />
-          <SummaryCard title="Total Recruiters" value={stats.totalRecruiters} desc="Users with recruiter role" icon={Briefcase} />
-          <SummaryCard title="Profile Completion" value={`${stats.completionRate}%`} desc={`${stats.completeProfiles} complete, ${stats.incompleteProfiles} incomplete`} icon={ShieldCheck} />
-          <SummaryCard title="Incomplete Profiles" value={stats.incompleteProfiles} desc="Need reminder attention" icon={AlertTriangle} className="text-amber-500" />
-          <SummaryCard title="Sent Today" value={stats.sentToday} desc="Reminder emails successfully sent" icon={Mail} className="text-teal-500" />
-          <SummaryCard title="Pending Reminders" value={stats.pendingReminders} desc="Incomplete & eligible for next stage" icon={Clock} className="text-accent" />
+          <SummaryCard
+            title="Total Users"
+            value={stats.totalUsers}
+            desc="All registered users"
+            icon={Users}
+          />
+          <SummaryCard
+            title="Total Developers"
+            value={stats.totalDevelopers}
+            desc="Users with developer role"
+            icon={UserRound}
+          />
+          <SummaryCard
+            title="Total Recruiters"
+            value={stats.totalRecruiters}
+            desc="Users with recruiter role"
+            icon={Briefcase}
+          />
+          <SummaryCard
+            title="Profile Completion"
+            value={`${stats.completionRate}%`}
+            desc={`${stats.completeProfiles} complete, ${stats.incompleteProfiles} incomplete`}
+            icon={ShieldCheck}
+          />
+          <SummaryCard
+            title="Incomplete Profiles"
+            value={stats.incompleteProfiles}
+            desc="Need reminder attention"
+            icon={AlertTriangle}
+            className="text-amber-500"
+          />
+          <SummaryCard
+            title="Sent Today"
+            value={stats.sentToday}
+            desc="Reminder emails successfully sent"
+            icon={Mail}
+            className="text-teal-500"
+          />
+          <SummaryCard
+            title="Pending Reminders"
+            value={stats.pendingReminders}
+            desc="Incomplete & eligible for next stage"
+            icon={Clock}
+            className="text-accent"
+          />
         </div>
       )}
 
       {/* Directory & History split */}
       <div className="space-y-6">
         <div className="flex flex-col gap-6">
-
           {/* User Reminders and Operations Card */}
           <Card className="bg-card">
             <CardHeader className="pb-3 border-b">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                   <CardTitle>Profile Reminder Directory</CardTitle>
-                  <CardDescription>Manage, filter, and send individual or bulk reminder emails to users.</CardDescription>
+                  <CardDescription>
+                    Manage, filter, and send individual or bulk reminder emails to users.
+                  </CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Select value={bulkTarget || ""} onValueChange={(val) => { if (val) { setBulkTarget(val as any); setSendingResult(null); setBulkDialogOpen(true); } }}>
+                  <Select
+                    value={bulkTarget || ""}
+                    onValueChange={(val) => {
+                      if (val) {
+                        setBulkTarget(val as any);
+                        setSendingResult(null);
+                        setBulkDialogOpen(true);
+                      }
+                    }}
+                  >
                     <SelectTrigger className="w-[180px] bg-secondary text-secondary-foreground">
                       <SelectValue placeholder="Bulk Actions 📧" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="selected" disabled={!selectedUserIds.length}>Send to Selected ({selectedUserIds.length})</SelectItem>
+                      <SelectItem value="selected" disabled={!selectedUserIds.length}>
+                        Send to Selected ({selectedUserIds.length})
+                      </SelectItem>
                       <SelectItem value="devs">Send to All Incomplete Devs</SelectItem>
                       <SelectItem value="recs">Send to All Incomplete Recs</SelectItem>
                       <SelectItem value="incomplete">Send to All Incomplete Profiles</SelectItem>
@@ -1396,7 +2925,12 @@ function RemindersTab() {
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search users by name or email..." className="pl-9 bg-muted/30" value={search} onChange={e => setSearch(e.target.value)} />
+                  <Input
+                    placeholder="Search users by name or email..."
+                    className="pl-9 bg-muted/30"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Select value={filter} onValueChange={setFilter}>
@@ -1427,7 +2961,13 @@ function RemindersTab() {
                   <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
                     <tr>
                       <th className="p-4 w-12 text-center">
-                        <Checkbox checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length} onCheckedChange={toggleSelectAll} />
+                        <Checkbox
+                          checked={
+                            filteredUsers.length > 0 &&
+                            selectedUserIds.length === filteredUsers.length
+                          }
+                          onCheckedChange={toggleSelectAll}
+                        />
                       </th>
                       <th className="p-4">User</th>
                       <th className="p-4">Email / Role</th>
@@ -1439,48 +2979,105 @@ function RemindersTab() {
                   </thead>
                   <tbody className="divide-y">
                     {isLoading ? (
-                      <tr><td colSpan={7} className="p-12 text-center animate-pulse text-muted-foreground">Loading directory users...</td></tr>
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="p-12 text-center animate-pulse text-muted-foreground"
+                        >
+                          Loading directory users...
+                        </td>
+                      </tr>
                     ) : !filteredUsers.length ? (
-                      <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">No users found matching criteria.</td></tr>
+                      <tr>
+                        <td colSpan={7} className="p-12 text-center text-muted-foreground">
+                          No users found matching criteria.
+                        </td>
+                      </tr>
                     ) : (
-                      filteredUsers.map(u => (
+                      filteredUsers.map((u) => (
                         <tr key={u.id} className="hover:bg-muted/10 transition-colors">
                           <td className="p-4 text-center">
-                            <Checkbox checked={selectedUserIds.includes(u.id)} onCheckedChange={() => toggleSelectUser(u.id)} />
+                            <Checkbox
+                              checked={selectedUserIds.includes(u.id)}
+                              onCheckedChange={() => toggleSelectUser(u.id)}
+                            />
                           </td>
                           <td className="p-4">
                             <div className="font-bold flex items-center gap-1.5">
                               {u.full_name}
-                              {u.isGoogle && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-semibold">G</span>}
+                              {u.isGoogle && (
+                                <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-semibold">
+                                  G
+                                </span>
+                              )}
                             </div>
-                            <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[150px]">{u.id}</div>
+                            <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[150px]">
+                              {u.id}
+                            </div>
                           </td>
                           <td className="p-4">
                             <div className="text-muted-foreground">{u.email}</div>
-                            <Badge variant="outline" className="capitalize text-[10px] mt-0.5">{u.role}</Badge>
+                            <Badge variant="outline" className="capitalize text-[10px] mt-0.5">
+                              {u.role}
+                            </Badge>
                           </td>
                           <td className="p-4">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-xs">{u.completionPercentage}%</span>
                               <div className="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
-                                <div className={`h-full rounded-full ${u.completionPercentage === 100 ? "bg-success" : u.completionPercentage > 50 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${u.completionPercentage}%` }}></div>
+                                <div
+                                  className={`h-full rounded-full ${u.completionPercentage === 100 ? "bg-success" : u.completionPercentage > 50 ? "bg-amber-500" : "bg-destructive"}`}
+                                  style={{ width: `${u.completionPercentage}%` }}
+                                ></div>
                               </div>
                             </div>
                           </td>
                           <td className="p-4 text-xs text-muted-foreground">
-                            <div>Count: <span className="font-semibold text-foreground">{u.remindersCount}</span></div>
-                            <div className="text-[10px]">Last: {u.lastReminderSentAt ? new Date(u.lastReminderSentAt).toLocaleDateString() : "Never"}</div>
+                            <div>
+                              Count:{" "}
+                              <span className="font-semibold text-foreground">
+                                {u.remindersCount}
+                              </span>
+                            </div>
+                            <div className="text-[10px]">
+                              Last:{" "}
+                              {u.lastReminderSentAt
+                                ? new Date(u.lastReminderSentAt).toLocaleDateString()
+                                : "Never"}
+                            </div>
                           </td>
                           <td className="p-4 text-xs text-muted-foreground">
-                            {u.lastSignInAt ? new Date(u.lastSignInAt).toLocaleDateString() : "Never"}
+                            {u.lastSignInAt
+                              ? new Date(u.lastSignInAt).toLocaleDateString()
+                              : "Never"}
                           </td>
                           <td className="p-4 text-right">
                             <div className="flex justify-end items-center gap-1">
-                              <ViewUserDialog user={users.find(usr => usr.id === u.id) as any} kind={u.role as any} />
-                              <Button variant="ghost" size="icon" title="Send Profile Reminder Immediately" disabled={u.completionPercentage === 100 || u.remindersDisabled} className="text-teal-500 hover:text-teal-600 disabled:opacity-30" onClick={() => handleSendSingle(u.id)}>
+                              <ViewUserDialog
+                                user={users.find((usr) => usr.id === u.id) as any}
+                                kind={u.role as any}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title="Send Profile Reminder Immediately"
+                                disabled={u.completionPercentage === 100 || u.remindersDisabled}
+                                className="text-teal-500 hover:text-teal-600 disabled:opacity-30"
+                                onClick={() => handleSendSingle(u.id)}
+                              >
                                 <Mail className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" title={u.remindersDisabled ? "Enable Reminders" : "Disable Reminders"} className={u.remindersDisabled ? "text-amber-500" : "text-muted-foreground"} onClick={() => handleToggleDisabled(u.id, u.remindersDisabled)}>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                title={
+                                  u.remindersDisabled ? "Enable Reminders" : "Disable Reminders"
+                                }
+                                className={
+                                  u.remindersDisabled ? "text-amber-500" : "text-muted-foreground"
+                                }
+                                onClick={() => handleToggleDisabled(u.id, u.remindersDisabled)}
+                              >
                                 <Clock className="h-4 w-4" />
                               </Button>
                             </div>
@@ -1498,13 +3095,20 @@ function RemindersTab() {
           <Card className="bg-card">
             <CardHeader className="pb-3 border-b">
               <CardTitle>Email Reminder History Log</CardTitle>
-              <CardDescription>Comprehensive audit log of all system and manual profile reminder emails sent.</CardDescription>
+              <CardDescription>
+                Comprehensive audit log of all system and manual profile reminder emails sent.
+              </CardDescription>
             </CardHeader>
             <CardContent className="pt-6 space-y-4">
               <div className="flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input placeholder="Search history by recipient name or email..." className="pl-9 bg-muted/30" value={historySearch} onChange={e => setHistorySearch(e.target.value)} />
+                  <Input
+                    placeholder="Search history by recipient name or email..."
+                    className="pl-9 bg-muted/30"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                  />
                 </div>
                 <div className="flex gap-2">
                   <Select value={historyFilter} onValueChange={setHistoryFilter}>
@@ -1536,31 +3140,56 @@ function RemindersTab() {
                   </thead>
                   <tbody className="divide-y">
                     {isLoading ? (
-                      <tr><td colSpan={6} className="p-12 text-center animate-pulse text-muted-foreground">Loading history logs...</td></tr>
+                      <tr>
+                        <td
+                          colSpan={6}
+                          className="p-12 text-center animate-pulse text-muted-foreground"
+                        >
+                          Loading history logs...
+                        </td>
+                      </tr>
                     ) : !filteredHistory.length ? (
-                      <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No history records found matching criteria.</td></tr>
+                      <tr>
+                        <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                          No history records found matching criteria.
+                        </td>
+                      </tr>
                     ) : (
-                      filteredHistory.slice(0, 100).map(h => (
+                      filteredHistory.slice(0, 100).map((h) => (
                         <tr key={h.id} className="hover:bg-muted/10 transition-colors">
                           <td className="p-4">
                             <div className="font-bold">{h.userName}</div>
                             <div className="text-xs text-muted-foreground">{h.email}</div>
                           </td>
                           <td className="p-4">
-                            <Badge variant="outline" className="capitalize text-[10px]">{h.role}</Badge>
+                            <Badge variant="outline" className="capitalize text-[10px]">
+                              {h.role}
+                            </Badge>
                           </td>
                           <td className="p-4 text-xs font-mono">
-                            {h.reminderType === "automatic" ? `Automatic (Day ${h.reminderStage})` : "Manual"}
+                            {h.reminderType === "automatic"
+                              ? `Automatic (Day ${h.reminderStage})`
+                              : "Manual"}
                           </td>
-                          <td className="p-4 text-xs text-muted-foreground">
-                            {h.sentBy}
-                          </td>
+                          <td className="p-4 text-xs text-muted-foreground">{h.sentBy}</td>
                           <td className="p-4 text-xs text-muted-foreground">
                             {new Date(h.sentAt).toLocaleString()}
                           </td>
                           <td className="p-4 text-right">
-                            <Badge className={h.emailStatus === "sent" ? "bg-success/15 text-success hover:bg-success/20 border-0" : h.emailStatus === "failed" ? "bg-destructive/15 text-destructive hover:bg-destructive/20 border-0" : "bg-muted text-muted-foreground border-0"}>
-                              {h.emailStatus === "sent" ? "Sent Successfully" : h.emailStatus === "failed" ? "Failed" : "Skipped (Completed)"}
+                            <Badge
+                              className={
+                                h.emailStatus === "sent"
+                                  ? "bg-success/15 text-success hover:bg-success/20 border-0"
+                                  : h.emailStatus === "failed"
+                                    ? "bg-destructive/15 text-destructive hover:bg-destructive/20 border-0"
+                                    : "bg-muted text-muted-foreground border-0"
+                              }
+                            >
+                              {h.emailStatus === "sent"
+                                ? "Sent Successfully"
+                                : h.emailStatus === "failed"
+                                  ? "Failed"
+                                  : "Skipped (Completed)"}
                             </Badge>
                           </td>
                         </tr>
@@ -1571,7 +3200,6 @@ function RemindersTab() {
               </div>
             </CardContent>
           </Card>
-
         </div>
       </div>
 
@@ -1585,12 +3213,16 @@ function RemindersTab() {
             {isSending ? (
               <div className="flex flex-col items-center justify-center p-6 space-y-3">
                 <div className="h-8 w-8 rounded-full border-4 border-t-primary animate-spin"></div>
-                <div className="text-sm font-semibold text-center">Sending profile reminders...</div>
+                <div className="text-sm font-semibold text-center">
+                  Sending profile reminders...
+                </div>
                 <div className="text-xs text-muted-foreground">Please do not close this modal.</div>
               </div>
             ) : sendingResult ? (
               <div className="space-y-4">
-                <div className="text-sm font-bold text-success text-center">🎉 Bulk Reminders Complete!</div>
+                <div className="text-sm font-bold text-success text-center">
+                  🎉 Bulk Reminders Complete!
+                </div>
                 <div className="grid grid-cols-3 gap-2 text-center p-4 bg-muted rounded-xl">
                   <div>
                     <div className="text-xs text-muted-foreground">Total Sent</div>
@@ -1606,7 +3238,14 @@ function RemindersTab() {
                   </div>
                 </div>
                 {sendingResult.failed > 0 && (
-                  <Button variant="outline" className="w-full text-xs text-destructive border-destructive/20 hover:bg-destructive/10" onClick={() => { setSendingResult(null); handleSendBulk(); }}>
+                  <Button
+                    variant="outline"
+                    className="w-full text-xs text-destructive border-destructive/20 hover:bg-destructive/10"
+                    onClick={() => {
+                      setSendingResult(null);
+                      handleSendBulk();
+                    }}
+                  >
                     Retry Failed Reminders
                   </Button>
                 )}
@@ -1614,27 +3253,60 @@ function RemindersTab() {
             ) : (
               <>
                 <p className="text-sm">
-                  Send reminder emails to <strong className="text-foreground">{bulkTargetUsers.length} users</strong>?
+                  Send reminder emails to{" "}
+                  <strong className="text-foreground">{bulkTargetUsers.length} users</strong>?
                 </p>
                 <div className="p-3 bg-muted rounded-xl text-xs space-y-1 font-mono text-muted-foreground">
-                  <div>Target Group: <span className="text-foreground capitalize font-bold">{bulkTarget === "devs" ? "Incomplete Developers" : bulkTarget === "recs" ? "Incomplete Recruiters" : bulkTarget}</span></div>
-                  <div>Eligible Recipients: <span className="text-foreground font-bold">{bulkTargetUsers.length}</span></div>
+                  <div>
+                    Target Group:{" "}
+                    <span className="text-foreground capitalize font-bold">
+                      {bulkTarget === "devs"
+                        ? "Incomplete Developers"
+                        : bulkTarget === "recs"
+                          ? "Incomplete Recruiters"
+                          : bulkTarget}
+                    </span>
+                  </div>
+                  <div>
+                    Eligible Recipients:{" "}
+                    <span className="text-foreground font-bold">{bulkTargetUsers.length}</span>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Reminders will be sent immediately using the standard Resend email template. Any users with reminders disabled or 100% complete profiles are automatically bypassed.
+                  Reminders will be sent immediately using the standard Resend email template. Any
+                  users with reminders disabled or 100% complete profiles are automatically
+                  bypassed.
                 </p>
               </>
             )}
           </div>
           {!isSending && !sendingResult && (
             <DialogFooter className="flex sm:justify-between gap-2">
-              <Button variant="ghost" onClick={() => { setBulkDialogOpen(false); setBulkTarget(null); }}>Cancel</Button>
-              <Button className="bg-gradient-accent" onClick={handleSendBulk}>Send Emails</Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setBulkDialogOpen(false);
+                  setBulkTarget(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button className="bg-gradient-accent" onClick={handleSendBulk}>
+                Send Emails
+              </Button>
             </DialogFooter>
           )}
           {sendingResult && (
             <DialogFooter>
-              <Button onClick={() => { setBulkDialogOpen(false); setBulkTarget(null); setSendingResult(null); }}>Close</Button>
+              <Button
+                onClick={() => {
+                  setBulkDialogOpen(false);
+                  setBulkTarget(null);
+                  setSendingResult(null);
+                }}
+              >
+                Close
+              </Button>
             </DialogFooter>
           )}
         </DialogContent>
@@ -1643,12 +3315,28 @@ function RemindersTab() {
   );
 }
 
-function SummaryCard({ title, value, desc, icon: Icon, className = "", children }: { title: string; value: any; desc: string; icon: any; className?: string; children?: React.ReactNode }) {
+function SummaryCard({
+  title,
+  value,
+  desc,
+  icon: Icon,
+  className = "",
+  children,
+}: {
+  title: string;
+  value: any;
+  desc: string;
+  icon: any;
+  className?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <Card className="bg-card">
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            {title}
+          </span>
           <Icon className={`h-5 w-5 text-muted-foreground ${className}`} />
         </div>
         <div className="mt-2 flex items-baseline gap-2">
