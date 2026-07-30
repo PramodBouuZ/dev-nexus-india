@@ -1029,8 +1029,10 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
     const toastId = toast.loading("Sending profile reminder...");
     try {
       const res = await sendIndividualReminderServerFn({
-        userId: user.id,
-        adminEmail: currentUser.email
+        data: {
+          userId: user.id,
+          adminEmail: currentUser.email
+        }
       });
       if (res.success) {
         toast.success("Profile reminder sent successfully!", { id: toastId });
@@ -1048,8 +1050,10 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
     if (!details) return;
     try {
       const res = await toggleUserRemindersDisabledServerFn({
-        userId: user.id,
-        disabled: !details.remindersDisabled
+        data: {
+          userId: user.id,
+          disabled: !details.remindersDisabled
+        }
       });
       if (res.success) {
         toast.success(`Reminders ${!details.remindersDisabled ? "disabled" : "enabled"} for this user.`);
@@ -1254,8 +1258,10 @@ function RemindersTab() {
     setIsSending(true);
     try {
       const res = await sendBulkRemindersServerFn({
-        userIds: bulkTargetUsers.map(u => u.id),
-        adminEmail: currentUser.email
+        data: {
+          userIds: bulkTargetUsers.map(u => u.id),
+          adminEmail: currentUser.email
+        }
       });
       if (res.success) {
         setSendingResult({
@@ -1281,8 +1287,10 @@ function RemindersTab() {
     const toastId = toast.loading("Sending profile reminder...");
     try {
       const res = await sendIndividualReminderServerFn({
-        userId,
-        adminEmail: currentUser.email
+        data: {
+          userId,
+          adminEmail: currentUser.email
+        }
       });
       if (res.success) {
         toast.success("Profile reminder sent successfully!", { id: toastId });
@@ -1299,8 +1307,10 @@ function RemindersTab() {
   async function handleToggleDisabled(userId: string, currentVal: boolean) {
     try {
       const res = await toggleUserRemindersDisabledServerFn({
-        userId,
-        disabled: !currentVal
+        data: {
+          userId,
+          disabled: !currentVal
+        }
       });
       if (res.success) {
         toast.success(`Reminders ${!currentVal ? "disabled" : "enabled"} for this user.`);
