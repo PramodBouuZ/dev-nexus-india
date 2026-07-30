@@ -21,6 +21,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
 import { useState, useMemo, useEffect } from "react";
+import {
+  getAdminReminderManagerData,
+  sendIndividualReminderServerFn,
+  sendBulkRemindersServerFn,
+  toggleUserRemindersDisabledServerFn
+} from "@/utils/email-service";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell, PieChart, Pie } from "recharts";
 
 export const Route = createFileRoute("/admin")({
@@ -33,7 +39,7 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
-type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" | "applications" | "contacts" | "invites" | "chats" | "alerts";
+type TabView = "overview" | "users" | "developers" | "recruiters" | "projects" | "applications" | "contacts" | "invites" | "chats" | "alerts" | "reminders";
 
 function AdminPage() {
   const { user, role, loading } = useAuth();
@@ -98,6 +104,7 @@ function AdminPage() {
       <SidebarItem icon={Users} label="Contact Requests" active={activeTab === "contacts"} onClick={() => { setActiveTab("contacts"); setMobileNavOpen(false); }} />
       <SidebarItem icon={Send} label="Invites" active={activeTab === "invites"} onClick={() => { setActiveTab("invites"); setMobileNavOpen(false); }} />
       <SidebarItem icon={MessageSquare} label="Chats" active={activeTab === "chats"} onClick={() => { setActiveTab("chats"); setMobileNavOpen(false); }} />
+      <SidebarItem icon={Mail} label="Profile Reminders" active={activeTab === "reminders"} onClick={() => { setActiveTab("reminders"); setMobileNavOpen(false); }} />
       <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">System</div>
       <SidebarItem icon={Bell} label="Alerts" active={activeTab === "alerts"} onClick={() => { setActiveTab("alerts"); setMobileNavOpen(false); }} />
       <SidebarItem icon={ExternalLink} label="Main Site" onClick={() => window.open('/', '_blank')} />
@@ -159,6 +166,7 @@ function AdminPage() {
           {activeTab === "invites" && <InvitesTab />}
           {activeTab === "chats" && <ChatsTab />}
           {activeTab === "alerts" && <AlertsTab />}
+          {activeTab === "reminders" && <RemindersTab />}
         </div>
       </main>
     </div>
@@ -959,6 +967,102 @@ function EditRecruiterDialog({ recruiter, user, onUpdate }: { recruiter: any; us
 
 function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recruiter" }) {
   const [open, setOpen] = useState(false);
+  const { user: currentUser } = useAuth();
+  const qc = useQueryClient();
+
+  // Fetch full details for this user including reminder stats and login dates
+  const { data: details, isLoading } = useQuery({
+    queryKey: ["admin-user-details", user?.id],
+    enabled: open && !!user?.id,
+    queryFn: async () => {
+      // Query profile_email_reminders logs count & last reminder sent
+      const [{ data: remLogs }, { data: usersDb }] = await Promise.all([
+        supabase.from("profile_email_reminders" as any).select("*").eq("user_id", user.id).order("sent_at", { ascending: false }),
+        supabase.from("users" as any).select("reminders_disabled").eq("user_id", user.id).maybeSingle(),
+      ]);
+
+      const sentReminders = (remLogs || []).filter((r: any) => r.email_status === "sent");
+      const lastReminder = sentReminders[0] || null;
+
+      // Fetch cached auth user info from admin reminders directory if available
+      const allRemindersData: any = qc.getQueryData(["admin-reminders-data"]);
+      const cachedUser = allRemindersData?.users?.find((u: any) => u.id === user.id);
+
+      // Re-fetch profile & subprofile to calculate completion percent accurately
+      const { data: p } = await supabase.from("profiles").select("avatar_url, full_name, created_at, updated_at").eq("id", user.id).maybeSingle();
+      const { data: dev } = kind === "developer" ? await supabase.from("developer_profiles").select("*").eq("id", user.id).maybeSingle() : { data: null };
+      const { data: rec } = kind === "recruiter" ? await supabase.from("recruiter_profiles").select("*").eq("id", user.id).maybeSingle() : { data: null };
+
+      // Calculate completion %
+      const totalFields = kind === "developer" ? 7 : 5;
+      let filledFields = 0;
+      if (kind === "developer") {
+        if (p?.full_name?.trim()) filledFields++;
+        if (p?.avatar_url?.trim()) filledFields++;
+        if (dev?.bio?.trim()) filledFields++;
+        if (Array.isArray(dev?.skills) && dev.skills.length > 0) filledFields++;
+        if (dev?.experience_years !== null && dev?.experience_years !== undefined) filledFields++;
+        if (dev?.portfolio_url?.trim()) filledFields++;
+        if (dev?.hourly_rate_inr !== null && dev?.hourly_rate_inr !== undefined) filledFields++;
+      } else {
+        if (rec?.company_name?.trim()) filledFields++;
+        if (rec?.logo_url?.trim()) filledFields++;
+        if (rec?.company_description?.trim()) filledFields++;
+        if (rec?.industry?.trim()) filledFields++;
+        if (rec?.company_website?.trim()) filledFields++;
+      }
+      const completionPercentage = Math.round((filledFields / totalFields) * 100);
+
+      return {
+        completionPercentage,
+        remindersCount: sentReminders.length,
+        lastReminderSentAt: lastReminder ? lastReminder.sent_at : null,
+        remindersDisabled: !!usersDb?.reminders_disabled,
+        lastSignInAt: cachedUser?.lastSignInAt || user.last_sign_in_at || null,
+        createdAt: p?.created_at || user.created_at,
+      };
+    }
+  });
+
+  async function handleSendReminder() {
+    if (!currentUser?.email) return;
+    const toastId = toast.loading("Sending profile reminder...");
+    try {
+      const res = await sendIndividualReminderServerFn({
+        userId: user.id,
+        adminEmail: currentUser.email
+      });
+      if (res.success) {
+        toast.success("Profile reminder sent successfully!", { id: toastId });
+        qc.invalidateQueries({ queryKey: ["admin-user-details", user.id] });
+        qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+      } else {
+        toast.error(res.error || "Failed to send profile reminder.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.", { id: toastId });
+    }
+  }
+
+  async function handleToggleDisabled() {
+    if (!details) return;
+    try {
+      const res = await toggleUserRemindersDisabledServerFn({
+        userId: user.id,
+        disabled: !details.remindersDisabled
+      });
+      if (res.success) {
+        toast.success(`Reminders ${!details.remindersDisabled ? "disabled" : "enabled"} for this user.`);
+        qc.invalidateQueries({ queryKey: ["admin-user-details", user.id] });
+        qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+      } else {
+        toast.error(res.error || "Failed to update reminder settings.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild><Button variant="ghost" size="icon" title="View Details"><Eye className="h-4 w-4" /></Button></DialogTrigger>
@@ -994,6 +1098,45 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
           )}
           <Row k="Suspended" v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"} />
           <Row k="Joined" v={new Date(user.created_at).toLocaleString()} />
+
+          {/* Detailed Reminders Stats and Actions */}
+          <div className="border-t pt-3 mt-2">
+            <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Reminder & Profile Status</h4>
+            {isLoading ? (
+              <div className="text-xs text-muted-foreground animate-pulse">Loading reminder details...</div>
+            ) : details ? (
+              <div className="space-y-2">
+                <Row k="Profile Completion" v={
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold">{details.completionPercentage}%</span>
+                    <div className="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div className={`h-full rounded-full ${details.completionPercentage === 100 ? "bg-success" : "bg-amber-500"}`} style={{ width: `${details.completionPercentage}%` }}></div>
+                    </div>
+                  </div>
+                } />
+                <Row k="Last Reminder Sent" v={details.lastReminderSentAt ? new Date(details.lastReminderSentAt).toLocaleString() : "Never"} />
+                <Row k="Reminder Count" v={details.remindersCount} />
+                <Row k="Last Login" v={details.lastSignInAt ? new Date(details.lastSignInAt).toLocaleString() : "Never"} />
+                <Row k="Registration Date" v={new Date(details.createdAt).toLocaleString()} />
+
+                <div className="flex flex-wrap gap-2 pt-3 justify-end">
+                  <Button size="xs" variant="outline" className="text-xs flex items-center gap-1" asChild>
+                    <Link to={kind === "developer" ? "/developers/$devId" : "/recruiters/$recId"} params={kind === "developer" ? { devId: user.id } : { recId: user.id }} onClick={() => setOpen(false)}>
+                      <ExternalLink className="h-3 w-3" /> View Profile
+                    </Link>
+                  </Button>
+                  <Button size="xs" variant={details.remindersDisabled ? "success" : "outline"} className="text-xs" onClick={handleToggleDisabled}>
+                    {details.remindersDisabled ? "Enable Reminders" : "Disable Reminders"}
+                  </Button>
+                  <Button size="xs" className="bg-gradient-accent text-xs flex items-center gap-1" disabled={details.completionPercentage === 100 || details.remindersDisabled} onClick={handleSendReminder}>
+                    <Mail className="h-3 w-3" /> Send Reminder
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-xs text-destructive">Failed to load reminder details.</div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
@@ -1002,4 +1145,508 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return <div className="flex items-start justify-between gap-3 border-b pb-2"><span className="text-muted-foreground text-xs uppercase font-semibold">{k}</span><span className="font-medium text-right">{v}</span></div>;
+}
+
+function RemindersTab() {
+  const { user: currentUser } = useAuth();
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [historySearch, setHistorySearch] = useState("");
+  const [historyFilter, setHistoryFilter] = useState("all");
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+
+  // Bulk action confirmation dialog state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkTarget, setBulkTarget] = useState<"selected" | "devs" | "recs" | "incomplete" | "google" | "manual" | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [sendingResult, setSendingResult] = useState<{ total: number; delivered: number; failed: number } | null>(null);
+
+  const qc = useQueryClient();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["admin-reminders-data"],
+    queryFn: async () => {
+      return getAdminReminderManagerData();
+    }
+  });
+
+  const users = data?.users || [];
+  const history = data?.history || [];
+  const stats = data?.stats || {
+    totalUsers: 0,
+    totalDevelopers: 0,
+    totalRecruiters: 0,
+    completeProfiles: 0,
+    incompleteProfiles: 0,
+    completionRate: 0,
+    sentToday: 0,
+    pendingReminders: 0
+  };
+
+  // Filter users
+  const filteredUsers = useMemo(() => {
+    return users.filter(u => {
+      // Search
+      const matchesSearch = !search ||
+        u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Filter
+      switch (filter) {
+        case "dev": return u.role === "developer";
+        case "rec": return u.role === "recruiter";
+        case "google": return u.isGoogle;
+        case "manual": return !u.isGoogle;
+        case "below30": return u.completionPercentage < 30;
+        case "below50": return u.completionPercentage < 50;
+        case "below80": return u.completionPercentage < 80;
+        case "neverUpdated": return u.neverUpdated;
+        case "neverLoggedInAgain": return u.neverLoggedInAgain;
+        case "active": return u.isActive;
+        case "inactive": return !u.isActive;
+        default: return true;
+      }
+    });
+  }, [users, search, filter]);
+
+  // Filter history
+  const filteredHistory = useMemo(() => {
+    return history.filter(h => {
+      const matchesSearch = !historySearch ||
+        h.userName?.toLowerCase().includes(historySearch.toLowerCase()) ||
+        h.email?.toLowerCase().includes(historySearch.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (historyFilter !== "all" && h.emailStatus !== historyFilter) return false;
+      return true;
+    });
+  }, [history, historySearch, historyFilter]);
+
+  // Bulk target users calculation
+  const bulkTargetUsers = useMemo(() => {
+    if (bulkTarget === "selected") {
+      return users.filter(u => selectedUserIds.includes(u.id));
+    }
+    if (bulkTarget === "devs") {
+      return users.filter(u => u.role === "developer" && u.completionPercentage < 100);
+    }
+    if (bulkTarget === "recs") {
+      return users.filter(u => u.role === "recruiter" && u.completionPercentage < 100);
+    }
+    if (bulkTarget === "incomplete") {
+      return users.filter(u => u.completionPercentage < 100);
+    }
+    if (bulkTarget === "google") {
+      return users.filter(u => u.isGoogle && u.completionPercentage < 100);
+    }
+    if (bulkTarget === "manual") {
+      return users.filter(u => !u.isGoogle && u.completionPercentage < 100);
+    }
+    return [];
+  }, [users, bulkTarget, selectedUserIds]);
+
+  // Handle send bulk
+  async function handleSendBulk() {
+    if (!bulkTargetUsers.length || !currentUser?.email) return;
+    setIsSending(true);
+    try {
+      const res = await sendBulkRemindersServerFn({
+        userIds: bulkTargetUsers.map(u => u.id),
+        adminEmail: currentUser.email
+      });
+      if (res.success) {
+        setSendingResult({
+          total: res.totalSent,
+          delivered: res.delivered,
+          failed: res.failed
+        });
+        toast.success(`Sent bulk reminders to ${res.totalSent} users.`);
+        qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+      } else {
+        toast.error("Failed to send bulk reminders.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  // Handle single send
+  async function handleSendSingle(userId: string) {
+    if (!currentUser?.email) return;
+    const toastId = toast.loading("Sending profile reminder...");
+    try {
+      const res = await sendIndividualReminderServerFn({
+        userId,
+        adminEmail: currentUser.email
+      });
+      if (res.success) {
+        toast.success("Profile reminder sent successfully!", { id: toastId });
+        qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+      } else {
+        toast.error(res.error || "Failed to send profile reminder.", { id: toastId });
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.", { id: toastId });
+    }
+  }
+
+  // Handle toggle disable/enable reminders
+  async function handleToggleDisabled(userId: string, currentVal: boolean) {
+    try {
+      const res = await toggleUserRemindersDisabledServerFn({
+        userId,
+        disabled: !currentVal
+      });
+      if (res.success) {
+        toast.success(`Reminders ${!currentVal ? "disabled" : "enabled"} for this user.`);
+        qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+      } else {
+        toast.error(res.error || "Failed to update reminder settings.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    }
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.length === filteredUsers.length) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
+    }
+  };
+
+  const toggleSelectUser = (id: string) => {
+    if (selectedUserIds.includes(id)) {
+      setSelectedUserIds(selectedUserIds.filter(userId => userId !== id));
+    } else {
+      setSelectedUserIds([...selectedUserIds, id]);
+    }
+  };
+
+  if (error) return <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">Failed to load reminder manager: {(error as Error).message}</div>;
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Dashboard Summary */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 animate-pulse">
+          {[...Array(8)].map((_, i) => (
+            <Card key={i} className="bg-card"><CardContent className="p-6"><div className="h-4 w-24 bg-muted rounded mb-2"></div><div className="h-8 w-12 bg-muted rounded"></div></CardContent></Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <SummaryCard title="Total Users" value={stats.totalUsers} desc="All registered users" icon={Users} />
+          <SummaryCard title="Total Developers" value={stats.totalDevelopers} desc="Users with developer role" icon={UserRound} />
+          <SummaryCard title="Total Recruiters" value={stats.totalRecruiters} desc="Users with recruiter role" icon={Briefcase} />
+          <SummaryCard title="Profile Completion" value={`${stats.completionRate}%`} desc={`${stats.completeProfiles} complete, ${stats.incompleteProfiles} incomplete`} icon={ShieldCheck} />
+          <SummaryCard title="Incomplete Profiles" value={stats.incompleteProfiles} desc="Need reminder attention" icon={AlertTriangle} className="text-amber-500" />
+          <SummaryCard title="Sent Today" value={stats.sentToday} desc="Reminder emails successfully sent" icon={Mail} className="text-teal-500" />
+          <SummaryCard title="Pending Reminders" value={stats.pendingReminders} desc="Incomplete & eligible for next stage" icon={Clock} className="text-accent" />
+        </div>
+      )}
+
+      {/* Directory & History split */}
+      <div className="space-y-6">
+        <div className="flex flex-col gap-6">
+
+          {/* User Reminders and Operations Card */}
+          <Card className="bg-card">
+            <CardHeader className="pb-3 border-b">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <CardTitle>Profile Reminder Directory</CardTitle>
+                  <CardDescription>Manage, filter, and send individual or bulk reminder emails to users.</CardDescription>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Select value={bulkTarget || ""} onValueChange={(val) => { if (val) { setBulkTarget(val as any); setSendingResult(null); setBulkDialogOpen(true); } }}>
+                    <SelectTrigger className="w-[180px] bg-secondary text-secondary-foreground">
+                      <SelectValue placeholder="Bulk Actions 📧" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="selected" disabled={!selectedUserIds.length}>Send to Selected ({selectedUserIds.length})</SelectItem>
+                      <SelectItem value="devs">Send to All Incomplete Devs</SelectItem>
+                      <SelectItem value="recs">Send to All Incomplete Recs</SelectItem>
+                      <SelectItem value="incomplete">Send to All Incomplete Profiles</SelectItem>
+                      <SelectItem value="google">Send to Google Signups</SelectItem>
+                      <SelectItem value="manual">Send to Manual Signups</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              {/* Filter and Search Row */}
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="Search users by name or email..." className="pl-9 bg-muted/30" value={search} onChange={e => setSearch(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={filter} onValueChange={setFilter}>
+                    <SelectTrigger className="w-[180px] bg-muted/50">
+                      <SelectValue placeholder="Filter by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="dev">Developers</SelectItem>
+                      <SelectItem value="rec">Recruiters</SelectItem>
+                      <SelectItem value="google">Google Signups</SelectItem>
+                      <SelectItem value="manual">Manual Signups</SelectItem>
+                      <SelectItem value="below30">Completion &lt; 30%</SelectItem>
+                      <SelectItem value="below50">Completion &lt; 50%</SelectItem>
+                      <SelectItem value="below80">Completion &lt; 80%</SelectItem>
+                      <SelectItem value="neverUpdated">Never Updated Profile</SelectItem>
+                      <SelectItem value="neverLoggedInAgain">Never Logged In Again</SelectItem>
+                      <SelectItem value="active">Active (last 30d)</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Users Directory Table */}
+              <div className="rounded-xl border overflow-hidden">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
+                    <tr>
+                      <th className="p-4 w-12 text-center">
+                        <Checkbox checked={filteredUsers.length > 0 && selectedUserIds.length === filteredUsers.length} onCheckedChange={toggleSelectAll} />
+                      </th>
+                      <th className="p-4">User</th>
+                      <th className="p-4">Email / Role</th>
+                      <th className="p-4">Completion %</th>
+                      <th className="p-4">Reminder Stats</th>
+                      <th className="p-4">Last Login</th>
+                      <th className="p-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {isLoading ? (
+                      <tr><td colSpan={7} className="p-12 text-center animate-pulse text-muted-foreground">Loading directory users...</td></tr>
+                    ) : !filteredUsers.length ? (
+                      <tr><td colSpan={7} className="p-12 text-center text-muted-foreground">No users found matching criteria.</td></tr>
+                    ) : (
+                      filteredUsers.map(u => (
+                        <tr key={u.id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-4 text-center">
+                            <Checkbox checked={selectedUserIds.includes(u.id)} onCheckedChange={() => toggleSelectUser(u.id)} />
+                          </td>
+                          <td className="p-4">
+                            <div className="font-bold flex items-center gap-1.5">
+                              {u.full_name}
+                              {u.isGoogle && <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded font-semibold">G</span>}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground font-mono truncate max-w-[150px]">{u.id}</div>
+                          </td>
+                          <td className="p-4">
+                            <div className="text-muted-foreground">{u.email}</div>
+                            <Badge variant="outline" className="capitalize text-[10px] mt-0.5">{u.role}</Badge>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-xs">{u.completionPercentage}%</span>
+                              <div className="w-16 bg-muted rounded-full h-1.5 overflow-hidden">
+                                <div className={`h-full rounded-full ${u.completionPercentage === 100 ? "bg-success" : u.completionPercentage > 50 ? "bg-amber-500" : "bg-destructive"}`} style={{ width: `${u.completionPercentage}%` }}></div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4 text-xs text-muted-foreground">
+                            <div>Count: <span className="font-semibold text-foreground">{u.remindersCount}</span></div>
+                            <div className="text-[10px]">Last: {u.lastReminderSentAt ? new Date(u.lastReminderSentAt).toLocaleDateString() : "Never"}</div>
+                          </td>
+                          <td className="p-4 text-xs text-muted-foreground">
+                            {u.lastSignInAt ? new Date(u.lastSignInAt).toLocaleDateString() : "Never"}
+                          </td>
+                          <td className="p-4 text-right">
+                            <div className="flex justify-end items-center gap-1">
+                              <ViewUserDialog user={users.find(usr => usr.id === u.id) as any} kind={u.role as any} />
+                              <Button variant="ghost" size="icon" title="Send Profile Reminder Immediately" disabled={u.completionPercentage === 100 || u.remindersDisabled} className="text-teal-500 hover:text-teal-600 disabled:opacity-30" onClick={() => handleSendSingle(u.id)}>
+                                <Mail className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" title={u.remindersDisabled ? "Enable Reminders" : "Disable Reminders"} className={u.remindersDisabled ? "text-amber-500" : "text-muted-foreground"} onClick={() => handleToggleDisabled(u.id, u.remindersDisabled)}>
+                                <Clock className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 2. History Table Card */}
+          <Card className="bg-card">
+            <CardHeader className="pb-3 border-b">
+              <CardTitle>Email Reminder History Log</CardTitle>
+              <CardDescription>Comprehensive audit log of all system and manual profile reminder emails sent.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-6 space-y-4">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input placeholder="Search history by recipient name or email..." className="pl-9 bg-muted/30" value={historySearch} onChange={e => setHistorySearch(e.target.value)} />
+                </div>
+                <div className="flex gap-2">
+                  <Select value={historyFilter} onValueChange={setHistoryFilter}>
+                    <SelectTrigger className="w-[180px] bg-muted/50">
+                      <SelectValue placeholder="Delivery Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Logs</SelectItem>
+                      <SelectItem value="sent">Sent Successfully</SelectItem>
+                      <SelectItem value="failed">Failed</SelectItem>
+                      <SelectItem value="skipped_completed">Skipped (Completed)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* History Table */}
+              <div className="rounded-xl border overflow-hidden">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
+                    <tr>
+                      <th className="p-4">Recipient</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Reminder Type</th>
+                      <th className="p-4">Sent By</th>
+                      <th className="p-4">Sent Date</th>
+                      <th className="p-4 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {isLoading ? (
+                      <tr><td colSpan={6} className="p-12 text-center animate-pulse text-muted-foreground">Loading history logs...</td></tr>
+                    ) : !filteredHistory.length ? (
+                      <tr><td colSpan={6} className="p-12 text-center text-muted-foreground">No history records found matching criteria.</td></tr>
+                    ) : (
+                      filteredHistory.slice(0, 100).map(h => (
+                        <tr key={h.id} className="hover:bg-muted/10 transition-colors">
+                          <td className="p-4">
+                            <div className="font-bold">{h.userName}</div>
+                            <div className="text-xs text-muted-foreground">{h.email}</div>
+                          </td>
+                          <td className="p-4">
+                            <Badge variant="outline" className="capitalize text-[10px]">{h.role}</Badge>
+                          </td>
+                          <td className="p-4 text-xs font-mono">
+                            {h.reminderType === "automatic" ? `Automatic (Day ${h.reminderStage})` : "Manual"}
+                          </td>
+                          <td className="p-4 text-xs text-muted-foreground">
+                            {h.sentBy}
+                          </td>
+                          <td className="p-4 text-xs text-muted-foreground">
+                            {new Date(h.sentAt).toLocaleString()}
+                          </td>
+                          <td className="p-4 text-right">
+                            <Badge className={h.emailStatus === "sent" ? "bg-success/15 text-success hover:bg-success/20 border-0" : h.emailStatus === "failed" ? "bg-destructive/15 text-destructive hover:bg-destructive/20 border-0" : "bg-muted text-muted-foreground border-0"}>
+                              {h.emailStatus === "sent" ? "Sent Successfully" : h.emailStatus === "failed" ? "Failed" : "Skipped (Completed)"}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+        </div>
+      </div>
+
+      {/* Bulk Action Confirmation Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={setBulkDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <DialogHeader>
+            <DialogTitle>Confirm Bulk Profile Reminders</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-3">
+            {isSending ? (
+              <div className="flex flex-col items-center justify-center p-6 space-y-3">
+                <div className="h-8 w-8 rounded-full border-4 border-t-primary animate-spin"></div>
+                <div className="text-sm font-semibold text-center">Sending profile reminders...</div>
+                <div className="text-xs text-muted-foreground">Please do not close this modal.</div>
+              </div>
+            ) : sendingResult ? (
+              <div className="space-y-4">
+                <div className="text-sm font-bold text-success text-center">🎉 Bulk Reminders Complete!</div>
+                <div className="grid grid-cols-3 gap-2 text-center p-4 bg-muted rounded-xl">
+                  <div>
+                    <div className="text-xs text-muted-foreground">Total Sent</div>
+                    <div className="text-lg font-bold">{sendingResult.total}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground text-success">Delivered</div>
+                    <div className="text-lg font-bold text-success">{sendingResult.delivered}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-muted-foreground text-destructive">Failed</div>
+                    <div className="text-lg font-bold text-destructive">{sendingResult.failed}</div>
+                  </div>
+                </div>
+                {sendingResult.failed > 0 && (
+                  <Button variant="outline" className="w-full text-xs text-destructive border-destructive/20 hover:bg-destructive/10" onClick={() => { setSendingResult(null); handleSendBulk(); }}>
+                    Retry Failed Reminders
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <>
+                <p className="text-sm">
+                  Send reminder emails to <strong className="text-foreground">{bulkTargetUsers.length} users</strong>?
+                </p>
+                <div className="p-3 bg-muted rounded-xl text-xs space-y-1 font-mono text-muted-foreground">
+                  <div>Target Group: <span className="text-foreground capitalize font-bold">{bulkTarget === "devs" ? "Incomplete Developers" : bulkTarget === "recs" ? "Incomplete Recruiters" : bulkTarget}</span></div>
+                  <div>Eligible Recipients: <span className="text-foreground font-bold">{bulkTargetUsers.length}</span></div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Reminders will be sent immediately using the standard Resend email template. Any users with reminders disabled or 100% complete profiles are automatically bypassed.
+                </p>
+              </>
+            )}
+          </div>
+          {!isSending && !sendingResult && (
+            <DialogFooter className="flex sm:justify-between gap-2">
+              <Button variant="ghost" onClick={() => { setBulkDialogOpen(false); setBulkTarget(null); }}>Cancel</Button>
+              <Button className="bg-gradient-accent" onClick={handleSendBulk}>Send Emails</Button>
+            </DialogFooter>
+          )}
+          {sendingResult && (
+            <DialogFooter>
+              <Button onClick={() => { setBulkDialogOpen(false); setBulkTarget(null); setSendingResult(null); }}>Close</Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function SummaryCard({ title, value, desc, icon: Icon, className = "", children }: { title: string; value: any; desc: string; icon: any; className?: string; children?: React.ReactNode }) {
+  return (
+    <Card className="bg-card">
+      <CardContent className="p-6">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{title}</span>
+          <Icon className={`h-5 w-5 text-muted-foreground ${className}`} />
+        </div>
+        <div className="mt-2 flex items-baseline gap-2">
+          <span className="text-3xl font-display font-bold">{value}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">{desc}</p>
+        {children}
+      </CardContent>
+    </Card>
+  );
 }
