@@ -18,6 +18,7 @@ import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 import { ReviewDialog } from "@/components/ReviewDialog";
+import { logProjectActivityServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
@@ -967,6 +968,19 @@ function DeveloperDashboard({ userId }: { userId: string }) {
           developer_id: userId,
         });
         await supabase.from("projects").update({ status: "in_discussion" }).eq("id", invite.project_id);
+
+        try {
+          await logProjectActivityServerFn({
+            data: {
+              projectId: invite.project_id,
+              userId,
+              activityType: "invitation_accepted",
+              description: "Developer accepted invitation"
+            }
+          });
+        } catch (actErr) {
+          console.error("Failed to log activity:", actErr);
+        }
       }
     } else if (status === "accepted" && !invite.project_id) {
       // General invite accepted, can we still unlock chat?

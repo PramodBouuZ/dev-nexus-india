@@ -640,6 +640,173 @@ export const triggerEmailsServerFn = createServerFn({ method: "POST" })
     return { success: true };
   });
 
+export const sendTimelineEmailServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({
+    projectId: z.string(),
+    senderId: z.string(),
+    type: z.enum([
+      "timeline_created",
+      "timeline_updated",
+      "stage_completed",
+      "deadline_changed",
+      "project_started",
+      "project_completed"
+    ]),
+    stageName: z.string().optional(),
+    detailText: z.string().optional()
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { projectId, senderId, type, stageName, detailText } = data;
+    const supabaseAdmin = await getSupabaseAdmin();
+
+    // 1. Fetch project recruiter and title
+    const { data: project } = await supabaseAdmin
+      .from("projects")
+      .select("recruiter_id, title")
+      .eq("id", projectId)
+      .maybeSingle();
+
+    if (!project) return { success: false, error: "Project not found" };
+
+    // 2. Fetch hired developer directly from accepted applications
+    const { data: app } = await supabaseAdmin
+      .from("applications")
+      .select("developer_id")
+      .eq("project_id", projectId)
+      .eq("status", "accepted")
+      .limit(1)
+      .maybeSingle();
+
+    const developerId = app?.developer_id || null;
+
+    if (!developerId) {
+      console.warn("No developer assigned or hired yet for project:", projectId);
+      return { success: true, warning: "No assigned developer found to email" };
+    }
+
+    // Determine target recipient (other party)
+    const recipientId = senderId === project.recruiter_id ? developerId : project.recruiter_id;
+
+    // 3. Fetch recipient's profile securely
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", recipientId)
+      .maybeSingle();
+
+    const recipientEmail = profile?.email;
+    if (!recipientEmail) {
+      console.warn("Recipient has no email profile. Skipping timeline email notification for user:", recipientId);
+      return { success: true, warning: "Recipient email not found" };
+    }
+
+    const recipientName = profile?.full_name || "Partner";
+
+    // 4. Determine subject and body HTML based on type
+    let subject = "";
+    let intro = "";
+    let items: string[] = [];
+    let ctaLabel = "View Project Dashboard";
+    const ctaUrl = `https://developerconnect.in/projects/${projectId}`;
+
+    switch (type) {
+      case "timeline_created":
+        subject = `Project Timeline Created: ${project.title} 📅`;
+        intro = `Great news! A complete project timeline has been created for your collaboration on "${project.title}".`;
+        items = [
+          `Project: ${project.title}`,
+          `Status: Timeline Created`,
+          detailText || "Please review the newly added stages and deadlines."
+        ];
+        break;
+      case "timeline_updated":
+        subject = `Project Timeline Updated: ${project.title} 🔄`;
+        intro = `The project timeline and stages for "${project.title}" have been updated.`;
+        items = [
+          `Project: ${project.title}`,
+          `Update details: ${detailText || "Milestones/deadlines re-arranged."}`
+        ];
+        break;
+      case "stage_completed":
+        subject = `Milestone Completed: ${stageName || "Stage"} in ${project.title} ✔`;
+        intro = `The milestone stage "${stageName || "Stage"}" has been marked as Completed (100%) for project "${project.title}".`;
+        items = [
+          `Project: ${project.title}`,
+          `Milestone: ${stageName || "Stage"}`,
+          `Status: Completed 🎉`
+        ];
+        break;
+      case "deadline_changed":
+        subject = `Deadline Updated: ${stageName || "Stage"} in ${project.title} ⏳`;
+        intro = `The deadline or due date for the milestone "${stageName || "Stage"}" of project "${project.title}" has been updated.`;
+        items = [
+          `Project: ${project.title}`,
+          `Milestone: ${stageName || "Stage"}`,
+          detailText || "Please review the updated timeline."
+        ];
+        break;
+      case "project_started":
+        subject = `Project Started: ${project.title} 🚀`;
+        intro = `The project collaboration for "${project.title}" has officially started!`;
+        items = [
+          `Project: ${project.title}`,
+          `Status: In Progress 🔄`,
+          `Next Step: Check the project stages and begin working.`
+        ];
+        break;
+      case "project_completed":
+        subject = `Project Completed! ${project.title} 🏆`;
+        intro = `Congratulations! All stages and milestones for "${project.title}" have been fully completed.`;
+        items = [
+          `Project: ${project.title}`,
+          `Status: Completed ✔`,
+          `Note: Both parties can now leave platform feedback and reviews.`
+        ];
+        break;
+    }
+
+    const html = getEmailHtml(
+      subject,
+      `Hi ${recipientName},`,
+      intro,
+      "Notification Details:",
+      items,
+      ctaLabel,
+      ctaUrl
+    );
+
+    const emailType = "milestone";
+    const res = await sendResendEmail({ to: recipientEmail, subject, html, emailType });
+    return res;
+  });
+
+export const logProjectActivityServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({
+    projectId: z.string(),
+    userId: z.string(),
+    activityType: z.string(),
+    description: z.string(),
+    metadata: z.record(z.any()).optional()
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { projectId, userId, activityType, description, metadata } = data;
+    const supabaseAdmin = await getSupabaseAdmin();
+
+    const { error } = await supabaseAdmin.from("project_activities").insert({
+      project_id: projectId,
+      user_id: userId,
+      activity_type: activityType,
+      description,
+      metadata: metadata || {}
+    });
+
+    if (error) {
+      console.error("Failed to log project activity:", error);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  });
+
 export const getAdminReminderManagerData = createServerFn({ method: "GET" })
   .handler(async () => {
     const supabaseAdmin = await getSupabaseAdmin();

@@ -16,6 +16,7 @@ import { ContactAccess } from "@/components/ContactAccess";
 import { ProjectStages } from "@/components/ProjectStages";
 import { TopMatches } from "@/components/TopMatches";
 import { FavoriteButton } from "@/components/FavoriteButton";
+import { logProjectActivityServerFn, sendTimelineEmailServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/projects/$projectId")({
   loader: async ({ params }) => {
@@ -161,7 +162,7 @@ function ProjectDetail() {
 
           {isOwner && <TopMatches project={project} projectId={resolvedProjectId} />}
           {isOwner && <ApplicantsList projectId={resolvedProjectId} recruiterId={project.recruiter_id} />}
-          {(project.status === "in_progress" || project.status === "completed") && user && (
+          {(project.status !== "open" || isOwner) && user && (
             <ProjectStages projectId={resolvedProjectId} />
           )}
         </div>
@@ -446,6 +447,26 @@ function AssignButton({ projectId, developerId, recruiterId }: { projectId: stri
         link: `/projects/${projectId}`
       });
       await supabase.from("projects").update({ status: "assigned" }).eq("id", projectId);
+
+      try {
+        await logProjectActivityServerFn({
+          data: {
+            projectId,
+            userId: recruiterId,
+            activityType: "project_started",
+            description: `Project assigned and started`
+          }
+        });
+        await sendTimelineEmailServerFn({
+          data: {
+            projectId,
+            senderId: recruiterId,
+            type: "project_started"
+          }
+        });
+      } catch (actErr) {
+        console.error("Failed to log project assignment activity or send email:", actErr);
+      }
     }
 
     setBusy(false);
