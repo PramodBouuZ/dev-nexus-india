@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin } from "lucide-react";
+import { Clock, IndianRupee, ArrowLeft, CheckCircle2, XCircle, Briefcase, MapPin, AlertTriangle } from "lucide-react";
 import { ContactAccess } from "@/components/ContactAccess";
 import { ProjectStages } from "@/components/ProjectStages";
 import { TopMatches } from "@/components/TopMatches";
@@ -20,8 +20,15 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 export const Route = createFileRoute("/projects/$projectId")({
   loader: async ({ params }) => {
     const { projectId } = params;
-    const { data: project } = await supabase.from("projects").select("*").eq("id", projectId).maybeSingle();
-    return { project, projectId };
+    let query = supabase.from("projects").select("*");
+    if (projectId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      query = query.eq("id", projectId);
+    } else {
+      query = query.eq("project_slug", projectId);
+    }
+    const { data: project } = await query.maybeSingle();
+    const actualId = project?.id || projectId;
+    return { project, projectId: actualId };
   },
   head: ({ loaderData }) => {
     const title = loaderData?.project ? `${loaderData.project.title} | DeveloperConnect` : "Project | DeveloperConnect";
@@ -97,22 +104,24 @@ export const Route = createFileRoute("/projects/$projectId")({
 });
 
 function ProjectDetail() {
-  const { projectId } = Route.useParams();
+  const { projectId: routeParam } = Route.useParams();
+  const loaderData = Route.useLoaderData();
+  const resolvedProjectId = loaderData?.projectId || routeParam;
   const { user, role } = useAuth();
 
   const { data: project, isLoading } = useQuery({
-    queryKey: ["project", projectId],
+    queryKey: ["project", resolvedProjectId],
     queryFn: async () => {
-      const { data } = await supabase.from("projects").select("*").eq("id", projectId).maybeSingle();
+      const { data } = await supabase.from("projects").select("*").eq("id", resolvedProjectId).maybeSingle();
       return data;
     },
   });
 
   const { data: myApp } = useQuery({
-    queryKey: ["my-app", projectId, user?.id],
+    queryKey: ["my-app", resolvedProjectId, user?.id],
     enabled: !!user && role === "developer",
     queryFn: async () => {
-      const { data } = await supabase.from("applications").select("*").eq("project_id", projectId).eq("developer_id", user!.id).maybeSingle();
+      const { data } = await supabase.from("applications").select("*").eq("project_id", resolvedProjectId).eq("developer_id", user!.id).maybeSingle();
       return data;
     },
   });
@@ -134,7 +143,7 @@ function ProjectDetail() {
             </div>
             <div className="flex items-center gap-2">
               {user && user.id !== project.recruiter_id && (
-                <FavoriteButton kind="project" targetId={projectId} variant="outline" />
+                <FavoriteButton kind="project" targetId={resolvedProjectId} variant="outline" />
               )}
               <Badge variant={project.status === "open" ? "default" : "outline"}>{project.status}</Badge>
             </div>
@@ -150,10 +159,10 @@ function ProjectDetail() {
             </div>
           </div>
 
-          {isOwner && <TopMatches project={project} projectId={projectId} />}
-          {isOwner && <ApplicantsList projectId={projectId} recruiterId={project.recruiter_id} />}
+          {isOwner && <TopMatches project={project} projectId={resolvedProjectId} />}
+          {isOwner && <ApplicantsList projectId={resolvedProjectId} recruiterId={project.recruiter_id} />}
           {(project.status === "in_progress" || project.status === "completed") && user && (
-            <ProjectStages projectId={projectId} />
+            <ProjectStages projectId={resolvedProjectId} />
           )}
         </div>
 
@@ -225,7 +234,7 @@ function ProjectDetail() {
                 </Button>
               </div>
             ) : (
-              <ApplyForm projectId={projectId} />
+              <ApplyForm projectId={resolvedProjectId} />
             )
           )}
         </aside>
@@ -399,7 +408,26 @@ function AssignButton({ projectId, developerId, recruiterId }: { projectId: stri
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
 
+  // Query NDA status for this project and developer
+  const { data: nda, isLoading: loadingNda } = useQuery({
+    queryKey: ["project-nda-status", projectId, developerId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("ndas")
+        .select("status")
+        .eq("project_id", projectId)
+        .eq("developer_id", developerId)
+        .maybeSingle();
+      return data;
+    }
+  });
+
   async function assign() {
+    if (!nda || nda.status !== "accepted") {
+      toast.error("You must get the NDA signed before officially starting the project.");
+      return;
+    }
+
     setBusy(true);
     const { error } = await supabase.from("project_assignments").insert({
        project_id: projectId,
@@ -427,9 +455,28 @@ function AssignButton({ projectId, developerId, recruiterId }: { projectId: stri
     qc.invalidateQueries({ queryKey: ["project-apps", projectId] });
   }
 
+  const isNdaAccepted = nda?.status === "accepted";
+
+  if (loadingNda) {
+    return <Button size="sm" disabled className="text-xs bg-muted">Checking NDA...</Button>;
+  }
+
   return (
-    <Button size="sm" disabled={busy} onClick={assign} className="bg-success text-success-foreground hover:opacity-90">
-       Confirm Assignment
-    </Button>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+      <Button
+        size="sm"
+        disabled={busy || !isNdaAccepted}
+        onClick={assign}
+        className={`${isNdaAccepted ? "bg-success text-success-foreground hover:opacity-90" : "bg-muted text-muted-foreground cursor-not-allowed"}`}
+      >
+        {isNdaAccepted ? "Confirm Assignment" : "NDA Signature Required"}
+      </Button>
+      {!isNdaAccepted && (
+        <span className="text-xs text-warning-foreground font-semibold flex items-center gap-1">
+          <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0" />
+          NDA must be signed by the developer in the conversation thread.
+        </span>
+      )}
+    </div>
   );
 }

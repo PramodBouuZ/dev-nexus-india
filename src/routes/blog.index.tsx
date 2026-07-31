@@ -4,7 +4,8 @@ import { Footer } from "@/components/Footer";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Calendar, User, Clock } from "lucide-react";
+import { ArrowRight, Calendar, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const BLOG_POSTS = [
   {
@@ -50,6 +51,19 @@ export const BLOG_POSTS = [
 ];
 
 export const Route = createFileRoute("/blog/")({
+  loader: async () => {
+    try {
+      const { data: dbBlogs } = await supabase
+        .from("blogs")
+        .select("*")
+        .eq("status", "published")
+        .order("created_at", { ascending: false });
+      return { dbBlogs: dbBlogs || [] };
+    } catch (e) {
+      console.error("Error loading blogs from db:", e);
+      return { dbBlogs: [] };
+    }
+  },
   head: () => ({
     meta: [
       { title: "DeveloperConnect Blog | Hiring, Tech & Startups in India" },
@@ -63,6 +77,21 @@ export const Route = createFileRoute("/blog/")({
 });
 
 function BlogList() {
+  const { dbBlogs } = Route.useLoaderData();
+
+  const formattedDbBlogs = dbBlogs.map((b: any) => ({
+    slug: b.slug,
+    title: b.title,
+    description: b.description || "",
+    date: new Date(b.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+    author: b.author || "DeveloperConnect Team",
+    readTime: b.read_time || "5 min read",
+    category: b.category || "Hiring",
+    image: b.featured_image || "https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800&auto=format&fit=crop"
+  }));
+
+  const allPosts = [...formattedDbBlogs, ...BLOG_POSTS];
+
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
@@ -76,7 +105,7 @@ function BlogList() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {BLOG_POSTS.map((post) => (
+            {allPosts.map((post) => (
               <Card key={post.slug} className="overflow-hidden flex flex-col hover:shadow-elegant transition-all">
                 <div className="aspect-video overflow-hidden">
                   <img src={post.image} alt={post.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />

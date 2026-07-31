@@ -3,14 +3,36 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Calendar, User, Clock, Share2 } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, Share2 } from "lucide-react";
 import { BLOG_POSTS } from "./blog.index";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/blog/$postSlug")({
-  loader: ({ params }) => {
+  loader: async ({ params }) => {
     const post = BLOG_POSTS.find((p) => p.slug === params.postSlug);
-    if (!post) throw new Error("Post not found");
-    return post;
+    if (post) {
+      return { ...post, isStatic: true, content: "" };
+    }
+    const { data: dbPost, error } = await supabase
+      .from("blogs")
+      .select("*")
+      .eq("slug", params.postSlug)
+      .maybeSingle();
+
+    if (error || !dbPost) throw new Error("Post not found");
+
+    return {
+      slug: dbPost.slug,
+      title: dbPost.title,
+      description: dbPost.description || "",
+      content: dbPost.content,
+      date: new Date(dbPost.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      author: dbPost.author || "DeveloperConnect Team",
+      readTime: dbPost.read_time || "5 min read",
+      category: dbPost.category || "Hiring",
+      image: dbPost.featured_image || "https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800&auto=format&fit=crop",
+      isStatic: false
+    };
   },
   head: ({ loaderData }) => {
     return {
@@ -21,6 +43,9 @@ export const Route = createFileRoute("/blog/$postSlug")({
         { property: "og:description", content: loaderData.description },
         { property: "og:image", content: loaderData.image },
         { property: "og:type", content: "article" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:title", content: loaderData.title },
+        { name: "twitter:description", content: loaderData.description },
         { tag: "link", rel: "canonical", href: `https://developerconnect.in/blog/${loaderData.slug}` },
       ],
       scripts: [
@@ -86,7 +111,10 @@ function BlogPost() {
                   <Clock className="h-4 w-4" />
                   {post.readTime}
                 </div>
-                <Button variant="ghost" size="sm" className="ml-auto gap-2">
+                <Button variant="ghost" size="sm" className="ml-auto gap-2" onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert("Copied link to clipboard!");
+                }}>
                   <Share2 className="h-4 w-4" /> Share
                 </Button>
               </div>
@@ -100,25 +128,31 @@ function BlogPost() {
               <p className="text-xl text-muted-foreground leading-relaxed mb-8 font-medium italic">
                 {post.description}
               </p>
-              <div className="space-y-6 text-foreground/90 leading-relaxed">
-                <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
-                </p>
-                <h2 className="text-2xl font-bold mt-10 mb-4">The Current Landscape of Tech Hiring</h2>
-                <p>
-                  Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-                </p>
-                <ul className="list-disc pl-6 space-y-2">
-                  <li>Expertise in modern tech stacks like React, Node.js, and Python.</li>
-                  <li>Cost-effective solutions for startups and enterprises.</li>
-                  <li>Flexible engagement models: part-time and full-time.</li>
-                  <li>Time-zone compatibility for global teams.</li>
-                </ul>
-                <h2 className="text-2xl font-bold mt-10 mb-4">Key Strategies for Success</h2>
-                <p>
-                  At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.
-                </p>
-              </div>
+              {post.isStatic ? (
+                <div className="space-y-6 text-foreground/90 leading-relaxed">
+                  <p>
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                  </p>
+                  <h2 className="text-2xl font-bold mt-10 mb-4">The Current Landscape of Tech Hiring</h2>
+                  <p>
+                    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                  </p>
+                  <ul className="list-disc pl-6 space-y-2">
+                    <li>Expertise in modern tech stacks like React, Node.js, and Python.</li>
+                    <li>Cost-effective solutions for startups and enterprises.</li>
+                    <li>Flexible engagement models: part-time and full-time.</li>
+                    <li>Time-zone compatibility for global teams.</li>
+                  </ul>
+                  <h2 className="text-2xl font-bold mt-10 mb-4">Key Strategies for Success</h2>
+                  <p>
+                    At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.
+                  </p>
+                </div>
+              ) : (
+                <div className="whitespace-pre-wrap text-foreground/90 leading-relaxed space-y-4">
+                  {post.content}
+                </div>
+              )}
             </div>
 
             <footer className="mt-16 pt-10 border-t border-border">

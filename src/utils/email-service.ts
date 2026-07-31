@@ -18,12 +18,17 @@ export async function sendResendEmail({
   to,
   subject,
   html,
+  emailType = "notification",
 }: {
   to: string;
   subject: string;
   html: string;
+  emailType?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
+  let status = "success";
+  let errorMessage: string | null = null;
+
   if (!apiKey) {
     console.warn("RESEND_API_KEY is not configured. Mocking email delivery to:", to);
     console.log("---------------- MOCK EMAIL START ----------------");
@@ -31,10 +36,26 @@ export async function sendResendEmail({
     console.log("Subject:", subject);
     console.log("Body Snippet:", html.substring(0, 300) + "...");
     console.log("---------------- MOCK EMAIL END ------------------");
+
+    try {
+      const supabaseAdmin = await getSupabaseAdmin();
+      await supabaseAdmin.from("email_logs").insert({
+        recipient_email: to,
+        subject,
+        body: html,
+        status: "success",
+        error_message: "Mock Mode (No Resend API Key)",
+        email_type: emailType
+      });
+    } catch (e) {
+      console.error("Failed to insert mock email log:", e);
+    }
+
     return { success: true, mock: true };
   }
 
   const fromEmail = "DeveloperConnect <notifications@developerconnect.in>";
+  let sendResult: { success: boolean; data?: any; error?: string; mock?: boolean } = { success: false };
 
   try {
     const res = await fetch("https://api.resend.com/emails", {
@@ -54,16 +75,50 @@ export async function sendResendEmail({
     if (!res.ok) {
       const errText = await res.text();
       console.error("Resend API error:", res.status, errText);
-      return { success: false, error: errText };
+      sendResult = { success: false, error: errText };
+      status = "failed";
+      errorMessage = errText;
+    } else {
+      const data = await res.json();
+      sendResult = { success: true, data };
     }
-
-    const data = await res.json();
-    return { success: true, data };
   } catch (err: any) {
     console.error("Failed to send email via Resend:", err);
-    return { success: false, error: err.message || err };
+    sendResult = { success: false, error: err.message || err };
+    status = "failed";
+    errorMessage = err.message || String(err);
   }
+
+  try {
+    const supabaseAdmin = await getSupabaseAdmin();
+    await supabaseAdmin.from("email_logs").insert({
+      recipient_email: to,
+      subject,
+      body: html,
+      status,
+      error_message: errorMessage,
+      email_type: emailType
+    });
+  } catch (e) {
+    console.error("Failed to insert email log:", e);
+  }
+
+  return sendResult;
 }
+
+// Create a server function to trigger notifications/invites/NDA emails from client side
+export const sendLoggedEmailServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({
+    to: z.string(),
+    subject: z.string(),
+    html: z.string(),
+    emailType: z.string()
+  }).parse(input))
+  .handler(async ({ data }) => {
+    const { to, subject, html, emailType } = data;
+    const res = await sendResendEmail({ to, subject, html, emailType });
+    return res;
+  });
 
 export function getEmailHtml(
   title: string,
