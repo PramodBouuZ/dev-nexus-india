@@ -3,7 +3,14 @@ import { useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { BrandLink } from "@/components/Brand";
-import { Sheet, SheetContent, SheetTrigger, SheetClose, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Menu } from "lucide-react";
 import { NotificationBell } from "@/components/NotificationBell";
 
@@ -24,7 +31,11 @@ export function Navbar() {
 
         <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
           {navLinks.map((l) => (
-            <Link key={l.to} to={l.to} className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              key={l.to}
+              to={l.to}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               {l.label}
             </Link>
           ))}
@@ -68,7 +79,11 @@ export function Navbar() {
                 <Button asChild variant="ghost" size="sm">
                   <Link to="/auth">Sign in</Link>
                 </Button>
-                <Button asChild size="sm" className="bg-gradient-accent text-primary-foreground hover:opacity-90">
+                <Button
+                  asChild
+                  size="sm"
+                  className="bg-gradient-accent text-primary-foreground hover:opacity-90"
+                >
                   <Link to="/auth">Get started</Link>
                 </Button>
               </>
@@ -148,7 +163,10 @@ export function Navbar() {
                       </Button>
                     </SheetClose>
                     <SheetClose asChild>
-                      <Button asChild className="bg-gradient-accent text-primary-foreground hover:opacity-90">
+                      <Button
+                        asChild
+                        className="bg-gradient-accent text-primary-foreground hover:opacity-90"
+                      >
                         <Link to="/auth">Get started</Link>
                       </Button>
                     </SheetClose>

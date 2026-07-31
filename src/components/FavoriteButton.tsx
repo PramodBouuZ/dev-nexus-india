@@ -15,7 +15,14 @@ type Props = {
   className?: string;
 };
 
-export function FavoriteButton({ kind, targetId, size = "icon", variant = "ghost", withLabel, className }: Props) {
+export function FavoriteButton({
+  kind,
+  targetId,
+  size = "icon",
+  variant = "ghost",
+  withLabel,
+  className,
+}: Props) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const key = ["fav", kind, targetId, user?.id];

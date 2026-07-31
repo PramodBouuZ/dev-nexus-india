@@ -8,9 +8,17 @@ export const Route = createFileRoute("/pricing")({
   head: () => ({
     meta: [
       { title: "Pricing Plans | DeveloperConnect" },
-      { name: "description", content: "Choose the right plan for your needs. Free for developers, flexible options for recruiters to find top tech talent in India." },
+      {
+        name: "description",
+        content:
+          "Choose the right plan for your needs. Free for developers, flexible options for recruiters to find top tech talent in India.",
+      },
       { property: "og:title", content: "Pricing Plans | DeveloperConnect" },
-      { property: "og:description", content: "Choose the right plan for your needs. Free for developers, flexible options for recruiters to find top tech talent in India." },
+      {
+        property: "og:description",
+        content:
+          "Choose the right plan for your needs. Free for developers, flexible options for recruiters to find top tech talent in India.",
+      },
       { property: "og:url", content: "https://developerconnect.in/pricing" },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/pricing" },
     ],
@@ -20,13 +28,18 @@ export const Route = createFileRoute("/pricing")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
-          "itemListElement": [
-            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
-            { "@type": "ListItem", "position": 2, "name": "Pricing", "item": "https://developerconnect.in/pricing" }
-          ]
-        })
-      }
-    ]
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://developerconnect.in" },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: "Pricing",
+              item: "https://developerconnect.in/pricing",
+            },
+          ],
+        }),
+      },
+    ],
   }),
   component: Pricing,
 });
@@ -90,12 +103,32 @@ const plans = [
 ];
 
 const comparison = [
-  { feature: "Project Postings", developer: "N/A", recruiterFree: "10 / month", recruiterPro: "Unlimited" },
-  { feature: "Developer Invitations", developer: "Receive", recruiterFree: "Basic", recruiterPro: "Unlimited" },
-  { feature: "Direct Messaging", developer: "Included", recruiterFree: "Basic", recruiterPro: "Unlimited" },
+  {
+    feature: "Project Postings",
+    developer: "N/A",
+    recruiterFree: "10 / month",
+    recruiterPro: "Unlimited",
+  },
+  {
+    feature: "Developer Invitations",
+    developer: "Receive",
+    recruiterFree: "Basic",
+    recruiterPro: "Unlimited",
+  },
+  {
+    feature: "Direct Messaging",
+    developer: "Included",
+    recruiterFree: "Basic",
+    recruiterPro: "Unlimited",
+  },
   { feature: "AI Candidate Matching", developer: "N/A", recruiterFree: "No", recruiterPro: "Yes" },
   { feature: "Featured Badge", developer: "No", recruiterFree: "No", recruiterPro: "Yes" },
-  { feature: "Analytics Dashboard", developer: "Basic", recruiterFree: "No", recruiterPro: "Advanced" },
+  {
+    feature: "Analytics Dashboard",
+    developer: "Basic",
+    recruiterFree: "No",
+    recruiterPro: "Advanced",
+  },
   { feature: "Priority Listing", developer: "N/A", recruiterFree: "No", recruiterPro: "Yes" },
 ];
 
@@ -110,7 +143,8 @@ function Pricing() {
             Choose the right plan for <span className="text-accent">your growth</span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Whether you are a developer looking for work or a recruiter building a team, we have the perfect plan for you.
+            Whether you are a developer looking for work or a recruiter building a team, we have the
+            perfect plan for you.
           </p>
         </div>
 
@@ -136,20 +170,26 @@ function Pricing() {
                   <p className="mt-2 text-sm text-muted-foreground">{plan.desc}</p>
                 </div>
                 <div className="mb-8 flex items-baseline gap-1">
-                  <span className="font-display text-5xl font-bold tracking-tight">{plan.price}</span>
+                  <span className="font-display text-5xl font-bold tracking-tight">
+                    {plan.price}
+                  </span>
                   <span className="text-lg font-medium text-muted-foreground">{plan.per}</span>
                 </div>
                 <Button
                   asChild
                   className={`mb-8 w-full ${
-                    plan.highlight ? "bg-gradient-accent text-primary-foreground hover:opacity-90" : ""
+                    plan.highlight
+                      ? "bg-gradient-accent text-primary-foreground hover:opacity-90"
+                      : ""
                   }`}
                   variant={plan.highlight ? "default" : "outline"}
                 >
                   <Link to="/auth">{plan.buttonText}</Link>
                 </Button>
                 <div className="flex-1">
-                  <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider">What's included</h4>
+                  <h4 className="mb-4 text-sm font-semibold uppercase tracking-wider">
+                    What's included
+                  </h4>
                   <ul className="space-y-4">
                     {plan.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-3">
@@ -167,7 +207,9 @@ function Pricing() {
         {/* Comparison Table */}
         <div className="bg-muted/30 py-24">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <h2 className="mb-12 text-center font-display text-3xl font-bold">Compare plans at a glance</h2>
+            <h2 className="mb-12 text-center font-display text-3xl font-bold">
+              Compare plans at a glance
+            </h2>
             <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -183,8 +225,12 @@ function Pricing() {
                     <tr key={row.feature} className="transition-colors hover:bg-muted/20">
                       <td className="px-6 py-4 text-sm font-medium">{row.feature}</td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">{row.developer}</td>
-                      <td className="px-6 py-4 text-sm text-muted-foreground">{row.recruiterFree}</td>
-                      <td className="px-6 py-4 text-sm font-medium text-foreground">{row.recruiterPro}</td>
+                      <td className="px-6 py-4 text-sm text-muted-foreground">
+                        {row.recruiterFree}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-foreground">
+                        {row.recruiterPro}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -197,10 +243,14 @@ function Pricing() {
         <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6 lg:px-8 text-center">
           <h2 className="font-display text-3xl font-bold mb-6">Frequently Asked Questions</h2>
           <p className="text-muted-foreground mb-10">
-            Have more questions about our plans? Check out our <Link to="/faq" className="text-accent hover:underline">FAQ page</Link> or reach out to us.
+            Have more questions about our plans? Check out our{" "}
+            <Link to="/faq" className="text-accent hover:underline">
+              FAQ page
+            </Link>{" "}
+            or reach out to us.
           </p>
           <Button asChild variant="outline">
-             <Link to="/contact">Contact Support</Link>
+            <Link to="/contact">Contact Support</Link>
           </Button>
         </div>
       </main>

@@ -10,7 +10,12 @@ import { toast } from "sonner";
 import { CheckCircle2, MessageSquare, Star } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
 
 type Contract = {
@@ -44,15 +49,13 @@ export function ContractsList({ userId, role }: Props) {
         .order("created_at", { ascending: false });
       const list = (data ?? []) as Contract[];
       if (!list.length) return [];
-      const ids = list.map(c => c.id);
-      const { data: reviews } = await supabase
-        .from("reviews")
-        .select("*")
-        .in("contract_id", ids);
-      return list.map(c => ({
+      const ids = list.map((c) => c.id);
+      const { data: reviews } = await supabase.from("reviews").select("*").in("contract_id", ids);
+      return list.map((c) => ({
         ...c,
-        myReview: reviews?.find(r => r.contract_id === c.id && r.reviewer_id === userId) ?? null,
-        otherReview: reviews?.find(r => r.contract_id === c.id && r.reviewer_id !== userId) ?? null,
+        myReview: reviews?.find((r) => r.contract_id === c.id && r.reviewer_id === userId) ?? null,
+        otherReview:
+          reviews?.find((r) => r.contract_id === c.id && r.reviewer_id !== userId) ?? null,
       }));
     },
   });
@@ -73,7 +76,7 @@ export function ContractsList({ userId, role }: Props) {
     <section className="mt-10">
       <h2 className="font-display text-xl font-semibold">Contracts</h2>
       <div className="mt-4 space-y-3">
-        {contracts.map(c => {
+        {contracts.map((c) => {
           const otherUserId = role === "recruiter" ? c.developer_id : c.recruiter_id;
           return (
             <div key={c.id} className="rounded-xl border border-border bg-card p-5 shadow-card">
@@ -86,7 +89,15 @@ export function ContractsList({ userId, role }: Props) {
                     {c.agreed_rate_inr && ` · ₹${c.agreed_rate_inr.toLocaleString()}`}
                   </p>
                 </div>
-                <Badge variant={c.status === "active" ? "default" : c.status === "completed" ? "secondary" : "outline"}>
+                <Badge
+                  variant={
+                    c.status === "active"
+                      ? "default"
+                      : c.status === "completed"
+                        ? "secondary"
+                        : "outline"
+                  }
+                >
                   {c.status}
                 </Badge>
               </div>
@@ -120,10 +131,14 @@ export function ContractsList({ userId, role }: Props) {
                   <div className="flex items-center gap-2">
                     <Stars value={c.otherReview.rating} size={14} />
                     <span className="text-xs text-muted-foreground">
-                      {role === "recruiter" ? "Developer's review of you" : "Recruiter's review of you"}
+                      {role === "recruiter"
+                        ? "Developer's review of you"
+                        : "Recruiter's review of you"}
                     </span>
                   </div>
-                  {c.otherReview.comment && <p className="mt-1.5 whitespace-pre-wrap">{c.otherReview.comment}</p>}
+                  {c.otherReview.comment && (
+                    <p className="mt-1.5 whitespace-pre-wrap">{c.otherReview.comment}</p>
+                  )}
                 </div>
               )}
             </div>
@@ -142,7 +157,9 @@ function ReviewDialog({ contractId, revieweeId }: { contractId: string; reviewee
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return;
     setBusy(true);
     const { error } = await supabase.from("reviews").insert({
@@ -188,7 +205,9 @@ function ReviewDialog({ contractId, revieweeId }: { contractId: string; reviewee
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
           <Button
             disabled={busy}
             onClick={submit}

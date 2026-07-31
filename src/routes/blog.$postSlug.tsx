@@ -26,12 +26,18 @@ export const Route = createFileRoute("/blog/$postSlug")({
       title: dbPost.title,
       description: dbPost.description || "",
       content: dbPost.content,
-      date: new Date(dbPost.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      date: new Date(dbPost.created_at).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
       author: dbPost.author || "DeveloperConnect Team",
       readTime: dbPost.read_time || "5 min read",
       category: dbPost.category || "Hiring",
-      image: dbPost.featured_image || "https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800&auto=format&fit=crop",
-      isStatic: false
+      image:
+        dbPost.featured_image ||
+        "https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800&auto=format&fit=crop",
+      isStatic: false,
     };
   },
   head: ({ loaderData }) => {
@@ -46,7 +52,11 @@ export const Route = createFileRoute("/blog/$postSlug")({
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:title", content: loaderData.title },
         { name: "twitter:description", content: loaderData.description },
-        { tag: "link", rel: "canonical", href: `https://developerconnect.in/blog/${loaderData.slug}` },
+        {
+          tag: "link",
+          rel: "canonical",
+          href: `https://developerconnect.in/blog/${loaderData.slug}`,
+        },
       ],
       scripts: [
         {
@@ -54,25 +64,25 @@ export const Route = createFileRoute("/blog/$postSlug")({
           children: JSON.stringify({
             "@context": "https://schema.org",
             "@type": "BlogPosting",
-            "headline": loaderData.title,
-            "description": loaderData.description,
-            "image": loaderData.image,
-            "author": {
+            headline: loaderData.title,
+            description: loaderData.description,
+            image: loaderData.image,
+            author: {
               "@type": "Organization",
-              "name": "DeveloperConnect"
+              name: "DeveloperConnect",
             },
-            "publisher": {
+            publisher: {
               "@type": "Organization",
-              "name": "DeveloperConnect",
-              "logo": {
+              name: "DeveloperConnect",
+              logo: {
                 "@type": "ImageObject",
-                "url": "https://developerconnect.in/logo.png"
-              }
+                url: "https://developerconnect.in/logo.png",
+              },
             },
-            "datePublished": loaderData.date
-          })
-        }
-      ]
+            datePublished: loaderData.date,
+          }),
+        },
+      ],
     };
   },
   component: BlogPost,
@@ -86,7 +96,10 @@ function BlogPost() {
       <Navbar />
       <main className="flex-1 py-12">
         <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          <Link to="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors">
+          <Link
+            to="/blog"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-8 transition-colors"
+          >
             <ArrowLeft className="h-4 w-4" /> Back to Blog
           </Link>
 
@@ -111,10 +124,15 @@ function BlogPost() {
                   <Clock className="h-4 w-4" />
                   {post.readTime}
                 </div>
-                <Button variant="ghost" size="sm" className="ml-auto gap-2" onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  alert("Copied link to clipboard!");
-                }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto gap-2"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert("Copied link to clipboard!");
+                  }}
+                >
                   <Share2 className="h-4 w-4" /> Share
                 </Button>
               </div>
@@ -131,11 +149,17 @@ function BlogPost() {
               {post.isStatic ? (
                 <div className="space-y-6 text-foreground/90 leading-relaxed">
                   <p>
-                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor
+                    incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis
+                    nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
                   </p>
-                  <h2 className="text-2xl font-bold mt-10 mb-4">The Current Landscape of Tech Hiring</h2>
+                  <h2 className="text-2xl font-bold mt-10 mb-4">
+                    The Current Landscape of Tech Hiring
+                  </h2>
                   <p>
-                    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+                    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu
+                    fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in
+                    culpa qui officia deserunt mollit anim id est laborum.
                   </p>
                   <ul className="list-disc pl-6 space-y-2">
                     <li>Expertise in modern tech stacks like React, Node.js, and Python.</li>
@@ -145,7 +169,9 @@ function BlogPost() {
                   </ul>
                   <h2 className="text-2xl font-bold mt-10 mb-4">Key Strategies for Success</h2>
                   <p>
-                    At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident.
+                    At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis
+                    praesentium voluptatum deleniti atque corrupti quos dolores et quas molestias
+                    excepturi sint occaecati cupiditate non provident.
                   </p>
                 </div>
               ) : (
@@ -161,7 +187,11 @@ function BlogPost() {
                 <p className="text-muted-foreground mb-8 max-w-md mx-auto">
                   Hire vetted Indian developers for your project today on DeveloperConnect.
                 </p>
-                <Button asChild size="lg" className="bg-gradient-accent text-primary-foreground font-bold px-10">
+                <Button
+                  asChild
+                  size="lg"
+                  className="bg-gradient-accent text-primary-foreground font-bold px-10"
+                >
                   <Link to="/auth">Get Started Now</Link>
                 </Button>
               </div>

@@ -57,9 +57,9 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.18 0.04 240);
 
-  --primary: oklch(0.22 0.06 245);            /* deep navy */
+  --primary: oklch(0.22 0.06 245); /* deep navy */
   --primary-foreground: oklch(0.98 0.01 220);
-  --primary-glow: oklch(0.72 0.16 195);       /* teal glow */
+  --primary-glow: oklch(0.72 0.16 195); /* teal glow */
 
   --secondary: oklch(0.96 0.01 230);
   --secondary-foreground: oklch(0.22 0.06 245);
@@ -67,7 +67,7 @@
   --muted: oklch(0.96 0.008 230);
   --muted-foreground: oklch(0.5 0.02 245);
 
-  --accent: oklch(0.72 0.16 195);             /* teal accent */
+  --accent: oklch(0.72 0.16 195); /* teal accent */
   --accent-foreground: oklch(0.18 0.04 240);
 
   --destructive: oklch(0.6 0.22 25);
@@ -83,7 +83,12 @@
   --input: oklch(0.92 0.01 235);
   --ring: oklch(0.72 0.16 195);
 
-  --gradient-hero: linear-gradient(135deg, oklch(0.22 0.06 245) 0%, oklch(0.32 0.09 220) 50%, oklch(0.45 0.12 200) 100%);
+  --gradient-hero: linear-gradient(
+    135deg,
+    oklch(0.22 0.06 245) 0%,
+    oklch(0.32 0.09 220) 50%,
+    oklch(0.45 0.12 200) 100%
+  );
   --gradient-accent: linear-gradient(135deg, oklch(0.72 0.16 195), oklch(0.65 0.18 175));
   --gradient-subtle: linear-gradient(180deg, oklch(0.99 0.005 220) 0%, oklch(0.96 0.015 210) 100%);
 }
@@ -127,18 +132,31 @@
     color: var(--color-foreground);
     font-feature-settings: "ss01", "cv11";
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
 }
 
 @layer utilities {
-  .bg-gradient-hero { background: var(--gradient-hero); }
-  .bg-gradient-accent { background: var(--gradient-accent); }
-  .bg-gradient-subtle { background: var(--gradient-subtle); }
-  .shadow-elegant { box-shadow: var(--shadow-elegant); }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
+  .bg-gradient-hero {
+    background: var(--gradient-hero);
+  }
+  .bg-gradient-accent {
+    background: var(--gradient-accent);
+  }
+  .bg-gradient-subtle {
+    background: var(--gradient-subtle);
+  }
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
+  }
   .text-gradient-accent {
     background: var(--gradient-accent);
     -webkit-background-clip: text;
@@ -146,15 +164,23 @@
     color: transparent;
   }
   @keyframes scroll {
-    0% { transform: translateX(0); }
-    100% { transform: translateX(calc(-50% - 12px)); }
+    0% {
+      transform: translateX(0);
+    }
+    100% {
+      transform: translateX(calc(-50% - 12px));
+    }
   }
   .animate-scroll {
     animation: scroll 40s linear infinite;
   }
   @keyframes scroll-reverse {
-    0% { transform: translateX(calc(-50% - 12px)); }
-    100% { transform: translateX(0); }
+    0% {
+      transform: translateX(calc(-50% - 12px));
+    }
+    100% {
+      transform: translateX(0);
+    }
   }
   .animate-scroll-reverse {
     animation: scroll-reverse 50s linear infinite;

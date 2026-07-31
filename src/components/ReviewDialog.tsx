@@ -26,7 +26,14 @@ interface Props {
   onOpenChange: (open: boolean) => void;
 }
 
-export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open, onOpenChange }: Props) {
+export function ReviewDialog({
+  contractId,
+  targetId,
+  targetName,
+  onSuccess,
+  open,
+  onOpenChange,
+}: Props) {
   const { user, role } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
@@ -58,7 +65,7 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
       communication_rating: comm,
     };
 
-    if (role === 'developer') {
+    if (role === "developer") {
       reviewData.payment_timeliness_rating = pay;
       reviewData.requirement_clarity_rating = clarity;
       reviewData.professionalism_rating = prof;
@@ -77,7 +84,7 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
         title: "New Review Received",
         body: `You have received a new ${rating}-star review on your profile.`,
         type: "account_update",
-        link: role === "developer" ? `/recruiters/${user.id}` : `/developers/${user.id}`
+        link: role === "developer" ? `/recruiters/${user.id}` : `/developers/${user.id}`,
       });
     }
 
@@ -106,31 +113,43 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
 
         <div className="space-y-6 py-4">
           <div className="flex flex-col items-center justify-center p-4 bg-muted/30 rounded-xl">
-             <Label className="mb-2 text-muted-foreground uppercase text-[10px] font-bold tracking-widest">Overall Rating</Label>
-             <div className="flex gap-1">
-                {[1, 2, 3, 4, 5].map((s) => (
-                  <button key={s} onClick={() => setRating(s)} className="p-1 transition-transform hover:scale-110">
-                    <Star className={`h-8 w-8 ${s <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground'}`} />
-                  </button>
-                ))}
-             </div>
+            <Label className="mb-2 text-muted-foreground uppercase text-[10px] font-bold tracking-widest">
+              Overall Rating
+            </Label>
+            <div className="flex gap-1">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setRating(s)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={`h-8 w-8 ${s <= rating ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}`}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-6">
-             <CategoryRating label="Communication" value={comm} onChange={setComm} />
-             {role === 'developer' ? (
-               <>
-                 <CategoryRating label="Payment Timeliness" value={pay} onChange={setPay} />
-                 <CategoryRating label="Req. Clarity" value={clarity} onChange={setClarity} />
-                 <CategoryRating label="Professionalism" value={prof} onChange={setProf} />
-               </>
-             ) : (
-               <>
-                 <CategoryRating label="Technical Skills" value={tech} onChange={setTech} />
-                 <CategoryRating label="Delivery Quality" value={quality} onChange={setQuality} />
-                 <CategoryRating label="Timeline Adherence" value={timeline} onChange={setTimeline} />
-               </>
-             )}
+            <CategoryRating label="Communication" value={comm} onChange={setComm} />
+            {role === "developer" ? (
+              <>
+                <CategoryRating label="Payment Timeliness" value={pay} onChange={setPay} />
+                <CategoryRating label="Req. Clarity" value={clarity} onChange={setClarity} />
+                <CategoryRating label="Professionalism" value={prof} onChange={setProf} />
+              </>
+            ) : (
+              <>
+                <CategoryRating label="Technical Skills" value={tech} onChange={setTech} />
+                <CategoryRating label="Delivery Quality" value={quality} onChange={setQuality} />
+                <CategoryRating
+                  label="Timeline Adherence"
+                  value={timeline}
+                  onChange={setTimeline}
+                />
+              </>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -146,9 +165,14 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
         </div>
 
         <DialogFooter>
-          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>Cancel</Button>
-          <Button onClick={handleSubmit} disabled={busy || rating === 0}
-            className="bg-gradient-accent text-primary-foreground hover:opacity-90 px-8">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={busy || rating === 0}
+            className="bg-gradient-accent text-primary-foreground hover:opacity-90 px-8"
+          >
             {busy ? "Submitting..." : "Submit Review"}
           </Button>
         </DialogFooter>
@@ -157,14 +181,24 @@ export function ReviewDialog({ contractId, targetId, targetName, onSuccess, open
   );
 }
 
-function CategoryRating({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+function CategoryRating({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
   return (
     <div className="space-y-2">
       <Label className="text-xs text-muted-foreground font-medium">{label}</Label>
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((s) => (
           <button key={s} onClick={() => onChange(s)} className="focus:outline-none">
-            <Star className={`h-4 w-4 ${s <= value ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} />
+            <Star
+              className={`h-4 w-4 ${s <= value ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground/30"}`}
+            />
           </button>
         ))}
       </div>

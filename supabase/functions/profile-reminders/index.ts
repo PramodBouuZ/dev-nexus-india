@@ -57,11 +57,9 @@ function getEmailHtml(
   listTitle: string,
   items: string[],
   ctaLabel: string,
-  ctaUrl: string
+  ctaUrl: string,
 ) {
-  const listItemsHtml = items
-    .map((item) => `<li class="list-item">${item}</li>`)
-    .join("\n");
+  const listItemsHtml = items.map((item) => `<li class="list-item">${item}</li>`).join("\n");
 
   return `<!DOCTYPE html>
 <html>
@@ -203,18 +201,15 @@ serve(async (req) => {
     const cronSecret = "f6a2fe0a-3471-4eea-a581-75c4d2be396b";
 
     const isAuthorized =
-      (authHeader === `Bearer ${cronSecret}`) ||
+      authHeader === `Bearer ${cronSecret}` ||
       (serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`);
 
     if (!isAuthorized) {
       console.warn("Unauthenticated attempt to call profile-reminders edge function.");
-      return new Response(
-        JSON.stringify({ success: false, error: "Unauthorized" }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 401,
-        }
-      );
+      return new Response(JSON.stringify({ success: false, error: "Unauthorized" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
     }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -312,9 +307,11 @@ serve(async (req) => {
         if (profileAvatar?.avatar_url?.trim()) filledFields++;
         if (devProfile?.bio?.trim()) filledFields++;
         if (Array.isArray(devProfile?.skills) && devProfile.skills.length > 0) filledFields++;
-        if (devProfile?.experience_years !== null && devProfile?.experience_years !== undefined) filledFields++;
+        if (devProfile?.experience_years !== null && devProfile?.experience_years !== undefined)
+          filledFields++;
         if (devProfile?.portfolio_url?.trim()) filledFields++;
-        if (devProfile?.hourly_rate_inr !== null && devProfile?.hourly_rate_inr !== undefined) filledFields++;
+        if (devProfile?.hourly_rate_inr !== null && devProfile?.hourly_rate_inr !== undefined)
+          filledFields++;
 
         completionPercentage = Math.round((filledFields / totalFields) * 100);
       } else if (role === "recruiter") {
@@ -340,14 +337,12 @@ serve(async (req) => {
 
       if (completionPercentage === 100) {
         // Record as skipped_completed to ensure idempotency
-        const { error: insErr } = await supabase
-          .from("profile_email_reminders")
-          .insert({
-            user_id: profile.id,
-            reminder_stage: eligibleStage,
-            email_status: "skipped_completed",
-            sent_at: now.toISOString(),
-          });
+        const { error: insErr } = await supabase.from("profile_email_reminders").insert({
+          user_id: profile.id,
+          reminder_stage: eligibleStage,
+          email_status: "skipped_completed",
+          sent_at: now.toISOString(),
+        });
 
         if (insErr) {
           console.error(`Error inserting history for completed user ${profile.id}:`, insErr);
@@ -380,7 +375,7 @@ serve(async (req) => {
             "Technologies",
           ],
           "Complete My Profile",
-          "https://developerconnect.in/profile"
+          "https://developerconnect.in/profile",
         );
       } else {
         subject = "Complete Your Company Profile";
@@ -389,15 +384,9 @@ serve(async (req) => {
           `Hi ${name},`,
           "We noticed your recruiter profile is still incomplete on DeveloperConnect. A complete company profile builds trust with developers and helps you attract the best tech talent in India.<br/><br/>Please take a minute to complete your company profile.",
           "Complete your profile by adding:",
-          [
-            "Company Logo",
-            "Company Description",
-            "Industry",
-            "Website",
-            "Company Details",
-          ],
+          ["Company Logo", "Company Description", "Industry", "Website", "Company Details"],
           "Complete Company Profile",
-          "https://developerconnect.in/profile"
+          "https://developerconnect.in/profile",
         );
       }
 
@@ -409,14 +398,12 @@ serve(async (req) => {
 
       const emailStatus = emailResult.success ? "sent" : "failed";
 
-      const { error: insErr } = await supabase
-        .from("profile_email_reminders")
-        .insert({
-          user_id: profile.id,
-          reminder_stage: eligibleStage,
-          email_status: emailStatus,
-          sent_at: now.toISOString(),
-        });
+      const { error: insErr } = await supabase.from("profile_email_reminders").insert({
+        user_id: profile.id,
+        reminder_stage: eligibleStage,
+        email_status: emailStatus,
+        sent_at: now.toISOString(),
+      });
 
       if (insErr) {
         console.error(`Error inserting history for user ${profile.id}:`, insErr);
@@ -425,7 +412,10 @@ serve(async (req) => {
           sentCount++;
           console.log(`Successfully sent Day ${eligibleStage} reminder to ${profile.email}`);
         } else {
-          console.error(`Failed to send Day ${eligibleStage} reminder to ${profile.email}:`, emailResult.error);
+          console.error(
+            `Failed to send Day ${eligibleStage} reminder to ${profile.email}:`,
+            emailResult.error,
+          );
         }
       }
     }
@@ -438,16 +428,13 @@ serve(async (req) => {
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
-      }
+      },
     );
   } catch (error: any) {
     console.error("Error in profile-reminders edge function:", error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message || error }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 500,
-      }
-    );
+    return new Response(JSON.stringify({ success: false, error: error.message || error }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });

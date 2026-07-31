@@ -7,11 +7,31 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Plus, Trash2, CheckCircle2, Clock, Eye, Pause, Circle, Calendar, Percent,
-  ArrowUp, ArrowDown, Check, XCircle, AlertTriangle, AlertCircle, FileText, User, HelpCircle
+  Plus,
+  Trash2,
+  CheckCircle2,
+  Clock,
+  Eye,
+  Pause,
+  Circle,
+  Calendar,
+  Percent,
+  ArrowUp,
+  ArrowDown,
+  Check,
+  XCircle,
+  AlertTriangle,
+  AlertCircle,
+  FileText,
+  User,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { logProjectActivityServerFn, sendTimelineEmailServerFn } from "@/utils/email-service";
@@ -133,18 +153,28 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       .channel(`project-realtime-${projectId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "project_stages", filter: `project_id=eq.${projectId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "project_stages",
+          filter: `project_id=eq.${projectId}`,
+        },
         () => {
           qc.invalidateQueries({ queryKey: ["stages", projectId] });
           qc.invalidateQueries({ queryKey: ["project", projectId] });
-        }
+        },
       )
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "project_activities", filter: `project_id=eq.${projectId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "project_activities",
+          filter: `project_id=eq.${projectId}`,
+        },
         () => {
           qc.invalidateQueries({ queryKey: ["project-activities", projectId] });
-        }
+        },
       )
       .subscribe();
 
@@ -161,18 +191,21 @@ export function ProjectStages({ projectId }: { projectId: string }) {
   // Timeline-related stats for Project Dashboard
   const totalStages = stages.length;
   const completedStagesCount = stages.filter((s) => s.status === "completed").length;
-  const pendingStagesCount = stages.filter((s) => s.status !== "completed" && s.status !== "cancelled").length;
+  const pendingStagesCount = stages.filter(
+    (s) => s.status !== "completed" && s.status !== "cancelled",
+  ).length;
 
   // Calculate Overall Progress %
   const overallProgress =
     totalStages > 0
       ? Math.round(
-          stages.reduce((acc, curr) => acc + (curr.progress_percent || 0), 0) / totalStages
+          stages.reduce((acc, curr) => acc + (curr.progress_percent || 0), 0) / totalStages,
         )
       : 0;
 
   // Identify Current Stage
-  const currentStage = stages.find((s) => s.status === "in_progress" || s.status === "waiting_for_approval") ||
+  const currentStage =
+    stages.find((s) => s.status === "in_progress" || s.status === "waiting_for_approval") ||
     stages.find((s) => s.status !== "completed" && s.status !== "cancelled") ||
     null;
 
@@ -238,7 +271,8 @@ export function ProjectStages({ projectId }: { projectId: string }) {
 
     if (project) {
       const acceptedApp = (project.applications as any)?.find((a: any) => a.status === "accepted");
-      const targetId = user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
+      const targetId =
+        user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
 
       if (targetId) {
         // Log activity history
@@ -269,7 +303,9 @@ export function ProjectStages({ projectId }: { projectId: string }) {
             senderId: user.id,
             type: isTimelineCreatedEvent ? "timeline_created" : "timeline_updated",
             stageName: newStage.name,
-            detailText: isTimelineCreatedEvent ? "Timeline created." : `Added milestone: "${newStage.name}"`,
+            detailText: isTimelineCreatedEvent
+              ? "Timeline created."
+              : `Added milestone: "${newStage.name}"`,
           },
         });
       }
@@ -323,7 +359,8 @@ export function ProjectStages({ projectId }: { projectId: string }) {
 
     if (project) {
       const acceptedApp = (project.applications as any)?.find((a: any) => a.status === "accepted");
-      const targetId = user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
+      const targetId =
+        user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
 
       if (targetId) {
         await sendTimelineEmailServerFn({
@@ -348,7 +385,7 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       progress_percent: number;
       start_date: string | null;
       deadline: string | null;
-    }>
+    }>,
   ) {
     if (!user) return;
 
@@ -367,14 +404,15 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       updatedFields.status = "completed";
     } else if (fields.status === "completed") {
       updatedFields.progress_percent = 100;
-    } else if (fields.progress_percent !== undefined && fields.progress_percent < 100 && oldStage.status === "completed") {
+    } else if (
+      fields.progress_percent !== undefined &&
+      fields.progress_percent < 100 &&
+      oldStage.status === "completed"
+    ) {
       updatedFields.status = "in_progress";
     }
 
-    const { error } = await supabase
-      .from("project_stages")
-      .update(updatedFields)
-      .eq("id", id);
+    const { error } = await supabase.from("project_stages").update(updatedFields).eq("id", id);
 
     if (error) return toast.error(error.message);
 
@@ -390,7 +428,8 @@ export function ProjectStages({ projectId }: { projectId: string }) {
 
     if (project) {
       const acceptedApp = (project.applications as any)?.find((a: any) => a.status === "accepted");
-      const targetId = user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
+      const targetId =
+        user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
 
       if (targetId) {
         let updateMsg = `Milestone "${fields.name || oldStage.name}" was updated.`;
@@ -403,7 +442,10 @@ export function ProjectStages({ projectId }: { projectId: string }) {
             actType = "stage_completed";
             emailType = "stage_completed";
           }
-        } else if (fields.progress_percent !== undefined && fields.progress_percent !== oldStage.progress_percent) {
+        } else if (
+          fields.progress_percent !== undefined &&
+          fields.progress_percent !== oldStage.progress_percent
+        ) {
           updateMsg = `Milestone "${oldStage.name}" progress updated to ${fields.progress_percent}%`;
           actType = "progress_updated";
           if (fields.progress_percent === 100) {
@@ -511,7 +553,8 @@ export function ProjectStages({ projectId }: { projectId: string }) {
 
     if (project) {
       const acceptedApp = (project.applications as any)?.find((a: any) => a.status === "accepted");
-      const targetId = user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
+      const targetId =
+        user.id === project.recruiter_id ? acceptedApp?.developer_id : project.recruiter_id;
 
       if (targetId) {
         await sendTimelineEmailServerFn({
@@ -542,14 +585,19 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       <div className="rounded-xl border border-border bg-card p-6 shadow-card">
         <h3 className="font-display text-lg font-bold mb-4">Live Progress Stepper</h3>
         {stages.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Add project stages to initialize the live progress stepper tracker.</p>
+          <p className="text-sm text-muted-foreground">
+            Add project stages to initialize the live progress stepper tracker.
+          </p>
         ) : (
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 overflow-x-auto pb-4">
             {stages.map((s, idx) => {
               const meta = STATUS_META[s.status as StageStatus] || STATUS_META.planned;
               const Icon = meta.icon;
               const isCompleted = s.status === "completed";
-              const isInProgress = s.status === "in_progress" || s.status === "under_review" || s.status === "waiting_for_approval";
+              const isInProgress =
+                s.status === "in_progress" ||
+                s.status === "under_review" ||
+                s.status === "waiting_for_approval";
 
               return (
                 <div key={s.id} className="flex flex-1 items-center gap-3 min-w-[150px]">
@@ -641,8 +689,12 @@ export function ProjectStages({ projectId }: { projectId: string }) {
                           className="mt-1 text-xs text-muted-foreground w-full sm:w-[450px] min-h-[50px] focus:bg-muted/30"
                           value={s.comment || ""}
                           placeholder="Add work notes or scope description..."
-                          onChange={(e) => updateStageField(s.id, { comment: e.target.value || null })}
-                          onBlur={(e) => updateStageField(s.id, { comment: e.target.value || null })}
+                          onChange={(e) =>
+                            updateStageField(s.id, { comment: e.target.value || null })
+                          }
+                          onBlur={(e) =>
+                            updateStageField(s.id, { comment: e.target.value || null })
+                          }
                         />
                       ) : (
                         <div className="space-y-2">
@@ -657,7 +709,9 @@ export function ProjectStages({ projectId }: { projectId: string }) {
                               className="h-7 text-xs max-w-xs"
                               placeholder="Add developer progress notes..."
                               defaultValue={s.comment || ""}
-                              onBlur={(e) => updateStageField(s.id, { comment: e.target.value || null })}
+                              onBlur={(e) =>
+                                updateStageField(s.id, { comment: e.target.value || null })
+                              }
                             />
                           </div>
                         </div>
@@ -740,11 +794,13 @@ export function ProjectStages({ projectId }: { projectId: string }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].map((p) => (
-                          <SelectItem key={p} value={p}>
-                            {p}%
-                          </SelectItem>
-                        ))}
+                        {["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].map(
+                          (p) => (
+                            <SelectItem key={p} value={p}>
+                              {p}%
+                            </SelectItem>
+                          ),
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
@@ -759,7 +815,9 @@ export function ProjectStages({ projectId }: { projectId: string }) {
                         disabled={isAdmin}
                         type="date"
                         value={s.start_date || ""}
-                        onChange={(e) => updateStageField(s.id, { start_date: e.target.value || null })}
+                        onChange={(e) =>
+                          updateStageField(s.id, { start_date: e.target.value || null })
+                        }
                         className="h-7 w-32 text-xs"
                       />
                     ) : (
@@ -777,7 +835,9 @@ export function ProjectStages({ projectId }: { projectId: string }) {
                         disabled={isAdmin}
                         type="date"
                         value={s.deadline || ""}
-                        onChange={(e) => updateStageField(s.id, { deadline: e.target.value || null })}
+                        onChange={(e) =>
+                          updateStageField(s.id, { deadline: e.target.value || null })
+                        }
                         className="h-7 w-32 text-xs"
                       />
                     ) : (
@@ -821,14 +881,22 @@ export function ProjectStages({ projectId }: { projectId: string }) {
               </div>
               <div className="space-y-1.5">
                 <span className="text-xs text-muted-foreground font-semibold">Start Date</span>
-                <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
-                <span className="text-xs text-muted-foreground font-semibold">Due Date (Deadline)</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Due Date (Deadline)
+                </span>
                 <Input type="date" value={deadline} onChange={(e) => setDeadline(e.target.value)} />
               </div>
               <div className="space-y-1.5 sm:col-span-2">
-                <span className="text-xs text-muted-foreground font-semibold">Initial Progress %</span>
+                <span className="text-xs text-muted-foreground font-semibold">
+                  Initial Progress %
+                </span>
                 <Select value={progressPercent} onValueChange={setProgressPercent}>
                   <SelectTrigger className="w-full text-xs">
                     <SelectValue />
@@ -869,7 +937,10 @@ export function ProjectStages({ projectId }: { projectId: string }) {
             activities.map((act) => {
               const dateStr = new Date(act.created_at).toLocaleString();
               return (
-                <div key={act.id} className="flex gap-3 text-xs items-start border-b border-border/30 pb-3">
+                <div
+                  key={act.id}
+                  className="flex gap-3 text-xs items-start border-b border-border/30 pb-3"
+                >
                   <div className="bg-muted p-1.5 rounded text-accent shrink-0">
                     <User className="h-3.5 w-3.5" />
                   </div>
@@ -908,7 +979,9 @@ function CardDashboard({
       {/* Overall Progress Card */}
       <div className="rounded-xl border border-border bg-card p-5 shadow-card flex flex-col justify-between">
         <div>
-          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Overall Progress</span>
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Overall Progress
+          </span>
           <div className="text-3xl font-display font-bold text-accent mt-1">{progress}%</div>
         </div>
         <div className="mt-4">
@@ -925,12 +998,20 @@ function CardDashboard({
       <div className="rounded-xl border border-border bg-card p-5 shadow-card flex flex-col justify-between">
         <div className="space-y-2">
           <div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Current Stage</span>
-            <span className="text-sm font-bold text-foreground line-clamp-1 mt-0.5">{currentStageName}</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              Current Stage
+            </span>
+            <span className="text-sm font-bold text-foreground line-clamp-1 mt-0.5">
+              {currentStageName}
+            </span>
           </div>
           <div>
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">Next Stage</span>
-            <span className="text-sm font-bold text-muted-foreground line-clamp-1 mt-0.5">{nextStageName}</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+              Next Stage
+            </span>
+            <span className="text-sm font-bold text-muted-foreground line-clamp-1 mt-0.5">
+              {nextStageName}
+            </span>
           </div>
         </div>
         <span className="text-[10px] text-muted-foreground block pt-2 border-t border-border/40">
@@ -947,11 +1028,15 @@ function CardDashboard({
           </div>
           <div className="flex justify-between items-center text-xs">
             <span className="font-semibold text-muted-foreground">Completed Tasks:</span>
-            <Badge className="bg-success/10 text-success border-success/20 font-bold">{completed}</Badge>
+            <Badge className="bg-success/10 text-success border-success/20 font-bold">
+              {completed}
+            </Badge>
           </div>
           <div className="flex justify-between items-center text-xs">
             <span className="font-semibold text-muted-foreground">Pending Tasks:</span>
-            <Badge variant="outline" className="font-bold">{pending}</Badge>
+            <Badge variant="outline" className="font-bold">
+              {pending}
+            </Badge>
           </div>
         </div>
         <span className="text-[10px] text-muted-foreground block pt-2 border-t border-border/40">

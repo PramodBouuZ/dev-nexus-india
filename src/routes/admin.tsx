@@ -658,12 +658,13 @@ function BlogsTab() {
         .select("*")
         .order("created_at", { ascending: false });
       return data || [];
-    }
+    },
   });
 
-  const filteredBlogs = blogs.filter(b =>
-    b.title.toLowerCase().includes(search.toLowerCase()) ||
-    (b.description && b.description.toLowerCase().includes(search.toLowerCase()))
+  const filteredBlogs = blogs.filter(
+    (b) =>
+      b.title.toLowerCase().includes(search.toLowerCase()) ||
+      (b.description && b.description.toLowerCase().includes(search.toLowerCase())),
   );
 
   const generateSlug = (t: string) => {
@@ -718,7 +719,10 @@ function BlogsTab() {
     }
 
     setBusy(true);
-    const tagsArr = tags.split(",").map(t => t.trim()).filter(Boolean);
+    const tagsArr = tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
     const payload = {
       title: title.trim(),
       slug: slug.trim(),
@@ -730,23 +734,18 @@ function BlogsTab() {
       seo_title: seoTitle.trim() || null,
       seo_description: seoDescription.trim() || null,
       status,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     let error;
     if (editingBlog) {
-      const { error: err } = await supabase
-        .from("blogs")
-        .update(payload)
-        .eq("id", editingBlog.id);
+      const { error: err } = await supabase.from("blogs").update(payload).eq("id", editingBlog.id);
       error = err;
     } else {
-      const { error: err } = await supabase
-        .from("blogs")
-        .insert({
-          ...payload,
-          author: "DeveloperConnect Team"
-        });
+      const { error: err } = await supabase.from("blogs").insert({
+        ...payload,
+        author: "DeveloperConnect Team",
+      });
       error = err;
     }
 
@@ -777,9 +776,14 @@ function BlogsTab() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h3 className="text-xl font-bold tracking-tight">Blog CMS Management</h3>
-          <p className="text-sm text-muted-foreground">Create, edit, draft, and publish dynamic search-engine discoverable articles.</p>
+          <p className="text-sm text-muted-foreground">
+            Create, edit, draft, and publish dynamic search-engine discoverable articles.
+          </p>
         </div>
-        <Button onClick={() => openEditor()} className="bg-gradient-accent text-primary-foreground font-bold shrink-0">
+        <Button
+          onClick={() => openEditor()}
+          className="bg-gradient-accent text-primary-foreground font-bold shrink-0"
+        >
           <Plus className="mr-1 h-4 w-4" /> Create Blog Post
         </Button>
       </div>
@@ -823,11 +827,18 @@ function BlogsTab() {
                       <Badge variant="secondary">{b.category}</Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant={b.status === "published" ? "default" : "outline"} className={b.status === "published" ? "bg-success text-success-foreground" : ""}>
+                      <Badge
+                        variant={b.status === "published" ? "default" : "outline"}
+                        className={
+                          b.status === "published" ? "bg-success text-success-foreground" : ""
+                        }
+                      >
                         {b.status}
                       </Badge>
                     </td>
-                    <td className="p-4 text-xs text-muted-foreground">{new Date(b.created_at).toLocaleDateString()}</td>
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {new Date(b.created_at).toLocaleDateString()}
+                    </td>
                     <td className="p-4 text-right space-x-2">
                       <Button size="icon" variant="ghost" onClick={() => openEditor(b)}>
                         <Edit2 className="h-4 w-4 text-primary" />
@@ -852,52 +863,109 @@ function BlogsTab() {
           <form onSubmit={saveBlog} className="space-y-4 pt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>Title <span className="text-destructive">*</span></Label>
-                <Input required value={title} onChange={(e) => handleTitleChange(e.target.value)} placeholder="e.g. How to Hire React Developers in India" />
+                <Label>
+                  Title <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  value={title}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  placeholder="e.g. How to Hire React Developers in India"
+                />
               </div>
               <div className="space-y-1">
-                <Label>Slug <span className="text-destructive">*</span></Label>
-                <Input required value={slug} onChange={(e) => setSlug(generateSlug(e.target.value))} placeholder="e.g. how-to-hire-react-developers" />
+                <Label>
+                  Slug <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  required
+                  value={slug}
+                  onChange={(e) => setSlug(generateSlug(e.target.value))}
+                  placeholder="e.g. how-to-hire-react-developers"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Featured Image URL</Label>
-                <Input value={featuredImage} onChange={(e) => setFeaturedImage(e.target.value)} placeholder="https://unsplash.com/photo..." />
+                <Input
+                  value={featuredImage}
+                  onChange={(e) => setFeaturedImage(e.target.value)}
+                  placeholder="https://unsplash.com/photo..."
+                />
               </div>
               <div className="space-y-1">
                 <Label>Category</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {["Hiring", "Software Development", "Startups", "AI & Tech", "Engineering"].map(c => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
-                    ))}
+                    {["Hiring", "Software Development", "Startups", "AI & Tech", "Engineering"].map(
+                      (c) => (
+                        <SelectItem key={c} value={c}>
+                          {c}
+                        </SelectItem>
+                      ),
+                    )}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>Description <span className="text-xs text-muted-foreground">(Brief overview for cards and search snippets)</span></Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Short excerpt summary..." />
+                <Label>
+                  Description{" "}
+                  <span className="text-xs text-muted-foreground">
+                    (Brief overview for cards and search snippets)
+                  </span>
+                </Label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Short excerpt summary..."
+                />
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>Content <span className="text-destructive">*</span></Label>
-                <Textarea required value={content} onChange={(e) => setContent(e.target.value)} rows={12} placeholder="Write your full article here in text/markdown..." />
+                <Label>
+                  Content <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  required
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  rows={12}
+                  placeholder="Write your full article here in text/markdown..."
+                />
               </div>
               <div className="space-y-1">
                 <Label>SEO Title</Label>
-                <Input value={seoTitle} onChange={(e) => setSeoTitle(e.target.value)} placeholder="SEO Meta Title (Title fallback if empty)" />
+                <Input
+                  value={seoTitle}
+                  onChange={(e) => setSeoTitle(e.target.value)}
+                  placeholder="SEO Meta Title (Title fallback if empty)"
+                />
               </div>
               <div className="space-y-1">
                 <Label>SEO Description</Label>
-                <Input value={seoDescription} onChange={(e) => setSeoDescription(e.target.value)} placeholder="SEO Meta Description (Description fallback if empty)" />
+                <Input
+                  value={seoDescription}
+                  onChange={(e) => setSeoDescription(e.target.value)}
+                  placeholder="SEO Meta Description (Description fallback if empty)"
+                />
               </div>
               <div className="space-y-1">
-                <Label>Tags <span className="text-xs text-muted-foreground">(Comma-separated)</span></Label>
-                <Input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="hiring, react, india" />
+                <Label>
+                  Tags <span className="text-xs text-muted-foreground">(Comma-separated)</span>
+                </Label>
+                <Input
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  placeholder="hiring, react, india"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Status</Label>
                 <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="draft">Draft</SelectItem>
                     <SelectItem value="published">Published</SelectItem>
@@ -906,8 +974,14 @@ function BlogsTab() {
               </div>
             </div>
             <DialogFooter className="pt-4 border-t gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={busy} className="bg-gradient-accent text-primary-foreground font-bold">
+              <Button type="button" variant="outline" onClick={() => setEditorOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={busy}
+                className="bg-gradient-accent text-primary-foreground font-bold"
+              >
                 {busy ? "Saving..." : "Save Blog Post"}
               </Button>
             </DialogFooter>
@@ -935,18 +1009,23 @@ function NdasTab() {
 
       if (!data?.length) return [];
 
-      const userIds = [...new Set([...data.map(n => n.recruiter_id), ...data.map(n => n.developer_id)])];
-      const { data: profiles } = await supabase.from("profiles").select("id, full_name").in("id", userIds);
+      const userIds = [
+        ...new Set([...data.map((n) => n.recruiter_id), ...data.map((n) => n.developer_id)]),
+      ];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", userIds);
 
-      return data.map(n => ({
+      return data.map((n) => ({
         ...n,
-        recruiter_name: profiles?.find(p => p.id === n.recruiter_id)?.full_name || "Recruiter",
-        developer_name: profiles?.find(p => p.id === n.developer_id)?.full_name || "Developer"
+        recruiter_name: profiles?.find((p) => p.id === n.recruiter_id)?.full_name || "Recruiter",
+        developer_name: profiles?.find((p) => p.id === n.developer_id)?.full_name || "Developer",
       }));
-    }
+    },
   });
 
-  const filteredNdas = ndas.filter(n => {
+  const filteredNdas = ndas.filter((n) => {
     const matchesSearch =
       (n.projects?.title && n.projects.title.toLowerCase().includes(search.toLowerCase())) ||
       n.recruiter_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -956,18 +1035,28 @@ function NdasTab() {
   });
 
   const exportCSV = () => {
-    const headers = ["Project Title", "Recruiter", "Developer", "Status", "IP Address", "Signed At", "Created At"];
-    const rows = filteredNdas.map(n => [
+    const headers = [
+      "Project Title",
+      "Recruiter",
+      "Developer",
+      "Status",
+      "IP Address",
+      "Signed At",
+      "Created At",
+    ];
+    const rows = filteredNdas.map((n) => [
       n.projects?.title || "",
       n.recruiter_name,
       n.developer_name,
       n.status,
       n.developer_ip || "",
       n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "",
-      new Date(n.created_at).toLocaleString()
+      new Date(n.created_at).toLocaleString(),
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csvContent = [headers, ...rows]
+      .map((e) => e.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -982,7 +1071,9 @@ function NdasTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-bold tracking-tight">Non-Disclosure Agreements (NDAs)</h3>
-        <p className="text-sm text-muted-foreground">Monitor completed confidentiality documents, developer sign IPs, and pending agreements.</p>
+        <p className="text-sm text-muted-foreground">
+          Monitor completed confidentiality documents, developer sign IPs, and pending agreements.
+        </p>
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -997,7 +1088,9 @@ function NdasTab() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px] h-10"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[160px] h-10">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -1033,17 +1126,36 @@ function NdasTab() {
               <tbody className="divide-y">
                 {filteredNdas.map((n) => (
                   <tr key={n.id} className="hover:bg-muted/30">
-                    <td className="p-4 font-semibold text-primary">{n.projects?.title || "Project"}</td>
+                    <td className="p-4 font-semibold text-primary">
+                      {n.projects?.title || "Project"}
+                    </td>
                     <td className="p-4">{n.recruiter_name}</td>
                     <td className="p-4">{n.developer_name}</td>
                     <td className="p-4">
-                      <Badge variant={n.status === "accepted" ? "default" : n.status === "rejected" ? "destructive" : "secondary"} className={n.status === "accepted" ? "bg-success text-success-foreground" : ""}>
+                      <Badge
+                        variant={
+                          n.status === "accepted"
+                            ? "default"
+                            : n.status === "rejected"
+                              ? "destructive"
+                              : "secondary"
+                        }
+                        className={
+                          n.status === "accepted" ? "bg-success text-success-foreground" : ""
+                        }
+                      >
                         {n.status}
                       </Badge>
                     </td>
-                    <td className="p-4 text-xs font-mono text-muted-foreground">{n.developer_ip || "—"}</td>
-                    <td className="p-4 text-xs text-muted-foreground">{n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}</td>
-                    <td className="p-4 text-xs text-muted-foreground">{new Date(n.created_at).toLocaleString()}</td>
+                    <td className="p-4 text-xs font-mono text-muted-foreground">
+                      {n.developer_ip || "—"}
+                    </td>
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1071,10 +1183,10 @@ function EmailLogsTab() {
         .select("*")
         .order("created_at", { ascending: false });
       return data || [];
-    }
+    },
   });
 
-  const filteredLogs = logs.filter(l => {
+  const filteredLogs = logs.filter((l) => {
     const matchesSearch =
       l.recipient_email.toLowerCase().includes(search.toLowerCase()) ||
       l.subject.toLowerCase().includes(search.toLowerCase());
@@ -1085,25 +1197,30 @@ function EmailLogsTab() {
 
   // Calculate metrics
   const total = logs.length;
-  const successful = logs.filter(l => l.status === "success").length;
-  const failed = logs.filter(l => l.status === "failed").length;
+  const successful = logs.filter((l) => l.status === "success").length;
+  const failed = logs.filter((l) => l.status === "failed").length;
   const successRate = total ? Math.round((successful / total) * 100) : 100;
 
   // Generate chart data by date
   const chartData = useMemo(() => {
     const dailyMap: Record<string, { date: string; success: number; failed: number }> = {};
-    const last7Days = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    }).reverse();
+    const last7Days = Array.from({ length: 7 })
+      .map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+      })
+      .reverse();
 
-    last7Days.forEach(day => {
+    last7Days.forEach((day) => {
       dailyMap[day] = { date: day, success: 0, failed: 0 };
     });
 
-    logs.forEach(l => {
-      const dateStr = new Date(l.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    logs.forEach((l) => {
+      const dateStr = new Date(l.created_at).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      });
       if (dailyMap[dateStr]) {
         if (l.status === "success") dailyMap[dateStr].success++;
         else dailyMap[dateStr].failed++;
@@ -1115,16 +1232,18 @@ function EmailLogsTab() {
 
   const exportCSV = () => {
     const headers = ["Recipient", "Subject", "Status", "Email Type", "Error Message", "Created At"];
-    const rows = filteredLogs.map(l => [
+    const rows = filteredLogs.map((l) => [
       l.recipient_email,
       l.subject,
       l.status,
       l.email_type || "",
       l.error_message || "",
-      new Date(l.created_at).toLocaleString()
+      new Date(l.created_at).toLocaleString(),
     ]);
 
-    const csvContent = [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csvContent = [headers, ...rows]
+      .map((e) => e.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1139,20 +1258,49 @@ function EmailLogsTab() {
     <div className="space-y-6">
       <div>
         <h3 className="text-xl font-bold tracking-tight">Email Analytics & Notification Logs</h3>
-        <p className="text-sm text-muted-foreground">Monitor transactional notification runs, campaign triggers, reminders, and delivery failure states.</p>
+        <p className="text-sm text-muted-foreground">
+          Monitor transactional notification runs, campaign triggers, reminders, and delivery
+          failure states.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Sent" value={total} sub="Transactional emails" icon={Mail} color="text-primary" />
-        <StatCard label="Deliveries" value={successful} sub="Successful emails" icon={CheckCircle2} color="text-success" />
-        <StatCard label="Failed" value={failed} sub="Unsent or errors" icon={XCircle} color="text-destructive" />
-        <StatCard label="Delivery Rate" value={`${successRate}%`} sub="Reliability score" icon={TrendingUp} color="text-accent" />
+        <StatCard
+          label="Total Sent"
+          value={total}
+          sub="Transactional emails"
+          icon={Mail}
+          color="text-primary"
+        />
+        <StatCard
+          label="Deliveries"
+          value={successful}
+          sub="Successful emails"
+          icon={CheckCircle2}
+          color="text-success"
+        />
+        <StatCard
+          label="Failed"
+          value={failed}
+          sub="Unsent or errors"
+          icon={XCircle}
+          color="text-destructive"
+        />
+        <StatCard
+          label="Delivery Rate"
+          value={`${successRate}%`}
+          sub="Reliability score"
+          icon={TrendingUp}
+          color="text-accent"
+        />
       </div>
 
       {/* Analytics Chart */}
       <Card className="bg-card">
         <CardHeader>
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Email Activity (Past 7 Days)</CardTitle>
+          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+            Email Activity (Past 7 Days)
+          </CardTitle>
         </CardHeader>
         <CardContent className="h-64">
           <ResponsiveContainer width="100%" height="100%">
@@ -1160,9 +1308,30 @@ function EmailLogsTab() {
               <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
               <XAxis dataKey="date" stroke="#64748b" fontSize={11} />
               <YAxis stroke="#64748b" fontSize={11} />
-              <Tooltip contentStyle={{ backgroundColor: "#0f172a", border: "none", borderRadius: "8px", color: "#fff" }} />
-              <Area type="monotone" dataKey="success" stroke="#10b981" fill="#10b981" fillOpacity={0.15} name="Success" />
-              <Area type="monotone" dataKey="failed" stroke="#ef4444" fill="#ef4444" fillOpacity={0.15} name="Failed" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#0f172a",
+                  border: "none",
+                  borderRadius: "8px",
+                  color: "#fff",
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="success"
+                stroke="#10b981"
+                fill="#10b981"
+                fillOpacity={0.15}
+                name="Success"
+              />
+              <Area
+                type="monotone"
+                dataKey="failed"
+                stroke="#ef4444"
+                fill="#ef4444"
+                fillOpacity={0.15}
+                name="Failed"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>
@@ -1180,7 +1349,9 @@ function EmailLogsTab() {
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-10"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[140px] h-10">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               <SelectItem value="success">Success</SelectItem>
@@ -1188,7 +1359,9 @@ function EmailLogsTab() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[160px] h-10"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="w-[160px] h-10">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Types</SelectItem>
               <SelectItem value="welcome">Welcome</SelectItem>
@@ -1230,15 +1403,26 @@ function EmailLogsTab() {
                     <td className="p-4 font-medium">{l.recipient_email}</td>
                     <td className="p-4 truncate max-w-xs">{l.subject}</td>
                     <td className="p-4">
-                      <Badge variant="outline" className="capitalize text-xs font-semibold">{l.email_type || "General"}</Badge>
+                      <Badge variant="outline" className="capitalize text-xs font-semibold">
+                        {l.email_type || "General"}
+                      </Badge>
                     </td>
                     <td className="p-4">
-                      <Badge variant={l.status === "success" ? "default" : "destructive"} className={l.status === "success" ? "bg-success text-success-foreground" : ""}>
+                      <Badge
+                        variant={l.status === "success" ? "default" : "destructive"}
+                        className={
+                          l.status === "success" ? "bg-success text-success-foreground" : ""
+                        }
+                      >
                         {l.status}
                       </Badge>
                     </td>
-                    <td className="p-4 text-xs font-mono text-destructive max-w-xs truncate">{l.error_message || "—"}</td>
-                    <td className="p-4 text-xs text-muted-foreground">{new Date(l.created_at).toLocaleString()}</td>
+                    <td className="p-4 text-xs font-mono text-destructive max-w-xs truncate">
+                      {l.error_message || "—"}
+                    </td>
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {new Date(l.created_at).toLocaleString()}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -2663,13 +2847,11 @@ function EditDeveloperDialog({
       })
       .eq("id", user.id);
     if (form.phone) {
-      await supabase
-        .from("developer_phones" as any)
-        .upsert({
-          developer_id: user.id,
-          phone: form.phone,
-          updated_at: new Date().toISOString(),
-        } as any);
+      await supabase.from("developer_phones" as any).upsert({
+        developer_id: user.id,
+        phone: form.phone,
+        updated_at: new Date().toISOString(),
+      } as any);
     }
     if (error) toast.error(error.message);
     else {
@@ -2811,13 +2993,11 @@ function EditRecruiterDialog({
       })
       .eq("id", user.id);
     if (form.phone) {
-      await supabase
-        .from("recruiter_phones" as any)
-        .upsert({
-          recruiter_id: user.id,
-          phone: form.phone,
-          updated_at: new Date().toISOString(),
-        } as any);
+      await supabase.from("recruiter_phones" as any).upsert({
+        recruiter_id: user.id,
+        phone: form.phone,
+        updated_at: new Date().toISOString(),
+      } as any);
     }
     if (error) toast.error(error.message);
     else {

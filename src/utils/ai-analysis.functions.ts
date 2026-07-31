@@ -37,65 +37,62 @@ export const analyzeProjectRequirement = createServerFn({ method: "POST" })
 Be realistic for the Indian freelance market. Use conservative estimates.`;
 
     try {
-      const resp = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              { role: "system", content: systemPrompt },
-              {
-                role: "user",
-                content: `Title: ${data.title}\n\nDescription:\n${data.description}`,
-              },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "suggest_requirements",
-                  description: "Return structured project suggestions",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      tech_stack: {
-                        type: "array",
-                        items: { type: "string" },
-                      },
-                      budget_min_inr: { type: "number" },
-                      budget_max_inr: { type: "number" },
-                      developer_type: {
-                        type: "string",
-                        enum: [...ALLOWED_DEV_TYPES],
-                      },
-                      timeline: { type: "string" },
-                      reasoning: { type: "string" },
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            {
+              role: "user",
+              content: `Title: ${data.title}\n\nDescription:\n${data.description}`,
+            },
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "suggest_requirements",
+                description: "Return structured project suggestions",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    tech_stack: {
+                      type: "array",
+                      items: { type: "string" },
                     },
-                    required: [
-                      "tech_stack",
-                      "budget_min_inr",
-                      "budget_max_inr",
-                      "developer_type",
-                      "timeline",
-                      "reasoning",
-                    ],
-                    additionalProperties: false,
+                    budget_min_inr: { type: "number" },
+                    budget_max_inr: { type: "number" },
+                    developer_type: {
+                      type: "string",
+                      enum: [...ALLOWED_DEV_TYPES],
+                    },
+                    timeline: { type: "string" },
+                    reasoning: { type: "string" },
                   },
+                  required: [
+                    "tech_stack",
+                    "budget_min_inr",
+                    "budget_max_inr",
+                    "developer_type",
+                    "timeline",
+                    "reasoning",
+                  ],
+                  additionalProperties: false,
                 },
               },
-            ],
-            tool_choice: {
-              type: "function",
-              function: { name: "suggest_requirements" },
             },
-          }),
-        },
-      );
+          ],
+          tool_choice: {
+            type: "function",
+            function: { name: "suggest_requirements" },
+          },
+        }),
+      });
 
       if (resp.status === 429) {
         return { ok: false as const, error: "AI is rate-limited. Try again in a minute." };

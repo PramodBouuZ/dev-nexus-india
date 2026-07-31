@@ -48,8 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function fetchRole(uid: string) {
     // 1. Hardcode superadmin check for specific email
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
-    if (currentUser?.email === 'info.bouuz@gmail.com') {
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    if (currentUser?.email === "info.bouuz@gmail.com") {
       setRole("admin");
       return;
     }
@@ -62,7 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Update user metadata with the role
       await supabase.auth.updateUser({
-        data: { role: pendingRole }
+        data: { role: pendingRole },
       });
 
       setRole(pendingRole);

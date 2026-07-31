@@ -24,6 +24,7 @@ A single combined SQL file is exported for you:
 **`supabase_full_schema.sql`** (downloadable artifact below)
 
 In your new Supabase dashboard:
+
 1. Open **SQL Editor → New query**
 2. Paste the entire contents of `supabase_full_schema.sql`
 3. Click **Run**
@@ -53,20 +54,22 @@ Cloud Console.
 Go to **Vercel → Project → Settings → Environment Variables** and add:
 
 ### Client-visible (prefixed `VITE_`)
-| Name | Value |
-|---|---|
-| `VITE_SUPABASE_URL` | `https://<ref>.supabase.co` |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | your anon/publishable key |
-| `VITE_SUPABASE_PROJECT_ID` | `<ref>` |
+
+| Name                            | Value                       |
+| ------------------------------- | --------------------------- |
+| `VITE_SUPABASE_URL`             | `https://<ref>.supabase.co` |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | your anon/publishable key   |
+| `VITE_SUPABASE_PROJECT_ID`      | `<ref>`                     |
 
 ### Server-only (no prefix)
-| Name | Value |
-|---|---|
-| `SUPABASE_URL` | `https://<ref>.supabase.co` |
-| `SUPABASE_PUBLISHABLE_KEY` | your anon/publishable key |
-| `SUPABASE_SERVICE_ROLE_KEY` | your service_role key |
-| `SUPABASE_PROJECT_ID` | `<ref>` |
-| `LOVABLE_API_KEY` | only if you keep using Lovable AI gateway features |
+
+| Name                        | Value                                              |
+| --------------------------- | -------------------------------------------------- |
+| `SUPABASE_URL`              | `https://<ref>.supabase.co`                        |
+| `SUPABASE_PUBLISHABLE_KEY`  | your anon/publishable key                          |
+| `SUPABASE_SERVICE_ROLE_KEY` | your service_role key                              |
+| `SUPABASE_PROJECT_ID`       | `<ref>`                                            |
+| `LOVABLE_API_KEY`           | only if you keep using Lovable AI gateway features |
 
 Apply to **Production**, **Preview**, and **Development** as needed.
 

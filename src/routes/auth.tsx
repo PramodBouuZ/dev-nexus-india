@@ -15,9 +15,17 @@ export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
       { title: "Sign in or Create Account | DeveloperConnect" },
-      { name: "description", content: "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup." },
+      {
+        name: "description",
+        content:
+          "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup.",
+      },
       { property: "og:title", content: "Sign in or Create Account | DeveloperConnect" },
-      { property: "og:description", content: "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup." },
+      {
+        property: "og:description",
+        content:
+          "Join DeveloperConnect today. Find the best part-time developer jobs or hire top Indian tech talent for your startup.",
+      },
       { tag: "link", rel: "canonical", href: "https://developerconnect.in/auth" },
     ],
     scripts: [
@@ -26,13 +34,18 @@ export const Route = createFileRoute("/auth")({
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "BreadcrumbList",
-          "itemListElement": [
-            { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://developerconnect.in" },
-            { "@type": "ListItem", "position": 2, "name": "Auth", "item": "https://developerconnect.in/auth" }
-          ]
-        })
-      }
-    ]
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: "https://developerconnect.in" },
+            {
+              "@type": "ListItem",
+              position: 2,
+              name: "Auth",
+              item: "https://developerconnect.in/auth",
+            },
+          ],
+        }),
+      },
+    ],
   }),
   component: AuthPage,
 });
@@ -48,14 +61,22 @@ function AuthPage() {
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground hover:text-foreground">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
+        >
           <Link to="/">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to home
           </Link>
         </Button>
 
-        <Link to="/" className="mb-8 flex items-center justify-center gap-2 font-display text-xl font-bold">
+        <Link
+          to="/"
+          className="mb-8 flex items-center justify-center gap-2 font-display text-xl font-bold"
+        >
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-accent text-primary-foreground shadow-glow">
             <Briefcase className="h-4 w-4" />
           </span>
@@ -81,7 +102,13 @@ function AuthPage() {
   );
 }
 
-function GoogleButton({ role, text = "Continue with Google" }: { role?: "developer" | "recruiter", text?: string }) {
+function GoogleButton({
+  role,
+  text = "Continue with Google",
+}: {
+  role?: "developer" | "recruiter";
+  text?: string;
+}) {
   const [loading, setLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -159,7 +186,7 @@ function SignInForm() {
 
     toast.success("Welcome back!");
 
-    if (role === 'admin') navigate({ to: '/admin' });
+    if (role === "admin") navigate({ to: "/admin" });
     else navigate({ to: "/dashboard" });
   }
 
@@ -168,25 +195,50 @@ function SignInForm() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="si-email">Email</Label>
-          <Input id="si-email" type="email" required placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="si-email"
+            type="email"
+            required
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label htmlFor="si-pw">Password</Label>
-            <Link to="/forgot-password" title="Recover your password" className="text-xs text-accent hover:underline">
+            <Link
+              to="/forgot-password"
+              title="Recover your password"
+              className="text-xs text-accent hover:underline"
+            >
               Forgot password?
             </Link>
           </div>
-          <Input id="si-pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            id="si-pw"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
-        <Button type="submit" className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90" disabled={busy}>
+        <Button
+          type="submit"
+          className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+          disabled={busy}
+        >
           {busy ? "Signing in..." : "Sign in"}
         </Button>
       </form>
 
       <div className="relative">
-        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with</span></div>
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+        </div>
       </div>
 
       <GoogleButton text="Sign in with Google" />
@@ -205,14 +257,18 @@ function SignUpForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+    if (password.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
     setBusy(true);
 
     const selectedRole = role;
     console.log("Attempting sign up for:", email, "with role:", selectedRole);
 
     const { data, error } = await supabase.auth.signUp({
-      email, password,
+      email,
+      password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
         data: { full_name: fullName, role: selectedRole },
@@ -254,8 +310,9 @@ function SignUpForm() {
         </div>
         <h2 className="text-xl font-bold mb-2">Check your email</h2>
         <p className="text-muted-foreground text-sm mb-6">
-          We've sent a verification link to <span className="font-medium text-foreground">{email}</span>.
-          Please click the link to activate your account.
+          We've sent a verification link to{" "}
+          <span className="font-medium text-foreground">{email}</span>. Please click the link to
+          activate your account.
         </p>
         <Button variant="outline" className="w-full" onClick={() => setCheckEmail(false)}>
           Back to sign up
@@ -268,18 +325,32 @@ function SignUpForm() {
     <div className="space-y-4">
       <div className="space-y-2">
         <Label>I am a...</Label>
-        <RadioGroup value={role} onValueChange={(v) => setRole(v as "developer" | "recruiter")} className="grid grid-cols-2 gap-3">
-          <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${role === "developer" ? "border-accent bg-accent/5" : "border-border"}`}>
+        <RadioGroup
+          value={role}
+          onValueChange={(v) => setRole(v as "developer" | "recruiter")}
+          className="grid grid-cols-2 gap-3"
+        >
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${role === "developer" ? "border-accent bg-accent/5" : "border-border"}`}
+          >
             <RadioGroupItem value="developer" className="mt-1" />
             <div>
-              <div className="flex items-center gap-1.5 text-sm font-medium"><Code2 className="h-4 w-4" />Developer</div>
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Code2 className="h-4 w-4" />
+                Developer
+              </div>
               <div className="mt-0.5 text-xs text-muted-foreground">Find part-time work</div>
             </div>
           </label>
-          <label className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${role === "recruiter" ? "border-accent bg-accent/5" : "border-border"}`}>
+          <label
+            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${role === "recruiter" ? "border-accent bg-accent/5" : "border-border"}`}
+          >
             <RadioGroupItem value="recruiter" className="mt-1" />
             <div>
-              <div className="flex items-center gap-1.5 text-sm font-medium"><Briefcase className="h-4 w-4" />Recruiter</div>
+              <div className="flex items-center gap-1.5 text-sm font-medium">
+                <Briefcase className="h-4 w-4" />
+                Recruiter
+              </div>
               <div className="mt-0.5 text-xs text-muted-foreground">Hire developers</div>
             </div>
           </label>
@@ -289,24 +360,52 @@ function SignUpForm() {
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="su-name">Full name</Label>
-          <Input id="su-name" required placeholder="John Doe" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          <Input
+            id="su-name"
+            required
+            placeholder="John Doe"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="su-email">Email</Label>
-          <Input id="su-email" type="email" required placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Input
+            id="su-email"
+            type="email"
+            required
+            placeholder="name@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="su-pw">Password</Label>
-          <Input id="su-pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input
+            id="su-pw"
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
-        <Button type="submit" className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90" disabled={busy}>
+        <Button
+          type="submit"
+          className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+          disabled={busy}
+        >
           {busy ? "Creating account..." : "Create account"}
         </Button>
       </form>
 
       <div className="relative">
-        <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-        <div className="relative flex justify-center text-xs uppercase"><span className="bg-card px-2 text-muted-foreground">Or continue with</span></div>
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-border" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+        </div>
       </div>
 
       <GoogleButton role={role} text="Sign up with Google" />
