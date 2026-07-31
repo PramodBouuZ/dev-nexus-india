@@ -4,12 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2, CheckCircle2, Clock, Eye, Pause, Circle } from "lucide-react";
+import { Plus, Trash2, CheckCircle2, Clock, Eye, Pause, Circle, Calendar, Percent } from "lucide-react";
 import { toast } from "sonner";
 
 type StageStatus = "planned" | "in_progress" | "under_review" | "completed" | "blocked";
@@ -27,6 +26,8 @@ export function ProjectStages({ projectId }: { projectId: string }) {
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [comment, setComment] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [progressPercent, setProgressPercent] = useState("0");
   const [busy, setBusy] = useState(false);
 
   const { data: stages = [], isLoading } = useQuery({
@@ -48,12 +49,17 @@ export function ProjectStages({ projectId }: { projectId: string }) {
     setBusy(true);
     const pos = stages.length;
     const { error } = await supabase.from("project_stages").insert({
-      project_id: projectId, name: name.trim().slice(0, 80),
-      comment: comment.trim() || null, updated_by: user.id, position: pos,
+      project_id: projectId,
+      name: name.trim().slice(0, 80),
+      comment: comment.trim() || null,
+      updated_by: user.id,
+      position: pos,
+      progress_percent: parseInt(progressPercent, 10) || 0,
+      deadline: deadline || null,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    setName(""); setComment("");
+    setName(""); setComment(""); setDeadline(""); setProgressPercent("0");
     qc.invalidateQueries({ queryKey: ["stages", projectId] });
     toast.success("Stage added");
 
@@ -70,44 +76,53 @@ export function ProjectStages({ projectId }: { projectId: string }) {
           type: "stage_update",
           link: `/projects/${projectId}`
         });
-
-        // Rule 7: Project Completed notification
-        if (status === "completed" && stages.every(s => s.id === id || s.status === "completed")) {
-           await supabase.from("projects").update({ status: "completed" }).eq("id", projectId);
-           await supabase.from("notifications").insert({
-             user_id: targetId,
-             title: "Project Completed!",
-             body: `The project "${project.title}" has been marked as completed.`,
-             type: "project_update",
-             link: `/projects/${projectId}`
-           });
-           toast.success("Project marked as completed!");
-        }
       }
     }
   }
 
-  async function setStatus(id: string, status: StageStatus) {
+  async function updateStageField(id: string, fields: Partial<{ status: StageStatus; progress_percent: number; deadline: string | null; comment: string }>) {
     if (!user) return;
     const { error } = await supabase.from("project_stages")
-      .update({ status, updated_by: user.id }).eq("id", id);
+      .update({ ...fields, updated_by: user.id }).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries({ queryKey: ["stages", projectId] });
 
     // Notify other party
-    const { data: stage } = await supabase.from("project_stages").select("name").eq("id", id).maybeSingle();
+    const { data: stage } = await supabase.from("project_stages").select("name, status").eq("id", id).maybeSingle();
     const { data: project } = await supabase.from("projects").select("recruiter_id, title, applications(developer_id, status)").eq("id", projectId).maybeSingle();
     if (project && stage) {
       const acceptedApp = (project.applications as any)?.find((a: any) => a.status === 'accepted');
       if (acceptedApp) {
         const targetId = user.id === project.recruiter_id ? acceptedApp.developer_id : project.recruiter_id;
+        let updateMsg = `Milestone "${stage.name}" was updated for ${project.title}`;
+        if (fields.status) {
+          updateMsg = `Milestone "${stage.name}" is now ${STATUS_META[fields.status].label} for ${project.title}`;
+        } else if (fields.progress_percent !== undefined) {
+          updateMsg = `Milestone "${stage.name}" progress is now ${fields.progress_percent}% for ${project.title}`;
+        }
         await supabase.from("notifications").insert({
           user_id: targetId,
           title: "Stage updated",
-          body: `Milestone "${stage.name}" is now ${STATUS_META[status].label} for ${project.title}`,
+          body: updateMsg,
           type: "stage_update",
           link: `/projects/${projectId}`
         });
+
+        // Trigger automatic project completion if all stages are completed
+        if (fields.status === "completed") {
+          const allCompleted = stages.every(s => s.id === id ? true : s.status === "completed");
+          if (allCompleted) {
+            await supabase.from("projects").update({ status: "completed" }).eq("id", projectId);
+            await supabase.from("notifications").insert({
+              user_id: targetId,
+              title: "Project Completed!",
+              body: `All milestones completed! The project "${project.title}" has been marked as completed.`,
+              type: "project_update",
+              link: `/projects/${projectId}`
+            });
+            toast.success("All stages completed! Project marked as completed.");
+          }
+        }
       }
     }
   }
@@ -123,11 +138,11 @@ export function ProjectStages({ projectId }: { projectId: string }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="font-display text-xl font-semibold">Project progress</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Track milestones — both parties can add and update stages.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Track milestones — both parties can add, update stages, progress % and deadlines.</p>
         </div>
       </div>
 
-      <ol className="mt-6 space-y-3">
+      <ol className="mt-6 space-y-4">
         {isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
         {!isLoading && stages.length === 0 && (
           <p className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
@@ -138,47 +153,100 @@ export function ProjectStages({ projectId }: { projectId: string }) {
           const meta = STATUS_META[s.status as StageStatus];
           const Icon = meta.icon;
           return (
-            <li key={s.id} className="flex items-start gap-3 rounded-lg border border-border bg-background p-4">
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold">
-                {idx + 1}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h4 className="font-medium">{s.name}</h4>
-                  <Badge className={meta.cls + " gap-1"}>
-                    <Icon className="h-3 w-3" /> {meta.label}
-                  </Badge>
+            <li key={s.id} className="flex flex-col gap-4 rounded-lg border border-border bg-background p-4 shadow-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-xs font-semibold">
+                  {idx + 1}
                 </div>
-                {s.comment && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{s.comment}</p>}
-                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                  Updated {new Date(s.updated_at).toLocaleDateString()}
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-semibold">{s.name}</h4>
+                    <Badge className={meta.cls + " gap-1"}>
+                      <Icon className="h-3 w-3" /> {meta.label}
+                    </Badge>
+                  </div>
+                  {s.comment && <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">{s.comment}</p>}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Select value={s.status} onValueChange={(v) => updateStageField(s.id, { status: v as StageStatus })}>
+                    <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {(Object.keys(STATUS_META) as StageStatus[]).map(k => (
+                        <SelectItem key={k} value={k}>{STATUS_META[k].label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => remove(s.id)} title="Remove stage">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <Select value={s.status} onValueChange={(v) => setStatus(s.id, v as StageStatus)}>
-                  <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(STATUS_META) as StageStatus[]).map(k => (
-                      <SelectItem key={k} value={k}>{STATUS_META[k].label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button size="icon" variant="ghost" onClick={() => remove(s.id)} title="Remove stage">
-                  <Trash2 className="h-4 w-4 text-muted-foreground" />
-                </Button>
+
+              {/* Progress and Deadline details */}
+              <div className="pl-11 grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-border/50 pt-3 text-sm">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+                    <Percent className="h-3.5 w-3.5" /> Progress:
+                  </div>
+                  <Select
+                    value={String(s.progress_percent || 0)}
+                    onValueChange={(val) => updateStageField(s.id, { progress_percent: parseInt(val, 10) })}
+                  >
+                    <SelectTrigger className="h-8 w-24 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].map((p) => (
+                        <SelectItem key={p} value={p}>{p}%</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-muted-foreground shrink-0">
+                    <Calendar className="h-3.5 w-3.5" /> Deadline:
+                  </div>
+                  <Input
+                    type="date"
+                    value={s.deadline || ""}
+                    onChange={(e) => updateStageField(s.id, { deadline: e.target.value || null })}
+                    className="h-8 w-40 text-xs text-foreground bg-transparent"
+                  />
+                </div>
               </div>
             </li>
           );
         })}
       </ol>
 
-      <form onSubmit={add} className="mt-6 space-y-3 rounded-lg border border-dashed border-border p-4">
+      <form onSubmit={add} className="mt-6 space-y-4 rounded-lg border border-dashed border-border p-4 bg-muted/20">
+        <h4 className="font-semibold text-sm">Add New Milestone</h4>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input required value={name} onChange={e => setName(e.target.value)} placeholder="Stage name (e.g. UI design)" maxLength={80} />
-          <Input value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional note" maxLength={300} />
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground font-medium">Stage Name</span>
+            <Input required value={name} onChange={e => setName(e.target.value)} placeholder="UI design, Backend API, etc." maxLength={80} />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground font-medium">Optional Note</span>
+            <Input value={comment} onChange={e => setComment(e.target.value)} placeholder="Any notes or scope details" maxLength={300} />
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground font-medium">Progress Percentage</span>
+            <Select value={progressPercent} onValueChange={setProgressPercent}>
+              <SelectTrigger className="w-full text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["0", "10", "20", "30", "40", "50", "60", "70", "80", "90", "100"].map((p) => (
+                  <SelectItem key={p} value={p}>{p}%</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className="text-xs text-muted-foreground font-medium">Deadline Date</span>
+            <Input type="date" value={deadline} onChange={e => setDeadline(e.target.value)} />
+          </div>
         </div>
         <Button type="submit" disabled={busy} size="sm" className="bg-gradient-accent text-primary-foreground hover:opacity-90">
-          <Plus className="mr-1 h-4 w-4" /> {busy ? "Adding..." : "Add stage"}
+          <Plus className="mr-1 h-4 w-4" /> {busy ? "Adding..." : "Add milestone"}
         </Button>
       </form>
     </section>

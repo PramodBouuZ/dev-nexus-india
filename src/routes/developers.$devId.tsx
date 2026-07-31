@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useQuery } from "@tanstack/react-query";
@@ -20,9 +20,31 @@ import {
 export const Route = createFileRoute("/developers/$devId")({
   loader: async ({ params }) => {
     const { devId } = params;
-    const { data: dev } = await supabase.from("developer_profiles").select("full_name, headline, bio, skills, is_verified").eq("id", devId).maybeSingle();
-    const { data: reviews } = await supabase.from("reviews").select("rating, comment, created_at").eq("reviewee_id", devId).limit(5);
-    return { dev, devId, reviews };
+
+    const categories = [
+      "react-developers", "nodejs-developers", "python-developers", "flutter-developers",
+      "php-developers", "laravel-developers", "wordpress-developers", "java-developers",
+      "android-developers", "ios-developers", "ai-developers", "machine-learning-engineers",
+      "devops-engineers", "ui-ux-designers"
+    ];
+
+    if (categories.includes(devId)) {
+      throw redirect({
+        to: "/hire-$slug",
+        params: { slug: devId }
+      });
+    }
+
+    let query = supabase.from("developer_profiles").select("id, full_name, headline, bio, skills, is_verified");
+    if (devId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      query = query.eq("id", devId);
+    } else {
+      query = query.eq("developer_slug", devId);
+    }
+    const { data: dev } = await query.maybeSingle();
+    const actualId = dev?.id || devId;
+    const { data: reviews } = await supabase.from("reviews").select("rating, comment, created_at").eq("reviewee_id", actualId).limit(5);
+    return { dev, devId: actualId, reviews };
   },
   head: ({ loaderData }) => {
     const name = loaderData?.dev?.full_name || "John Doe";
@@ -104,20 +126,23 @@ export const Route = createFileRoute("/developers/$devId")({
 });
 
 function DevProfile() {
-  const { devId } = Route.useParams();
+  const { devId: routeParam } = Route.useParams();
+  const loaderData = Route.useLoaderData();
+  const resolvedDevId = loaderData?.devId;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dev-profile", devId],
+    queryKey: ["dev-profile", resolvedDevId],
     staleTime: 1000 * 60 * 5, // 5 minutes
     queryFn: async () => {
+      if (!resolvedDevId) return { dev: null, revs: [], avg: 0, projects: [], completion: 0 };
       const [{ data: dev }, { data: revs }, { data: projects }] = await Promise.all([
-        supabase.from("developer_profiles").select("*").eq("id", devId).maybeSingle(),
-        supabase.from("reviews").select("*").eq("reviewee_id", devId).order("created_at", { ascending: false }),
-        supabase.from("contracts").select("*, projects(title, status)").eq("developer_id", devId).order("created_at", { ascending: false }),
+        supabase.from("developer_profiles").select("*").eq("id", resolvedDevId).maybeSingle(),
+        supabase.from("reviews").select("*").eq("reviewee_id", resolvedDevId).order("created_at", { ascending: false }),
+        supabase.from("contracts").select("*, projects(title, status)").eq("developer_id", resolvedDevId).order("created_at", { ascending: false }),
       ]);
 
       // Increment view count asynchronously
-      supabase.rpc("increment_profile_view", { _developer_id: devId }).then(() => {});
+      supabase.rpc("increment_profile_view", { _developer_id: resolvedDevId }).then(() => {});
 
       const avg = revs?.length ? revs.reduce((s, r) => s + r.rating, 0) / revs.length : 0;
 
@@ -170,7 +195,7 @@ function DevProfile() {
                           <ShieldCheck className="h-3.5 w-3.5" /> Verified
                         </Badge>
                       )}
-                      <FavoriteButton kind="developer" targetId={devId} variant="ghost" size="icon" className="ml-auto sm:ml-0" />
+                      <FavoriteButton kind="developer" targetId={resolvedDevId} variant="ghost" size="icon" className="ml-auto sm:ml-0" />
                     </div>
                     {dev.headline && <p className="text-lg text-muted-foreground font-medium mt-1">{dev.headline}</p>}
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
@@ -185,7 +210,7 @@ function DevProfile() {
                 </div>
 
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <InviteDeveloperDialog developerId={devId} developerName={dev.full_name ?? "this developer"} />
+                  <InviteDeveloperDialog developerId={resolvedDevId} developerName={dev.full_name ?? "this developer"} />
                 </div>
               </div>
             </div>
@@ -570,7 +595,7 @@ function DevProfile() {
               <p className="text-sm text-muted-foreground leading-relaxed">
                 To protect privacy, contact details are hidden until access is requested and approved.
               </p>
-              <ContactAccess targetUserId={devId} targetName={dev.full_name ?? "this developer"} />
+              <ContactAccess targetUserId={resolvedDevId} targetName={dev.full_name ?? "this developer"} />
             </div>
           </aside>
         </div>

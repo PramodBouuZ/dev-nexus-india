@@ -32,6 +32,7 @@ import { Route as RecruitersRecIdRouteImport } from './routes/recruiters.$recId'
 import { Route as ProjectsNewRouteImport } from './routes/projects.new'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects.$projectId'
 import { Route as DevelopersDevIdRouteImport } from './routes/developers.$devId'
+import { Route as CompanyCompanySlugRouteImport } from './routes/company.$companySlug'
 import { Route as BlogPostSlugRouteImport } from './routes/blog.$postSlug'
 import { Route as ApplicationsAppIdRouteImport } from './routes/applications.$appId'
 
@@ -150,6 +151,11 @@ const DevelopersDevIdRoute = DevelopersDevIdRouteImport.update({
   path: '/$devId',
   getParentRoute: () => DevelopersRoute,
 } as any)
+const CompanyCompanySlugRoute = CompanyCompanySlugRouteImport.update({
+  id: '/company/$companySlug',
+  path: '/company/$companySlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BlogPostSlugRoute = BlogPostSlugRouteImport.update({
   id: '/blog/$postSlug',
   path: '/blog/$postSlug',
@@ -181,6 +187,7 @@ export interface FileRoutesByFullPath {
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
+  '/company/$companySlug': typeof CompanyCompanySlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
+  '/company/$companySlug': typeof CompanyCompanySlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/verification': typeof VerificationRoute
   '/applications/$appId': typeof ApplicationsAppIdRoute
   '/blog/$postSlug': typeof BlogPostSlugRoute
+  '/company/$companySlug': typeof CompanyCompanySlugRoute
   '/developers/$devId': typeof DevelopersDevIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
   '/projects/new': typeof ProjectsNewRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/verification'
     | '/applications/$appId'
     | '/blog/$postSlug'
+    | '/company/$companySlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -292,6 +302,7 @@ export interface FileRouteTypes {
     | '/verification'
     | '/applications/$appId'
     | '/blog/$postSlug'
+    | '/company/$companySlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -319,6 +330,7 @@ export interface FileRouteTypes {
     | '/verification'
     | '/applications/$appId'
     | '/blog/$postSlug'
+    | '/company/$companySlug'
     | '/developers/$devId'
     | '/projects/$projectId'
     | '/projects/new'
@@ -347,6 +359,7 @@ export interface RootRouteChildren {
   VerificationRoute: typeof VerificationRoute
   ApplicationsAppIdRoute: typeof ApplicationsAppIdRoute
   BlogPostSlugRoute: typeof BlogPostSlugRoute
+  CompanyCompanySlugRoute: typeof CompanyCompanySlugRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
   ProjectsNewRoute: typeof ProjectsNewRoute
   RecruitersRecIdRoute: typeof RecruitersRecIdRoute
@@ -517,6 +530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevelopersDevIdRouteImport
       parentRoute: typeof DevelopersRoute
     }
+    '/company/$companySlug': {
+      id: '/company/$companySlug'
+      path: '/company/$companySlug'
+      fullPath: '/company/$companySlug'
+      preLoaderRoute: typeof CompanyCompanySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/blog/$postSlug': {
       id: '/blog/$postSlug'
       path: '/blog/$postSlug'
@@ -566,6 +586,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerificationRoute: VerificationRoute,
   ApplicationsAppIdRoute: ApplicationsAppIdRoute,
   BlogPostSlugRoute: BlogPostSlugRoute,
+  CompanyCompanySlugRoute: CompanyCompanySlugRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
   ProjectsNewRoute: ProjectsNewRoute,
   RecruitersRecIdRoute: RecruitersRecIdRoute,
