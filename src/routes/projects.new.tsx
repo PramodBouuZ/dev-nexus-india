@@ -15,6 +15,7 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { analyzeProjectRequirement } from "@/utils/ai-analysis.functions";
 import { useQuery } from "@tanstack/react-query";
+import { logProjectActivityServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/projects/new")({
   head: () => ({ meta: [{ title: "Post a project | DeveloperConnect" }] }),
@@ -156,6 +157,20 @@ function NewProject() {
     }).select().single();
     setBusy(false);
     if (error) { toast.error(error.message); return; }
+
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId: data.id,
+          userId: user.id,
+          activityType: "project_created",
+          description: `Recruiter posted project: "${form.title}"`
+        }
+      });
+    } catch (activityErr) {
+      console.error("Failed to log project creation activity:", activityErr);
+    }
+
     toast.success("Project posted!");
     navigate({ to: "/projects/$projectId", params: { projectId: data.id } });
   }
