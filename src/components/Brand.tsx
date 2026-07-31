@@ -5,7 +5,9 @@ export function BrandMark({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const dim = size === "sm" ? "h-7 w-7" : size === "lg" ? "h-10 w-10" : "h-8 w-8";
   const icon = size === "sm" ? "h-3.5 w-3.5" : size === "lg" ? "h-5 w-5" : "h-4 w-4";
   return (
-    <span className={`flex ${dim} items-center justify-center rounded-lg bg-gradient-accent text-primary-foreground shadow-glow`}>
+    <span
+      className={`flex ${dim} items-center justify-center rounded-lg bg-gradient-accent text-primary-foreground shadow-glow`}
+    >
       <Code2 className={icon} />
     </span>
   );

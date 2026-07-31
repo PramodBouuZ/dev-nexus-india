@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ImageUpload } from "@/components/ImageUpload";
@@ -43,9 +47,15 @@ function ProfilePage() {
       <Navbar />
       <main className="flex-1 mx-auto w-full max-w-2xl px-4 py-10 sm:px-6">
         <h1 className="font-display text-3xl font-bold tracking-tight">Edit profile</h1>
-        <p className="mt-1 text-muted-foreground">Keep your profile up to date to get better matches.</p>
+        <p className="mt-1 text-muted-foreground">
+          Keep your profile up to date to get better matches.
+        </p>
         <div className="mt-8">
-          {role === "recruiter" ? <RecruiterForm userId={user.id} /> : <DeveloperForm userId={user.id} />}
+          {role === "recruiter" ? (
+            <RecruiterForm userId={user.id} />
+          ) : (
+            <DeveloperForm userId={user.id} />
+          )}
         </div>
       </main>
       <Footer />
@@ -55,11 +65,22 @@ function ProfilePage() {
 
 function DeveloperForm({ userId }: { userId: string }) {
   const [form, setForm] = useState({
-    full_name: "", headline: "", bio: "", skills: "",
-    hourly_rate_inr: "", weekly_rate_inr: "", monthly_rate_inr: "", project_min_inr: "",
-    availability_hours_per_week: "", hours_per_day: "", time_slots: "",
+    full_name: "",
+    headline: "",
+    bio: "",
+    skills: "",
+    hourly_rate_inr: "",
+    weekly_rate_inr: "",
+    monthly_rate_inr: "",
+    project_min_inr: "",
+    availability_hours_per_week: "",
+    hours_per_day: "",
+    time_slots: "",
     experience_years: "",
-    github_url: "", portfolio_url: "", linkedin_url: "", location: "",
+    github_url: "",
+    portfolio_url: "",
+    linkedin_url: "",
+    location: "",
     work_preference: "both" as "part_time" | "full_time" | "both",
     developer_type: "fullstack",
     phone: "",
@@ -72,8 +93,16 @@ function DeveloperForm({ userId }: { userId: string }) {
 
   useEffect(() => {
     (async () => {
-      const { data: dev } = await supabase.from("developer_profiles").select("*").eq("id", userId).maybeSingle();
-      const { data: dp } = await supabase.from("developer_phones" as any).select("phone").eq("developer_id", userId).maybeSingle();
+      const { data: dev } = await supabase
+        .from("developer_profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      const { data: dp } = await supabase
+        .from("developer_phones" as any)
+        .select("phone")
+        .eq("developer_id", userId)
+        .maybeSingle();
       if (dev) {
         setForm({
           full_name: (dev as any).full_name ?? "",
@@ -98,7 +127,7 @@ function DeveloperForm({ userId }: { userId: string }) {
           available_days: dev.available_days ?? [],
           contact_public: dev.contact_public ?? false,
           avatar_url: (dev as any).avatar_url ?? null,
-        is_available: (dev as any).is_available ?? true,
+          is_available: (dev as any).is_available ?? true,
         });
       }
     })();
@@ -116,7 +145,10 @@ function DeveloperForm({ userId }: { userId: string }) {
   async function save(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    const skills = form.skills.split(",").map(s => s.trim()).filter(Boolean);
+    const skills = form.skills
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const { error } = await supabase.from("developer_profiles").upsert({
       id: userId,
       full_name: form.full_name,
@@ -128,7 +160,9 @@ function DeveloperForm({ userId }: { userId: string }) {
       weekly_rate_inr: form.weekly_rate_inr ? Number(form.weekly_rate_inr) : null,
       monthly_rate_inr: form.monthly_rate_inr ? Number(form.monthly_rate_inr) : null,
       project_min_inr: form.project_min_inr ? Number(form.project_min_inr) : null,
-      availability_hours_per_week: form.availability_hours_per_week ? Number(form.availability_hours_per_week) : null,
+      availability_hours_per_week: form.availability_hours_per_week
+        ? Number(form.availability_hours_per_week)
+        : null,
       hours_per_day: form.hours_per_day ? Number(form.hours_per_day) : null,
       time_slots: form.time_slots || null,
       experience_years: form.experience_years ? Number(form.experience_years) : null,
@@ -144,17 +178,32 @@ function DeveloperForm({ userId }: { userId: string }) {
     } as any);
     // Upsert phone into private table
     if (form.phone) {
-      await supabase.from("developer_phones" as any).upsert({ developer_id: userId, phone: form.phone, updated_at: new Date().toISOString() } as any);
+      await supabase
+        .from("developer_phones" as any)
+        .upsert({
+          developer_id: userId,
+          phone: form.phone,
+          updated_at: new Date().toISOString(),
+        } as any);
     } else {
-      await supabase.from("developer_phones" as any).delete().eq("developer_id", userId);
+      await supabase
+        .from("developer_phones" as any)
+        .delete()
+        .eq("developer_id", userId);
     }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Profile saved!");
   }
 
   return (
-    <form onSubmit={save} className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+    <form
+      onSubmit={save}
+      className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card"
+    >
       <Section title="Basics">
         <ImageUpload
           userId={userId}
@@ -165,21 +214,55 @@ function DeveloperForm({ userId }: { userId: string }) {
           folder="avatar"
           label="Profile photo (shown to recruiters)"
         />
-        <Field label="Full name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
-        <Field label="Headline"><Input value={form.headline} onChange={e => setForm({ ...form, headline: e.target.value })} placeholder="Full-stack engineer · React, Node, Postgres" maxLength={140} /></Field>
-        <Field label="Bio"><Textarea rows={4} value={form.bio} onChange={e => setForm({ ...form, bio: e.target.value })} maxLength={2000} /></Field>
+        <Field label="Full name">
+          <Input
+            required
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+          />
+        </Field>
+        <Field label="Headline">
+          <Input
+            value={form.headline}
+            onChange={(e) => setForm({ ...form, headline: e.target.value })}
+            placeholder="Full-stack engineer · React, Node, Postgres"
+            maxLength={140}
+          />
+        </Field>
+        <Field label="Bio">
+          <Textarea
+            rows={4}
+            value={form.bio}
+            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            maxLength={2000}
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Developer type">
-            <Select value={form.developer_type} onValueChange={(v) => setForm({ ...form, developer_type: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.developer_type}
+              onValueChange={(v) => setForm({ ...form, developer_type: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {DEV_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                {DEV_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Looking for">
-            <Select value={form.work_preference} onValueChange={(v) => setForm({ ...form, work_preference: v as any })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+            <Select
+              value={form.work_preference}
+              onValueChange={(v) => setForm({ ...form, work_preference: v as any })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="part_time">Part-time</SelectItem>
                 <SelectItem value="full_time">Full-time</SelectItem>
@@ -188,39 +271,108 @@ function DeveloperForm({ userId }: { userId: string }) {
             </Select>
           </Field>
         </div>
-        <Field label="Skills (comma separated)"><Input value={form.skills} onChange={e => setForm({ ...form, skills: e.target.value })} placeholder="React, TypeScript, Node.js" /></Field>
+        <Field label="Skills (comma separated)">
+          <Input
+            value={form.skills}
+            onChange={(e) => setForm({ ...form, skills: e.target.value })}
+            placeholder="React, TypeScript, Node.js"
+          />
+        </Field>
       </Section>
 
       <Section title="Availability">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Hours / day"><Input type="number" min={0} max={24} value={form.hours_per_day} onChange={e => setForm({ ...form, hours_per_day: e.target.value })} /></Field>
-          <Field label="Hours / week"><Input type="number" min={0} max={80} value={form.availability_hours_per_week} onChange={e => setForm({ ...form, availability_hours_per_week: e.target.value })} /></Field>
-          <Field label="Experience (yrs)"><Input type="number" min={0} value={form.experience_years} onChange={e => setForm({ ...form, experience_years: e.target.value })} /></Field>
+          <Field label="Hours / day">
+            <Input
+              type="number"
+              min={0}
+              max={24}
+              value={form.hours_per_day}
+              onChange={(e) => setForm({ ...form, hours_per_day: e.target.value })}
+            />
+          </Field>
+          <Field label="Hours / week">
+            <Input
+              type="number"
+              min={0}
+              max={80}
+              value={form.availability_hours_per_week}
+              onChange={(e) => setForm({ ...form, availability_hours_per_week: e.target.value })}
+            />
+          </Field>
+          <Field label="Experience (yrs)">
+            <Input
+              type="number"
+              min={0}
+              value={form.experience_years}
+              onChange={(e) => setForm({ ...form, experience_years: e.target.value })}
+            />
+          </Field>
         </div>
         <div>
           <Label>Available days</Label>
           <div className="mt-2 flex flex-wrap gap-3">
-            {DAYS.map(d => (
+            {DAYS.map((d) => (
               <label key={d} className="flex items-center gap-1.5 text-sm">
-                <Checkbox checked={form.available_days.includes(d)} onCheckedChange={() => toggleDay(d)} />
+                <Checkbox
+                  checked={form.available_days.includes(d)}
+                  onCheckedChange={() => toggleDay(d)}
+                />
                 {d}
               </label>
             ))}
           </div>
         </div>
-        <Field label="Time slots (optional)"><Input value={form.time_slots} onChange={e => setForm({ ...form, time_slots: e.target.value })} placeholder="e.g. 6 PM – 10 PM IST" /></Field>
+        <Field label="Time slots (optional)">
+          <Input
+            value={form.time_slots}
+            onChange={(e) => setForm({ ...form, time_slots: e.target.value })}
+            placeholder="e.g. 6 PM – 10 PM IST"
+          />
+        </Field>
         <label className="flex items-center gap-2 pt-2">
-          <Checkbox checked={form.is_available} onCheckedChange={v => setForm({...form, is_available: !!v})} />
+          <Checkbox
+            checked={form.is_available}
+            onCheckedChange={(v) => setForm({ ...form, is_available: !!v })}
+          />
           <span className="text-sm font-medium">Available for new projects</span>
         </label>
       </Section>
 
       <Section title="Pricing (set your minimums)">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Hourly (₹)"><Input type="number" min={0} value={form.hourly_rate_inr} onChange={e => setForm({ ...form, hourly_rate_inr: e.target.value })} /></Field>
-          <Field label="Weekly (₹)"><Input type="number" min={0} value={form.weekly_rate_inr} onChange={e => setForm({ ...form, weekly_rate_inr: e.target.value })} /></Field>
-          <Field label="Monthly (₹)"><Input type="number" min={0} value={form.monthly_rate_inr} onChange={e => setForm({ ...form, monthly_rate_inr: e.target.value })} /></Field>
-          <Field label="Project starting (₹)"><Input type="number" min={0} value={form.project_min_inr} onChange={e => setForm({ ...form, project_min_inr: e.target.value })} /></Field>
+          <Field label="Hourly (₹)">
+            <Input
+              type="number"
+              min={0}
+              value={form.hourly_rate_inr}
+              onChange={(e) => setForm({ ...form, hourly_rate_inr: e.target.value })}
+            />
+          </Field>
+          <Field label="Weekly (₹)">
+            <Input
+              type="number"
+              min={0}
+              value={form.weekly_rate_inr}
+              onChange={(e) => setForm({ ...form, weekly_rate_inr: e.target.value })}
+            />
+          </Field>
+          <Field label="Monthly (₹)">
+            <Input
+              type="number"
+              min={0}
+              value={form.monthly_rate_inr}
+              onChange={(e) => setForm({ ...form, monthly_rate_inr: e.target.value })}
+            />
+          </Field>
+          <Field label="Project starting (₹)">
+            <Input
+              type="number"
+              min={0}
+              value={form.project_min_inr}
+              onChange={(e) => setForm({ ...form, project_min_inr: e.target.value })}
+            />
+          </Field>
         </div>
       </Section>
 
@@ -233,28 +385,72 @@ function DeveloperForm({ userId }: { userId: string }) {
           <span>
             <span className="font-medium">Make my contact public to all recruiters</span>
             <span className="block text-xs text-muted-foreground">
-              When enabled, any signed-in recruiter can view your email and phone without sending a request.
+              When enabled, any signed-in recruiter can view your email and phone without sending a
+              request.
             </span>
           </span>
         </label>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
-          <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
+          <Field label="Phone (private)">
+            <Input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+91 ..."
+            />
+          </Field>
+          <Field label="Location">
+            <Input
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="Bengaluru"
+            />
+          </Field>
         </div>
-        <Field label="GitHub URL"><Input type="url" value={form.github_url} onChange={e => setForm({ ...form, github_url: e.target.value })} /></Field>
-        <Field label="Portfolio URL"><Input type="url" value={form.portfolio_url} onChange={e => setForm({ ...form, portfolio_url: e.target.value })} /></Field>
-        <Field label="LinkedIn URL"><Input type="url" value={form.linkedin_url} onChange={e => setForm({ ...form, linkedin_url: e.target.value })} /></Field>
+        <Field label="GitHub URL">
+          <Input
+            type="url"
+            value={form.github_url}
+            onChange={(e) => setForm({ ...form, github_url: e.target.value })}
+          />
+        </Field>
+        <Field label="Portfolio URL">
+          <Input
+            type="url"
+            value={form.portfolio_url}
+            onChange={(e) => setForm({ ...form, portfolio_url: e.target.value })}
+          />
+        </Field>
+        <Field label="LinkedIn URL">
+          <Input
+            type="url"
+            value={form.linkedin_url}
+            onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+          />
+        </Field>
       </Section>
 
-      <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Saving..." : "Save profile"}</Button>
+      <Button
+        type="submit"
+        disabled={busy}
+        className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+      >
+        {busy ? "Saving..." : "Save profile"}
+      </Button>
     </form>
   );
 }
 
 function RecruiterForm({ userId }: { userId: string }) {
   const [form, setForm] = useState({
-    full_name: "", company_name: "", company_website: "", company_description: "",
-    company_size: "", industry: "", location: "", phone: "",
+    full_name: "",
+    company_name: "",
+    company_website: "",
+    company_description: "",
+    company_size: "",
+    industry: "",
+    location: "",
+    phone: "",
     avatar_url: null as string | null,
     logo_url: null as string | null,
     hiring_status: true,
@@ -263,8 +459,16 @@ function RecruiterForm({ userId }: { userId: string }) {
 
   useEffect(() => {
     (async () => {
-      const { data: rec } = await supabase.from("recruiter_profiles").select("*").eq("id", userId).maybeSingle();
-      const { data: rp } = await supabase.from("recruiter_phones" as any).select("phone").eq("recruiter_id", userId).maybeSingle();
+      const { data: rec } = await supabase
+        .from("recruiter_profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+      const { data: rp } = await supabase
+        .from("recruiter_phones" as any)
+        .select("phone")
+        .eq("recruiter_id", userId)
+        .maybeSingle();
       if (rec) {
         setForm({
           full_name: (rec as any).full_name ?? "",
@@ -277,7 +481,7 @@ function RecruiterForm({ userId }: { userId: string }) {
           phone: (rp as any)?.phone ?? "",
           avatar_url: (rec as any).avatar_url ?? null,
           logo_url: (rec as any).logo_url ?? null,
-        hiring_status: (rec as any).hiring_status ?? true,
+          hiring_status: (rec as any).hiring_status ?? true,
         });
       }
     })();
@@ -300,17 +504,32 @@ function RecruiterForm({ userId }: { userId: string }) {
       hiring_status: form.hiring_status,
     } as any);
     if (form.phone) {
-      await supabase.from("recruiter_phones" as any).upsert({ recruiter_id: userId, phone: form.phone, updated_at: new Date().toISOString() } as any);
+      await supabase
+        .from("recruiter_phones" as any)
+        .upsert({
+          recruiter_id: userId,
+          phone: form.phone,
+          updated_at: new Date().toISOString(),
+        } as any);
     } else {
-      await supabase.from("recruiter_phones" as any).delete().eq("recruiter_id", userId);
+      await supabase
+        .from("recruiter_phones" as any)
+        .delete()
+        .eq("recruiter_id", userId);
     }
     setBusy(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Profile saved!");
   }
 
   return (
-    <form onSubmit={save} className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card">
+    <form
+      onSubmit={save}
+      className="space-y-5 rounded-xl border border-border bg-card p-6 shadow-card"
+    >
       <Section title="Your profile">
         <ImageUpload
           userId={userId}
@@ -321,7 +540,13 @@ function RecruiterForm({ userId }: { userId: string }) {
           folder="avatar"
           label="Your photo"
         />
-        <Field label="Your name"><Input required value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} /></Field>
+        <Field label="Your name">
+          <Input
+            required
+            value={form.full_name}
+            onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+          />
+        </Field>
       </Section>
       <Section title="Company">
         <ImageUpload
@@ -333,23 +558,76 @@ function RecruiterForm({ userId }: { userId: string }) {
           folder="logo"
           label="Company logo (shown to developers)"
         />
-        <Field label="Company name"><Input required value={form.company_name} onChange={e => setForm({ ...form, company_name: e.target.value })} /></Field>
-        <Field label="Company website"><Input type="url" value={form.company_website} onChange={e => setForm({ ...form, company_website: e.target.value })} /></Field>
-        <Field label="About the company"><Textarea rows={3} value={form.company_description} onChange={e => setForm({ ...form, company_description: e.target.value })} maxLength={1000} /></Field>
+        <Field label="Company name">
+          <Input
+            required
+            value={form.company_name}
+            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+          />
+        </Field>
+        <Field label="Company website">
+          <Input
+            type="url"
+            value={form.company_website}
+            onChange={(e) => setForm({ ...form, company_website: e.target.value })}
+          />
+        </Field>
+        <Field label="About the company">
+          <Textarea
+            rows={3}
+            value={form.company_description}
+            onChange={(e) => setForm({ ...form, company_description: e.target.value })}
+            maxLength={1000}
+          />
+        </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Industry"><Input value={form.industry} onChange={e => setForm({ ...form, industry: e.target.value })} placeholder="Fintech" /></Field>
-          <Field label="Size"><Input value={form.company_size} onChange={e => setForm({ ...form, company_size: e.target.value })} placeholder="10–50" /></Field>
+          <Field label="Industry">
+            <Input
+              value={form.industry}
+              onChange={(e) => setForm({ ...form, industry: e.target.value })}
+              placeholder="Fintech"
+            />
+          </Field>
+          <Field label="Size">
+            <Input
+              value={form.company_size}
+              onChange={(e) => setForm({ ...form, company_size: e.target.value })}
+              placeholder="10–50"
+            />
+          </Field>
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Location"><Input value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} placeholder="Bengaluru" /></Field>
-          <Field label="Phone (private)"><Input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+91 ..." /></Field>
+          <Field label="Location">
+            <Input
+              value={form.location}
+              onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="Bengaluru"
+            />
+          </Field>
+          <Field label="Phone (private)">
+            <Input
+              type="tel"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+91 ..."
+            />
+          </Field>
         </div>
         <label className="flex items-center gap-2 pt-2">
-          <Checkbox checked={form.hiring_status} onCheckedChange={v => setForm({...form, hiring_status: !!v})} />
+          <Checkbox
+            checked={form.hiring_status}
+            onCheckedChange={(v) => setForm({ ...form, hiring_status: !!v })}
+          />
           <span className="text-sm font-medium">Currently hiring developers</span>
         </label>
       </Section>
-      <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">{busy ? "Saving..." : "Save profile"}</Button>
+      <Button
+        type="submit"
+        disabled={busy}
+        className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+      >
+        {busy ? "Saving..." : "Save profile"}
+      </Button>
     </form>
   );
 }
@@ -357,12 +635,19 @@ function RecruiterForm({ userId }: { userId: string }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-4 border-b border-border pb-5 last:border-0 last:pb-0">
-      <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">{title}</h2>
+      <h2 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {title}
+      </h2>
       {children}
     </div>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-2"><Label>{label}</Label>{children}</div>;
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      {children}
+    </div>
+  );
 }

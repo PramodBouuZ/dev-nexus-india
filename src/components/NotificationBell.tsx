@@ -34,7 +34,12 @@ export function NotificationBell() {
       .channel(`notif-${user.id}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
         () => qc.invalidateQueries({ queryKey: ["notifications", user.id] }),
       )
       .subscribe();
@@ -117,7 +122,9 @@ export function NotificationBell() {
                         {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
                       </p>
                     </div>
-                    {!n.read_at && <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />}
+                    {!n.read_at && (
+                      <Badge variant="default" className="h-1.5 w-1.5 rounded-full p-0" />
+                    )}
                   </div>
                 </li>
               ))}

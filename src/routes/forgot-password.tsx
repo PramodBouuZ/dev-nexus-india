@@ -46,7 +46,12 @@ function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <Button asChild variant="ghost" size="sm" className="mb-4 -ml-2 text-muted-foreground hover:text-foreground">
+        <Button
+          asChild
+          variant="ghost"
+          size="sm"
+          className="mb-4 -ml-2 text-muted-foreground hover:text-foreground"
+        >
           <Link to="/auth">
             <ArrowLeft className="mr-1 h-4 w-4" />
             Back to login
@@ -76,7 +81,11 @@ function ForgotPasswordPage() {
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90" disabled={busy}>
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+                  disabled={busy}
+                >
                   {busy ? "Sending link..." : "Send reset link"}
                 </Button>
               </form>
@@ -88,7 +97,8 @@ function ForgotPasswordPage() {
               </div>
               <h1 className="text-2xl font-bold font-display mb-2">Check your email</h1>
               <p className="text-muted-foreground text-sm mb-6">
-                We've sent a password reset link to <span className="font-medium text-foreground">{email}</span>.
+                We've sent a password reset link to{" "}
+                <span className="font-medium text-foreground">{email}</span>.
               </p>
               <Button asChild variant="outline" className="w-full">
                 <Link to="/auth">Return to login</Link>

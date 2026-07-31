@@ -62,7 +62,11 @@ function VerificationContent({ userId }: { userId: string }) {
     queryFn: async () => {
       const [{ data: dev }, { data: requests }] = await Promise.all([
         supabase.from("developer_profiles").select("is_verified").eq("id", userId).maybeSingle(),
-        supabase.from("verification_requests").select("*").eq("developer_id", userId).order("created_at", { ascending: false }),
+        supabase
+          .from("verification_requests")
+          .select("*")
+          .eq("developer_id", userId)
+          .order("created_at", { ascending: false }),
       ]);
       return {
         is_verified: !!dev?.is_verified,
@@ -105,7 +109,13 @@ function VerificationContent({ userId }: { userId: string }) {
         </section>
       )}
 
-      {latest?.status === "pending" && <PendingNotice request={latest} userId={userId} onUpdated={() => qc.invalidateQueries({ queryKey: ["my-verification", userId] })} />}
+      {latest?.status === "pending" && (
+        <PendingNotice
+          request={latest}
+          userId={userId}
+          onUpdated={() => qc.invalidateQueries({ queryKey: ["my-verification", userId] })}
+        />
+      )}
       {latest?.status === "rejected" && <RejectedNotice request={latest} />}
       {(!latest || latest.status === "rejected") && (
         <RequestForm
@@ -119,7 +129,11 @@ function VerificationContent({ userId }: { userId: string }) {
           <div className="flex items-center gap-2 font-medium text-success">
             <CheckCircle2 className="h-4 w-4" /> You're verified!
           </div>
-          {latest.admin_notes && <p className="mt-2 whitespace-pre-wrap text-muted-foreground">Admin note: {latest.admin_notes}</p>}
+          {latest.admin_notes && (
+            <p className="mt-2 whitespace-pre-wrap text-muted-foreground">
+              Admin note: {latest.admin_notes}
+            </p>
+          )}
         </div>
       )}
 
@@ -127,12 +141,19 @@ function VerificationContent({ userId }: { userId: string }) {
         <section>
           <h2 className="font-display text-sm font-semibold text-muted-foreground">History</h2>
           <ul className="mt-2 space-y-2 text-sm">
-            {requests.slice(latest?.status === "pending" || latest?.status === "rejected" ? 1 : 0).map((r) => (
-              <li key={r.id} className="flex items-center justify-between rounded-lg border border-border bg-card p-3">
-                <span className="text-muted-foreground">{new Date(r.created_at).toLocaleDateString()}</span>
-                <StatusBadge status={r.status} />
-              </li>
-            ))}
+            {requests
+              .slice(latest?.status === "pending" || latest?.status === "rejected" ? 1 : 0)
+              .map((r) => (
+                <li
+                  key={r.id}
+                  className="flex items-center justify-between rounded-lg border border-border bg-card p-3"
+                >
+                  <span className="text-muted-foreground">
+                    {new Date(r.created_at).toLocaleDateString()}
+                  </span>
+                  <StatusBadge status={r.status} />
+                </li>
+              ))}
           </ul>
         </section>
       )}
@@ -141,12 +162,34 @@ function VerificationContent({ userId }: { userId: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  if (status === "approved") return <Badge className="bg-success text-success-foreground"><CheckCircle2 className="mr-1 h-3 w-3" /> Approved</Badge>;
-  if (status === "rejected") return <Badge variant="destructive"><XCircle className="mr-1 h-3 w-3" /> Rejected</Badge>;
-  return <Badge variant="secondary"><Clock className="mr-1 h-3 w-3" /> Pending</Badge>;
+  if (status === "approved")
+    return (
+      <Badge className="bg-success text-success-foreground">
+        <CheckCircle2 className="mr-1 h-3 w-3" /> Approved
+      </Badge>
+    );
+  if (status === "rejected")
+    return (
+      <Badge variant="destructive">
+        <XCircle className="mr-1 h-3 w-3" /> Rejected
+      </Badge>
+    );
+  return (
+    <Badge variant="secondary">
+      <Clock className="mr-1 h-3 w-3" /> Pending
+    </Badge>
+  );
 }
 
-function PendingNotice({ request, userId, onUpdated }: { request: any; userId: string; onUpdated: () => void }) {
+function PendingNotice({
+  request,
+  userId,
+  onUpdated,
+}: {
+  request: any;
+  userId: string;
+  onUpdated: () => void;
+}) {
   async function withdraw() {
     if (!confirm("Withdraw your verification request?")) return;
     const { error } = await supabase.from("verification_requests").delete().eq("id", request.id);
@@ -161,9 +204,12 @@ function PendingNotice({ request, userId, onUpdated }: { request: any; userId: s
         <div className="flex-1 text-sm">
           <p className="font-medium">Your request is under review</p>
           <p className="mt-1 text-muted-foreground">
-            Submitted {new Date(request.created_at).toLocaleDateString()}. We typically review within 2–3 business days.
+            Submitted {new Date(request.created_at).toLocaleDateString()}. We typically review
+            within 2–3 business days.
           </p>
-          <Button onClick={withdraw} size="sm" variant="outline" className="mt-3">Withdraw request</Button>
+          <Button onClick={withdraw} size="sm" variant="outline" className="mt-3">
+            Withdraw request
+          </Button>
         </div>
       </div>
     </div>
@@ -174,13 +220,25 @@ function RejectedNotice({ request }: { request: any }) {
   return (
     <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5 text-sm">
       <p className="font-medium text-destructive">Your last request was rejected</p>
-      {request.admin_notes && <p className="mt-2 whitespace-pre-wrap">Reviewer feedback: {request.admin_notes}</p>}
-      <p className="mt-2 text-muted-foreground">You can submit a new request below addressing the feedback.</p>
+      {request.admin_notes && (
+        <p className="mt-2 whitespace-pre-wrap">Reviewer feedback: {request.admin_notes}</p>
+      )}
+      <p className="mt-2 text-muted-foreground">
+        You can submit a new request below addressing the feedback.
+      </p>
     </div>
   );
 }
 
-function RequestForm({ userId, existing, onSubmitted }: { userId: string; existing: any | null; onSubmitted: () => void }) {
+function RequestForm({
+  userId,
+  existing,
+  onSubmitted,
+}: {
+  userId: string;
+  existing: any | null;
+  onSubmitted: () => void;
+}) {
   const [form, setForm] = useState({
     github_url: "",
     portfolio_url: "",
@@ -192,7 +250,11 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
 
   useEffect(() => {
     (async () => {
-      const { data: dev } = await supabase.from("developer_profiles").select("github_url, portfolio_url, linkedin_url").eq("id", userId).maybeSingle();
+      const { data: dev } = await supabase
+        .from("developer_profiles")
+        .select("github_url, portfolio_url, linkedin_url")
+        .eq("id", userId)
+        .maybeSingle();
       setForm({
         github_url: existing?.github_url ?? dev?.github_url ?? "",
         portfolio_url: existing?.portfolio_url ?? dev?.portfolio_url ?? "",
@@ -209,8 +271,8 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
       toast.error("Please provide at least one link (GitHub, portfolio, or LinkedIn).");
       return;
     }
-    const hasGovId = docs.some(d => d.type === "government_id");
-    const hasWork = docs.some(d => d.type === "work_proof");
+    const hasGovId = docs.some((d) => d.type === "government_id");
+    const hasWork = docs.some((d) => d.type === "work_proof");
     if (!hasGovId || !hasWork) {
       toast.error("Please add the required documents: Government ID and Work / Employment proof.");
       return;
@@ -231,36 +293,74 @@ function RequestForm({ userId, existing, onSubmitted }: { userId: string; existi
   }
 
   return (
-    <form onSubmit={submit} className="rounded-xl border border-border bg-card p-6 shadow-card space-y-5">
+    <form
+      onSubmit={submit}
+      className="rounded-xl border border-border bg-card p-6 shadow-card space-y-5"
+    >
       <div>
         <h2 className="font-display text-lg font-semibold">Submit for verification</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Share links to your work. Stronger evidence = faster approval.{" "}
-          <Link to="/profile" className="underline underline-offset-2">Update your profile</Link> first if needed.
+          <Link to="/profile" className="underline underline-offset-2">
+            Update your profile
+          </Link>{" "}
+          first if needed.
         </p>
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="github_url">GitHub profile</Label>
-        <Input id="github_url" type="url" placeholder="https://github.com/yourname" value={form.github_url} onChange={(e) => setForm({ ...form, github_url: e.target.value })} />
+        <Input
+          id="github_url"
+          type="url"
+          placeholder="https://github.com/yourname"
+          value={form.github_url}
+          onChange={(e) => setForm({ ...form, github_url: e.target.value })}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="portfolio_url">Portfolio / website</Label>
-        <Input id="portfolio_url" type="url" placeholder="https://your-portfolio.com" value={form.portfolio_url} onChange={(e) => setForm({ ...form, portfolio_url: e.target.value })} />
+        <Input
+          id="portfolio_url"
+          type="url"
+          placeholder="https://your-portfolio.com"
+          value={form.portfolio_url}
+          onChange={(e) => setForm({ ...form, portfolio_url: e.target.value })}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="linkedin_url">LinkedIn</Label>
-        <Input id="linkedin_url" type="url" placeholder="https://linkedin.com/in/yourname" value={form.linkedin_url} onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })} />
+        <Input
+          id="linkedin_url"
+          type="url"
+          placeholder="https://linkedin.com/in/yourname"
+          value={form.linkedin_url}
+          onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+        />
       </div>
       <div className="space-y-2">
         <Label>Verification documents</Label>
-        <p className="text-xs text-muted-foreground">Upload to a service (Google Drive, Dropbox, etc.) and paste shareable links. Government ID and Work proof are required.</p>
+        <p className="text-xs text-muted-foreground">
+          Upload to a service (Google Drive, Dropbox, etc.) and paste shareable links. Government ID
+          and Work proof are required.
+        </p>
         <DocumentChecklist value={docs} onChange={setDocs} />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="notes">Tell us about your experience (optional)</Label>
-        <Textarea id="notes" rows={4} maxLength={1000} placeholder="Notable projects, years of experience, specialties..." value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        <Textarea
+          id="notes"
+          rows={4}
+          maxLength={1000}
+          placeholder="Notable projects, years of experience, specialties..."
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+        />
       </div>
-      <Button type="submit" disabled={busy} className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90">
+      <Button
+        type="submit"
+        disabled={busy}
+        className="w-full bg-gradient-accent text-primary-foreground hover:opacity-90"
+      >
         {busy ? "Submitting..." : "Submit for review"}
       </Button>
     </form>

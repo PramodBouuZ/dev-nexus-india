@@ -5,10 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
@@ -22,7 +32,13 @@ interface Props {
   className?: string;
 }
 
-export function InviteDeveloperDialog({ developerId, developerName, variant, size, className }: Props) {
+export function InviteDeveloperDialog({
+  developerId,
+  developerName,
+  variant,
+  size,
+  className,
+}: Props) {
   const { user, role } = useAuth();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -67,7 +83,10 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
   });
 
   useEffect(() => {
-    if (!open) { setMessage(""); setProjectId("none"); }
+    if (!open) {
+      setMessage("");
+      setProjectId("none");
+    }
   }, [open]);
 
   if (role !== "recruiter") return null;
@@ -111,7 +130,8 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
         </DialogHeader>
         {existing && (
           <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-            You last invited this developer on {new Date(existing.created_at).toLocaleDateString()} — status: <span className="font-medium capitalize">{existing.status}</span>.
+            You last invited this developer on {new Date(existing.created_at).toLocaleDateString()}{" "}
+            — status: <span className="font-medium capitalize">{existing.status}</span>.
           </div>
         )}
         <div className="space-y-4">
@@ -119,19 +139,27 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
             <Label>Select Project</Label>
             <Select value={projectId} onValueChange={setProjectId}>
               <SelectTrigger>
-                <SelectValue placeholder={projects?.length ? "Select a project" : "No open projects found"} />
+                <SelectValue
+                  placeholder={projects?.length ? "Select a project" : "No open projects found"}
+                />
               </SelectTrigger>
               <SelectContent>
-                {projects?.map(p => (
-                  <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                {projects?.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.title}
+                  </SelectItem>
                 ))}
                 {!projects?.length && (
-                  <SelectItem value="none" disabled>No open projects found</SelectItem>
+                  <SelectItem value="none" disabled>
+                    No open projects found
+                  </SelectItem>
                 )}
               </SelectContent>
             </Select>
             {!projects?.length && (
-              <p className="text-[10px] text-destructive">You must have an open project to invite developers.</p>
+              <p className="text-[10px] text-destructive">
+                You must have an open project to invite developers.
+              </p>
             )}
           </div>
           <div className="space-y-2">
@@ -146,7 +174,9 @@ export function InviteDeveloperDialog({ developerId, developerName, variant, siz
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
           <Button
             disabled={busy || !message.trim() || !projectId || projectId === "none"}
             onClick={send}

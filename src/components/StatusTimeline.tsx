@@ -27,7 +27,9 @@ export function StatusTimeline({ history }: { history: Entry[] | null | undefine
               {new Date(e.at).toLocaleString()}
             </span>
           </div>
-          {e.note && <p className="mt-0.5 text-sm text-muted-foreground whitespace-pre-wrap">{e.note}</p>}
+          {e.note && (
+            <p className="mt-0.5 text-sm text-muted-foreground whitespace-pre-wrap">{e.note}</p>
+          )}
         </li>
       ))}
     </ol>

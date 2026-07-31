@@ -34,10 +34,18 @@ function SavedPage() {
       const projIds = (favs ?? []).filter((f) => f.kind === "project").map((f) => f.target_id);
       const [{ data: devs }, { data: projs }] = await Promise.all([
         devIds.length
-          ? supabase.from("developer_profiles").select("id, full_name, headline, skills, hourly_rate_inr, location, is_verified").in("id", devIds)
+          ? supabase
+              .from("developer_profiles")
+              .select("id, full_name, headline, skills, hourly_rate_inr, location, is_verified")
+              .in("id", devIds)
           : Promise.resolve({ data: [] as any[] }),
         projIds.length
-          ? supabase.from("projects").select("id, title, description, tech_stack, budget_min_inr, budget_max_inr, project_type, status").in("id", projIds)
+          ? supabase
+              .from("projects")
+              .select(
+                "id, title, description, tech_stack, budget_min_inr, budget_max_inr, project_type, status",
+              )
+              .in("id", projIds)
           : Promise.resolve({ data: [] as any[] }),
       ]);
       return {
@@ -81,7 +89,9 @@ function SavedPage() {
           <Heart className="h-5 w-5 text-rose-500 fill-current" />
           <h1 className="font-display text-3xl font-bold tracking-tight">Saved</h1>
         </div>
-        <p className="mt-1 text-muted-foreground">Your shortlisted developers and bookmarked projects.</p>
+        <p className="mt-1 text-muted-foreground">
+          Your shortlisted developers and bookmarked projects.
+        </p>
 
         <Tabs defaultValue="developers" className="mt-6">
           <TabsList>
@@ -100,26 +110,58 @@ function SavedPage() {
               />
             </div>
             {filteredDevs.length === 0 ? (
-              <EmptyState text={developers.length === 0 ? "No developers saved yet. Tap the heart on a developer to shortlist them." : "No developers match your search."} />
+              <EmptyState
+                text={
+                  developers.length === 0
+                    ? "No developers saved yet. Tap the heart on a developer to shortlist them."
+                    : "No developers match your search."
+                }
+              />
             ) : (
               <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredDevs.map((d: any) => (
-                  <div key={d.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant">
-                    <div className="absolute right-3 top-3 z-10"><FavoriteButton kind="developer" targetId={d.id} /></div>
-                    <Link to="/developers/$devId" params={{ devId: d.id }} className="group block">
+                  <div
+                    key={d.id}
+                    className="relative rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant"
+                  >
+                    <div className="absolute right-3 top-3 z-10">
+                      <FavoriteButton kind="developer" targetId={d.id} />
+                    </div>
+                    <Link
+                      to="/developers/$devId"
+                      params={{ devId: d.id }}
+                      target="_blank"
+                      className="group block"
+                    >
                       <div className="flex items-center gap-1.5 pr-8">
-                        <h3 className="truncate font-semibold group-hover:text-accent transition-colors">{d.full_name ?? "Developer"}</h3>
+                        <h3 className="truncate font-semibold group-hover:text-accent transition-colors">
+                          {d.full_name ?? "Developer"}
+                        </h3>
                         {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
                       </div>
-                      {d.headline && <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>}
+                      {d.headline && (
+                        <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                          {d.headline}
+                        </p>
+                      )}
                       {d.location && (
-                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{d.location}</p>
+                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          {d.location}
+                        </p>
                       )}
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(d.skills ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
+                        {(d.skills ?? []).slice(0, 4).map((s: string) => (
+                          <Badge key={s} variant="secondary" className="text-xs">
+                            {s}
+                          </Badge>
+                        ))}
                       </div>
                       {d.hourly_rate_inr && (
-                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{d.hourly_rate_inr}/hr</p>
+                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium">
+                          <IndianRupee className="h-3 w-3" />
+                          {d.hourly_rate_inr}/hr
+                        </p>
                       )}
                     </Link>
                   </div>
@@ -139,21 +181,45 @@ function SavedPage() {
               />
             </div>
             {filteredProjs.length === 0 ? (
-              <EmptyState text={projects.length === 0 ? "No projects saved yet. Tap the heart on a project to bookmark it." : "No projects match your search."} />
+              <EmptyState
+                text={
+                  projects.length === 0
+                    ? "No projects saved yet. Tap the heart on a project to bookmark it."
+                    : "No projects match your search."
+                }
+              />
             ) : (
               <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {filteredProjs.map((p: any) => (
-                  <div key={p.id} className="relative rounded-xl border border-border bg-card p-5 shadow-card">
-                    <div className="absolute right-3 top-3"><FavoriteButton kind="project" targetId={p.id} /></div>
+                  <div
+                    key={p.id}
+                    className="relative rounded-xl border border-border bg-card p-5 shadow-card"
+                  >
+                    <div className="absolute right-3 top-3">
+                      <FavoriteButton kind="project" targetId={p.id} />
+                    </div>
                     <Link to="/projects/$projectId" params={{ projectId: p.id }} className="block">
-                      <Badge variant="outline" className="text-xs capitalize"><Briefcase className="mr-1 h-3 w-3" />{p.project_type}</Badge>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        <Briefcase className="mr-1 h-3 w-3" />
+                        {p.project_type}
+                      </Badge>
                       <h3 className="mt-2 line-clamp-2 pr-8 font-semibold">{p.title}</h3>
-                      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{p.description}</p>
+                      <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                        {p.description}
+                      </p>
                       <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(p.tech_stack ?? []).slice(0, 4).map((s: string) => <Badge key={s} variant="secondary" className="text-xs">{s}</Badge>)}
+                        {(p.tech_stack ?? []).slice(0, 4).map((s: string) => (
+                          <Badge key={s} variant="secondary" className="text-xs">
+                            {s}
+                          </Badge>
+                        ))}
                       </div>
                       {p.budget_min_inr && (
-                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium"><IndianRupee className="h-3 w-3" />{p.budget_min_inr.toLocaleString()}{p.budget_max_inr ? `–${p.budget_max_inr.toLocaleString()}` : ""}</p>
+                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium">
+                          <IndianRupee className="h-3 w-3" />
+                          {p.budget_min_inr.toLocaleString()}
+                          {p.budget_max_inr ? `–${p.budget_max_inr.toLocaleString()}` : ""}
+                        </p>
                       )}
                     </Link>
                   </div>

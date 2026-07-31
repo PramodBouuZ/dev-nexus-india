@@ -5,11 +5,22 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
@@ -27,7 +38,9 @@ export function InviteActions({ inviteId, developerName, currentMessage }: Props
   const [message, setMessage] = useState(currentMessage ?? "");
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (editOpen) setMessage(currentMessage ?? ""); }, [editOpen, currentMessage]);
+  useEffect(() => {
+    if (editOpen) setMessage(currentMessage ?? "");
+  }, [editOpen, currentMessage]);
 
   async function saveAndResend() {
     if (!message.trim()) return toast.error("Message can't be empty");
@@ -75,7 +88,9 @@ export function InviteActions({ inviteId, developerName, currentMessage }: Props
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Keep invite</AlertDialogCancel>
-            <AlertDialogAction disabled={busy} onClick={cancel}>Cancel invite</AlertDialogAction>
+            <AlertDialogAction disabled={busy} onClick={cancel}>
+              Cancel invite
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -88,10 +103,17 @@ export function InviteActions({ inviteId, developerName, currentMessage }: Props
           </DialogHeader>
           <div className="space-y-2">
             <Label>Message</Label>
-            <Textarea rows={5} value={message} maxLength={1000} onChange={(e) => setMessage(e.target.value)} />
+            <Textarea
+              rows={5}
+              value={message}
+              maxLength={1000}
+              onChange={(e) => setMessage(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditOpen(false)}>Close</Button>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>
+              Close
+            </Button>
             <Button
               disabled={busy || !message.trim()}
               onClick={saveAndResend}
