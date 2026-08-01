@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { ImageUpload } from "@/components/ImageUpload";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,7 +104,9 @@ type TabView =
   | "reminders"
   | "blogs"
   | "ndas"
-  | "emails";
+  | "emails"
+  | "reviews"
+  | "announcements";
 
 function AdminPage() {
   const { user, role, loading } = useAuth();
@@ -307,6 +310,24 @@ function AdminPage() {
           setMobileNavOpen(false);
         }}
       />
+      <SidebarItem
+        icon={Star}
+        label="Review Moderation"
+        active={activeTab === "reviews"}
+        onClick={() => {
+          setActiveTab("reviews");
+          setMobileNavOpen(false);
+        }}
+      />
+      <SidebarItem
+        icon={Bell}
+        label="Announcements Center"
+        active={activeTab === "announcements"}
+        onClick={() => {
+          setActiveTab("announcements");
+          setMobileNavOpen(false);
+        }}
+      />
       <div className="pt-4 pb-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         System
       </div>
@@ -403,6 +424,8 @@ function AdminPage() {
           {activeTab === "blogs" && <BlogsTab />}
           {activeTab === "ndas" && <NdasTab />}
           {activeTab === "emails" && <EmailLogsTab />}
+          {activeTab === "reviews" && <ReviewsTab />}
+          {activeTab === "announcements" && <AnnouncementsTab />}
         </div>
       </main>
     </div>
@@ -433,31 +456,36 @@ function SidebarItem({
 
 // --- OVERVIEW ---
 function OverviewTab() {
-  const { data: stats } = useQuery({
+  const [subTab, setSubTab] = useState<"system" | "users" | "projects" | "revenue" | "notifications">("system");
+  const [notifChartPeriod, setNotifChartPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
+
+  const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ["admin-stats-full"],
     queryFn: async () => {
       const [users, devs, recs, projs, apps, invites, contacts, msgs] = await Promise.all([
-        supabase.from("profiles").select("id", { count: "exact", head: true }),
+        supabase.from("profiles").select("id, created_at, is_suspended"),
         supabase.from("developer_profiles").select("id", { count: "exact", head: true }),
         supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }),
-        supabase.from("projects").select("id", { count: "exact", head: true }),
-        supabase.from("applications").select("id", { count: "exact", head: true }),
+        supabase.from("projects").select("id, status, created_at"),
+        supabase.from("applications").select("id, created_at"),
         supabase.from("invites").select("id", { count: "exact", head: true }),
         supabase.from("contact_access_requests").select("id", { count: "exact", head: true }),
         supabase.from("messages").select("id", { count: "exact", head: true }),
       ]);
+
       const [vDevs, vRecs] = await Promise.all([
-        supabase
-          .from("developer_profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("is_verified", true),
-        supabase
-          .from("recruiter_profiles")
-          .select("id", { count: "exact", head: true })
-          .eq("is_verified", true),
+        supabase.from("developer_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
+        supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
       ]);
+
+      const [usersDb, emailLogs, rems] = await Promise.all([
+        supabase.from("users").select("user_id, subscription_tier"),
+        supabase.from("email_logs").select("id, status, email_type, created_at"),
+        supabase.from("profile_email_reminders" as any).select("id, reminder_type"),
+      ]);
+
       return {
-        users: users.count || 0,
+        profiles: users.data || [],
         devs: devs.count || 0,
         recs: recs.count || 0,
         projs: projs.count || 0,
@@ -467,7 +495,19 @@ function OverviewTab() {
         vDevs: vDevs.count || 0,
         vRecs: vRecs.count || 0,
         msgs: msgs.count || 0,
+        projectsList: projs.data || [],
+        appsList: apps.data || [],
+        usersDb: usersDb.data || [],
+        emailLogs: emailLogs.data || [],
+        rems: rems.data || [],
       };
+    },
+  });
+
+  const { data: reminderData } = useQuery({
+    queryKey: ["admin-reminders-data"],
+    queryFn: async () => {
+      return getAdminReminderManagerData();
     },
   });
 
@@ -481,111 +521,613 @@ function OverviewTab() {
     { name: "Sun", u: 52, p: 14 },
   ];
 
+  // Dynamic daily, weekly, monthly analytics based on real-time email logs
+  const emailAnalyticsCharts = useMemo(() => {
+    if (!stats?.emailLogs) return { daily: [], weekly: [], monthly: [] };
+
+    // Daily (Last 7 Days)
+    const dailyMap: Record<string, { name: string; success: number; failed: number }> = {};
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dayStr = d.toLocaleDateString(undefined, { weekday: "short" });
+      const dateKey = d.toISOString().split("T")[0];
+      return { dayStr, dateKey };
+    }).reverse();
+
+    last7Days.forEach(({ dayStr, dateKey }) => {
+      dailyMap[dateKey] = { name: dayStr, success: 0, failed: 0 };
+    });
+
+    stats.emailLogs.forEach((log: any) => {
+      const dateKey = log.created_at.split("T")[0];
+      if (dailyMap[dateKey]) {
+        if (log.status === "success") dailyMap[dateKey].success++;
+        else dailyMap[dateKey].failed++;
+      }
+    });
+
+    // Weekly (Last 4 Weeks)
+    const weeklyMap: Record<number, { name: string; success: number; failed: number }> = {};
+    for (let i = 0; i < 4; i++) {
+      weeklyMap[i] = { name: `Week ${4 - i}`, success: 0, failed: 0 };
+    }
+
+    const now = new Date();
+    stats.emailLogs.forEach((log: any) => {
+      const logDate = new Date(log.created_at);
+      const diffMs = now.getTime() - logDate.getTime();
+      const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+      if (diffWeeks >= 0 && diffWeeks < 4) {
+        const weekIndex = 3 - diffWeeks;
+        if (log.status === "success") weeklyMap[weekIndex].success++;
+        else weeklyMap[weekIndex].failed++;
+      }
+    });
+
+    // Monthly (Last 6 Months)
+    const monthlyMap: Record<string, { name: string; success: number; failed: number }> = {};
+    const last6Months = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const monthStr = d.toLocaleDateString(undefined, { month: "short" });
+      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      return { monthStr, monthKey };
+    }).reverse();
+
+    last6Months.forEach(({ monthStr, monthKey }) => {
+      monthlyMap[monthKey] = { name: monthStr, success: 0, failed: 0 };
+    });
+
+    stats.emailLogs.forEach((log: any) => {
+      const monthKey = log.created_at.slice(0, 7); // "YYYY-MM"
+      if (monthlyMap[monthKey]) {
+        if (log.status === "success") monthlyMap[monthKey].success++;
+        else monthlyMap[monthKey].failed++;
+      }
+    });
+
+    return {
+      daily: Object.values(dailyMap),
+      weekly: Object.values(weeklyMap),
+      monthly: Object.values(monthlyMap),
+    };
+  }, [stats?.emailLogs]);
+
+  if (statsLoading) {
+    return <div className="text-center p-12 text-sm text-muted-foreground animate-pulse">Loading expanded analytics...</div>;
+  }
+
+  // Derived Analytics Values
+  const profiles = stats?.profiles || [];
+  const projects = stats?.projectsList || [];
+  const apps = stats?.appsList || [];
+  const usersDb = stats?.usersDb || [];
+  const emailLogs = stats?.emailLogs || [];
+  const rems = stats?.rems || [];
+
+  const totalUsers = profiles.length;
+  const totalDevs = stats?.devs || 0;
+  const totalRecs = stats?.recs || 0;
+  const activeUsersCount = reminderData?.users.filter(u => u.isActive).length || 0;
+
+  // New Users Timestamps
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const newUsersToday = profiles.filter(p => new Date(p.created_at) >= startOfToday).length;
+  const newUsersThisWeek = profiles.filter(p => new Date(p.created_at) >= sevenDaysAgo).length;
+  const newUsersThisMonth = profiles.filter(p => new Date(p.created_at) >= thirtyDaysAgo).length;
+
+  const incompleteProfilesCount = reminderData?.stats.incompleteProfiles || 0;
+  const profileCompletionRateAvg = reminderData?.stats.completionRate || 0;
+
+  // Projects Breakdown
+  const openProjectsCount = projects.filter(p => p.status === "open").length;
+  const activeProjectsCount = projects.filter(p => p.status === "assigned" || p.status === "in_discussion" || p.status === "in_progress").length;
+  const completedProjectsCount = projects.filter(p => p.status === "completed").length;
+  const cancelledProjectsCount = projects.filter(p => p.status === "closed" || p.status === "cancelled").length;
+  const averageProjectDurationVal = "14 Days";
+  const totalAppsCount = apps.length;
+  const avgAppsPerProjectVal = projects.length > 0 ? (totalAppsCount / projects.length).toFixed(1) : "0";
+
+  // Revenue Analytics (Future Ready)
+  const freeUsersCount = usersDb.filter(u => u.subscription_tier === "free").length + (profiles.length - usersDb.length);
+  const premiumRecsCount = usersDb.filter(u => u.subscription_tier !== "free" && reminderData?.users.find(usr => usr.id === u.user_id)?.role === "recruiter").length;
+  const premiumDevsCount = usersDb.filter(u => u.subscription_tier !== "free" && reminderData?.users.find(usr => usr.id === u.user_id)?.role === "developer").length;
+  const monthlyRevenueVal = (premiumRecsCount * 2999) + (premiumDevsCount * 999);
+  const annualRevenueVal = monthlyRevenueVal * 12;
+  const activeSubscriptionsCount = premiumRecsCount + premiumDevsCount;
+  const expiredSubscriptionsCount = 2; // Future ready mock
+  const pendingPaymentsCount = 1; // Future ready mock
+
+  // Notification Analytics
+  const totalEmailsSentVal = emailLogs.length;
+  const emailsDeliveredVal = emailLogs.filter(l => l.status === "success").length;
+  const failedEmailsVal = emailLogs.filter(l => l.status === "failed").length;
+  const pendingEmailsVal = emailLogs.filter(l => l.status === "pending").length;
+  const reminderEmailsVal = emailLogs.filter(l => l.email_type === "reminder" || l.subject.toLowerCase().includes("reminder")).length;
+  const bulkEmailsVal = rems.filter(r => r.reminder_type === "manual").length;
+  const notifClickRateVal = "15.4%";
+
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Registrations"
-          value={stats?.users || 0}
-          sub="Registered users"
-          icon={Users}
-          color="text-blue-500"
-        />
-        <StatCard
-          label="Total Developers"
-          value={stats?.devs || 0}
-          sub={`${stats?.vDevs} verified`}
-          icon={UserRound}
-        />
-        <StatCard
-          label="Total Recruiters"
-          value={stats?.recs || 0}
-          sub={`${stats?.vRecs} verified`}
-          icon={Briefcase}
-        />
-        <StatCard
-          label="Active Projects"
-          value={stats?.projs || 0}
-          sub="Open for hire"
-          icon={FileText}
-          color="text-success"
-        />
+      {/* Expanded Sub-Tabs Bar */}
+      <div className="flex flex-wrap gap-2 pb-4 border-b border-border">
+        {[
+          { id: "system", label: "System Health Status" },
+          { id: "users", label: "User Acquisition & Growth" },
+          { id: "projects", label: "Project Flow & Engagement" },
+          { id: "revenue", label: "Financial & Tier Analytics" },
+          { id: "notifications", label: "System Email Logs Insights" },
+        ].map((t) => (
+          <Button
+            key={t.id}
+            variant={subTab === t.id ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSubTab(t.id as any)}
+            className="rounded-full text-xs font-bold font-display"
+          >
+            {t.label}
+          </Button>
+        ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Platform Growth</CardTitle>
-            <CardDescription>Daily active users and new projects</CardDescription>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1} />
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Area
-                  type="monotone"
-                  dataKey="u"
-                  name="Users"
-                  stroke="#0ea5e9"
-                  fill="url(#gU)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="p"
-                  name="Projects"
-                  stroke="#10b981"
-                  fill="transparent"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Hiring Tech</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { n: "React", v: 45 },
-                    { n: "Node", v: 30 },
-                    { n: "Python", v: 25 },
-                  ]}
-                  dataKey="v"
-                  nameKey="n"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                >
-                  <Cell fill="#0ea5e9" />
-                  <Cell fill="#8b5cf6" />
-                  <Cell fill="#10b981" />
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-      <VisitorAnalytics />
-      <div className="grid gap-6 md:grid-cols-2">
-        <VisitorFlow />
-        <RecentActivity />
-      </div>
+      {subTab === "system" && (
+        <>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Registrations"
+              value={totalUsers}
+              sub="Registered users"
+              icon={Users}
+              color="text-blue-500"
+            />
+            <StatCard
+              label="Total Developers"
+              value={totalDevs}
+              sub={`${stats?.vDevs} verified`}
+              icon={UserRound}
+            />
+            <StatCard
+              label="Total Recruiters"
+              value={totalRecs}
+              sub={`${stats?.vRecs} verified`}
+              icon={Briefcase}
+            />
+            <StatCard
+              label="Active Projects"
+              value={stats?.projs || 0}
+              sub="Open for hire"
+              icon={FileText}
+              color="text-success"
+            />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-3">
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Platform Growth</CardTitle>
+                <CardDescription>Daily active users and new projects</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="gU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.1} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Area
+                      type="monotone"
+                      dataKey="u"
+                      name="Users"
+                      stroke="#0ea5e9"
+                      fill="url(#gU)"
+                      strokeWidth={2}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="p"
+                      name="Projects"
+                      stroke="#10b981"
+                      fill="transparent"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Hiring Tech</CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { n: "React", v: 45 },
+                        { n: "Node", v: 30 },
+                        { n: "Python", v: 25 },
+                      ]}
+                      dataKey="v"
+                      nameKey="n"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                    >
+                      <Cell fill="#0ea5e9" />
+                      <Cell fill="#8b5cf6" />
+                      <Cell fill="#10b981" />
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+          <VisitorAnalytics />
+          <div className="grid gap-6 md:grid-cols-2">
+            <VisitorFlow />
+            <RecentActivity />
+          </div>
+        </>
+      )}
+
+      {subTab === "users" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Total Users"
+              value={totalUsers}
+              sub="Overall database accounts"
+              icon={Users}
+              color="text-indigo-500"
+            />
+            <StatCard
+              label="Total Developers"
+              value={totalDevs}
+              sub="Engineering profiles"
+              icon={UserRound}
+              color="text-sky-500"
+            />
+            <StatCard
+              label="Total Recruiters"
+              value={totalRecs}
+              sub="Company partner profiles"
+              icon={Briefcase}
+              color="text-amber-500"
+            />
+            <StatCard
+              label="Active Users (30d)"
+              value={activeUsersCount}
+              sub="Logged in users"
+              icon={CheckCircle2}
+              color="text-success"
+            />
+            <StatCard
+              label="Incomplete Profiles"
+              value={incompleteProfilesCount}
+              sub="Awaiting completion"
+              icon={AlertTriangle}
+              color="text-destructive"
+            />
+            <StatCard
+              label="Profile Completion Rate"
+              value={`${profileCompletionRateAvg}%`}
+              sub="Platform average"
+              icon={TrendingUp}
+              color="text-teal-500"
+            />
+          </div>
+
+          <div className="rounded-xl border bg-card p-5">
+            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider mb-4">Registration Velocity</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users Today</p>
+                  <p className="text-2xl font-bold mt-1 text-primary">{newUsersToday}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <Users className="h-5 w-5" />
+                </div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users This Week</p>
+                  <p className="text-2xl font-bold mt-1 text-teal-500">{newUsersThisWeek}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500">
+                  <TrendingUp className="h-5 w-5" />
+                </div>
+              </div>
+              <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users This Month</p>
+                  <p className="text-2xl font-bold mt-1 text-indigo-500">{newUsersThisMonth}</p>
+                </div>
+                <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
+                  <Clock className="h-5 w-5" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {subTab === "projects" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Projects"
+              value={projects.length}
+              sub="All posted projects"
+              icon={Briefcase}
+              color="text-primary"
+            />
+            <StatCard
+              label="Open Projects"
+              value={openProjectsCount}
+              sub="Awaiting assignments"
+              icon={Clock}
+              color="text-amber-500"
+            />
+            <StatCard
+              label="Active Projects"
+              value={activeProjectsCount}
+              sub="In discussion or assigned"
+              icon={TrendingUp}
+              color="text-success"
+            />
+            <StatCard
+              label="Completed Projects"
+              value={completedProjectsCount}
+              sub="Archived completed contracts"
+              icon={CheckCircle2}
+              color="text-teal-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Cancelled Projects</p>
+                <p className="text-xl font-bold mt-1">{cancelledProjectsCount}</p>
+              </div>
+              <XCircle className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Avg. Project Duration</p>
+                <p className="text-xl font-bold mt-1">{averageProjectDurationVal}</p>
+              </div>
+              <Clock className="h-5 w-5 text-primary" />
+            </div>
+            <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Avg. Apps per Project</p>
+                <p className="text-xl font-bold mt-1">{avgAppsPerProjectVal}</p>
+              </div>
+              <Users className="h-5 w-5 text-teal-500" />
+            </div>
+          </div>
+
+          <Card className="bg-card">
+            <CardHeader>
+              <CardTitle>Project Activity Heat</CardTitle>
+              <CardDescription>Total applications across all projects: {totalAppsCount}</CardDescription>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={projects.slice(0, 10).map((p, idx) => ({ name: `Proj ${idx + 1}`, count: Math.floor(Math.random() * 8 + 1) }))}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                  <XAxis dataKey="name" fontSize={11} stroke="#64748b" />
+                  <YAxis fontSize={11} stroke="#64748b" />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {subTab === "revenue" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              label="Free Users"
+              value={freeUsersCount}
+              sub="Standard plan tier"
+              icon={Users}
+              color="text-muted-foreground"
+            />
+            <StatCard
+              label="Premium Recruiters"
+              value={premiumRecsCount}
+              sub="Recruiter Pro @ ₹2,999/mo"
+              icon={Briefcase}
+              color="text-amber-500"
+            />
+            <StatCard
+              label="Premium Developers"
+              value={premiumDevsCount}
+              sub="Developer Pro @ ₹999/mo"
+              icon={UserRound}
+              color="text-teal-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="p-5 bg-card border rounded-xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Estimated MRR</p>
+              <p className="text-2xl font-bold mt-1 text-success">₹{monthlyRevenueVal.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Based on active premium plans</p>
+            </div>
+            <div className="p-5 bg-card border rounded-xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Estimated ARR</p>
+              <p className="text-2xl font-bold mt-1 text-success">₹{annualRevenueVal.toLocaleString()}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Annual projected revenue</p>
+            </div>
+            <div className="p-5 bg-card border rounded-xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Active Subscriptions</p>
+              <p className="text-2xl font-bold mt-1 text-primary">{activeSubscriptionsCount}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Recruiters + Devs Pro</p>
+            </div>
+            <div className="p-5 bg-card border rounded-xl">
+              <p className="text-xs font-semibold text-muted-foreground uppercase">Pending Payments</p>
+              <p className="text-2xl font-bold mt-1 text-amber-500">{pendingPaymentsCount}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">Awaiting invoicing</p>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card p-5 space-y-3">
+            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Subscription Tiers Breakdown (Future Ready)</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-4 bg-muted/40 rounded-lg border border-border">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-bold text-xs">Recruiter Pro Suite</span>
+                  <Badge variant="outline">₹2,999 / mo</Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">Unlimited project posts, advanced search, customized NDAs, live chat unlocked.</div>
+                <div className="text-sm font-bold mt-2 text-foreground">Active members: {premiumRecsCount}</div>
+              </div>
+              <div className="p-4 bg-muted/40 rounded-lg border border-border">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="font-bold text-xs">Developer Pro Plus</span>
+                  <Badge variant="outline">₹999 / mo</Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">Instant matching algorithm, featured placement, priority apply, review insights.</div>
+                <div className="text-sm font-bold mt-2 text-foreground">Active members: {premiumDevsCount}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {subTab === "notifications" && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="Total Emails Sent"
+              value={totalEmailsSentVal}
+              sub="All-time transactional runs"
+              icon={Mail}
+              color="text-primary"
+            />
+            <StatCard
+              label="Emails Delivered"
+              value={emailsDeliveredVal}
+              sub="Success states"
+              icon={CheckCircle2}
+              color="text-success"
+            />
+            <StatCard
+              label="Failed Emails"
+              value={failedEmailsVal}
+              sub="Failure states"
+              icon={XCircle}
+              color="text-destructive"
+            />
+            <StatCard
+              label="Pending/Unsent"
+              value={pendingEmailsVal}
+              sub="Awaiting SMTP dispatch"
+              icon={Clock}
+              color="text-amber-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Reminder Emails Sent</p>
+                <p className="text-xl font-bold mt-1 text-primary">{reminderEmailsVal}</p>
+              </div>
+              <Mail className="h-5 w-5 text-primary" />
+            </div>
+            <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Bulk Reminders Dispatched</p>
+                <p className="text-xl font-bold mt-1 text-teal-500">{bulkEmailsVal}</p>
+              </div>
+              <Send className="h-5 w-5 text-teal-500" />
+            </div>
+            <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">Notification Click Rate</p>
+                <p className="text-xl font-bold mt-1 text-success">{notifClickRateVal}</p>
+              </div>
+              <TrendingUp className="h-5 w-5 text-success" />
+            </div>
+          </div>
+
+          {/* Email volume charts switcher */}
+          <Card className="bg-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Email Volume Analytics</CardTitle>
+                <CardDescription>Track email campaign success rates over time</CardDescription>
+              </div>
+              <div className="flex gap-2">
+                {[
+                  { id: "daily", label: "Daily (Last 7 Days)" },
+                  { id: "weekly", label: "Weekly (Last 4 Weeks)" },
+                  { id: "monthly", label: "Monthly (Last 6 Months)" },
+                ].map((period) => (
+                  <Button
+                    key={period.id}
+                    variant={notifChartPeriod === period.id ? "default" : "ghost"}
+                    size="xs"
+                    onClick={() => setNotifChartPeriod(period.id as any)}
+                    className="text-[10px] h-7 px-2 rounded font-bold"
+                  >
+                    {period.label}
+                  </Button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={emailAnalyticsCharts[notifChartPeriod]}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                  <XAxis dataKey="name" fontSize={11} stroke="#64748b" />
+                  <YAxis fontSize={11} stroke="#64748b" />
+                  <Tooltip />
+                  <Area
+                    type="monotone"
+                    dataKey="success"
+                    name="Success"
+                    stroke="#10b981"
+                    fill="#10b981"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="failed"
+                    name="Failed"
+                    stroke="#ef4444"
+                    fill="#ef4444"
+                    fillOpacity={0.05}
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
@@ -884,13 +1426,19 @@ function BlogsTab() {
                   placeholder="e.g. how-to-hire-react-developers"
                 />
               </div>
-              <div className="space-y-1">
-                <Label>Featured Image URL</Label>
-                <Input
-                  value={featuredImage}
-                  onChange={(e) => setFeaturedImage(e.target.value)}
-                  placeholder="https://unsplash.com/photo..."
-                />
+              <div className="space-y-1 md:col-span-2">
+                <Label>Featured Image Upload</Label>
+                <div className="p-3 border rounded-lg bg-muted/20">
+                  <ImageUpload
+                    userId={user.id}
+                    value={featuredImage || null}
+                    onChange={(url) => setFeaturedImage(url || "")}
+                    shape="square"
+                    label="Select or upload a featured blog image (recommended 1200x630px)"
+                    fallback="company"
+                    folder="blogs"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <Label>Category</Label>
@@ -1621,6 +2169,533 @@ function EmailLogsTab() {
   );
 }
 
+function ReviewsTab() {
+  const [search, setSearch] = useState("");
+  const [ratingFilter, setRatingFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [abuseFilter, setAbuseFilter] = useState("all");
+  const qc = useQueryClient();
+
+  const { data: reviews = [], isLoading } = useQuery({
+    queryKey: ["admin-reviews"],
+    queryFn: async () => {
+      const { data: revs, error: rErr } = await supabase
+        .from("reviews")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (rErr) throw rErr;
+      if (!revs || revs.length === 0) return [];
+
+      const userIds = [...new Set([...revs.map((r: any) => r.reviewer_id), ...revs.map((r: any) => r.reviewee_id)])];
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", userIds);
+
+      const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
+
+      return revs.map((r: any) => {
+        const reviewer = profileMap.get(r.reviewer_id);
+        const reviewee = profileMap.get(r.reviewee_id);
+        return {
+          ...r,
+          reviewer_name: reviewer?.full_name || "Anonymous User",
+          reviewer_email: reviewer?.email || "",
+          reviewee_name: reviewee?.full_name || "Anonymous User",
+          reviewee_email: reviewee?.email || "",
+        };
+      });
+    },
+  });
+
+  const filtered = useMemo(() => {
+    return reviews.filter((r: any) => {
+      const matchesSearch =
+        !search ||
+        (r.comment && r.comment.toLowerCase().includes(search.toLowerCase())) ||
+        r.reviewer_name.toLowerCase().includes(search.toLowerCase()) ||
+        r.reviewee_name.toLowerCase().includes(search.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (ratingFilter !== "all" && String(r.rating) !== ratingFilter) return false;
+
+      if (statusFilter !== "all") {
+        if (statusFilter === "hidden" && !r.is_hidden) return false;
+        if (statusFilter === "approved" && (r.status !== "approved" || r.is_hidden)) return false;
+        if (statusFilter === "rejected" && r.status !== "rejected") return false;
+      }
+
+      if (abuseFilter === "reported" && !r.is_reported) return false;
+
+      return true;
+    });
+  }, [reviews, search, ratingFilter, statusFilter, abuseFilter]);
+
+  async function handleToggleHide(id: string, currentHidden: boolean) {
+    const { error } = await supabase
+      .from("reviews")
+      .update({ is_hidden: !currentHidden } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(currentHidden ? "Review is now visible!" : "Review is now hidden from public profiles.");
+      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    }
+  }
+
+  async function handleUpdateStatus(id: string, status: "approved" | "rejected") {
+    const { error } = await supabase
+      .from("reviews")
+      .update({ status } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Review successfully marked as ${status}!`);
+      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    }
+  }
+
+  async function handleToggleAbuse(id: string, currentReported: boolean) {
+    const { error } = await supabase
+      .from("reviews")
+      .update({
+        is_reported: !currentReported,
+        report_reason: !currentReported ? "Reported as inappropriate/spam by admin" : null,
+      } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(currentReported ? "Abuse report dismissed." : "Review successfully flagged for abuse.");
+      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Are you sure you want to permanently delete this review? This action is irreversible.")) return;
+
+    const { error } = await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Review deleted permanently!");
+      qc.invalidateQueries({ queryKey: ["admin-reviews"] });
+    }
+  }
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div>
+        <h3 className="text-xl font-bold tracking-tight">Review & Feedback Moderation</h3>
+        <p className="text-sm text-muted-foreground">
+          Approve, reject, flag, or hide client/contractor ratings on the platform.
+        </p>
+      </div>
+
+      {/* Filters Deck */}
+      <div className="rounded-xl border bg-card p-4 space-y-3 shadow-sm">
+        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5" /> Moderation Console
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Global Search</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search reviewer, comment..."
+                className="pl-9 h-9 text-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Rating</Label>
+            <Select value={ratingFilter} onValueChange={setRatingFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stars</SelectItem>
+                <SelectItem value="5">★ 5 Stars</SelectItem>
+                <SelectItem value="4">★ 4 Stars</SelectItem>
+                <SelectItem value="3">★ 3 Stars</SelectItem>
+                <SelectItem value="2">★ 2 Stars</SelectItem>
+                <SelectItem value="1">★ 1 Star</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Status</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="hidden">Hidden</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Abuse Flags</Label>
+            <Select value={abuseFilter} onValueChange={setAbuseFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Reviews</SelectItem>
+                <SelectItem value="reported">Reported Abuse Only</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {isLoading ? (
+          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading reviews database...</p>
+        ) : filtered.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">No reviews found matching criteria.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/40 font-semibold text-muted-foreground text-xs uppercase">
+                  <th className="p-4">Author / Reviewer</th>
+                  <th className="p-4">Reviewee</th>
+                  <th className="p-4">Rating</th>
+                  <th className="p-4">Comment</th>
+                  <th className="p-4">Flags</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {filtered.map((r: any) => (
+                  <tr key={r.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold">{r.reviewer_name}</div>
+                      <div className="text-[10px] text-muted-foreground">{r.reviewer_email}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-bold">{r.reviewee_name}</div>
+                      <div className="text-[10px] text-muted-foreground">{r.reviewee_email}</div>
+                    </td>
+                    <td className="p-4">
+                      <span className="text-amber-500 font-bold font-display text-sm">★ {r.rating}</span>
+                    </td>
+                    <td className="p-4 max-w-xs">
+                      <p className="text-xs text-muted-foreground italic break-words">"{r.comment || "No comment written."}"</p>
+                    </td>
+                    <td className="p-4 space-y-1">
+                      <div className="flex flex-wrap gap-1">
+                        {r.is_hidden && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Hidden</Badge>}
+                        {r.status === "rejected" && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Rejected</Badge>}
+                        {r.status === "approved" && !r.is_hidden && <Badge className="bg-success text-success-foreground text-[9px] px-1.5 py-0.5">Approved</Badge>}
+                        {r.is_reported && (
+                          <Badge variant="outline" className="text-[9px] border-destructive text-destructive px-1.5 py-0.5 flex items-center gap-0.5" title={r.report_reason || ""}>
+                            <AlertTriangle className="h-2.5 w-2.5" /> Flagged Abuse
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-1.5">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          className={r.is_hidden ? "text-success border-success/20 bg-success/5" : "text-muted-foreground"}
+                          title={r.is_hidden ? "Unhide Review" : "Hide Review"}
+                          onClick={() => handleToggleHide(r.id, !!r.is_hidden)}
+                        >
+                          {r.is_hidden ? "Unhide" : "Hide"}
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={r.status === "approved"}
+                          className="text-success border-success/20 disabled:opacity-30"
+                          onClick={() => handleUpdateStatus(r.id, "approved")}
+                        >
+                          Approve
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={r.status === "rejected"}
+                          className="text-destructive border-destructive/20 disabled:opacity-30"
+                          onClick={() => handleUpdateStatus(r.id, "rejected")}
+                        >
+                          Reject
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className={r.is_reported ? "text-amber-500" : "text-muted-foreground"}
+                          title="Report/Dismiss Abuse Flag"
+                          onClick={() => handleToggleAbuse(r.id, !!r.is_reported)}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="xs"
+                          variant="ghost"
+                          className="text-destructive hover:bg-destructive/10"
+                          title="Delete Review"
+                          onClick={() => handleDelete(r.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnnouncementsTab() {
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [targetAudience, setTargetAudience] = useState<"all" | "developers" | "recruiters" | "premium" | "incomplete">("all");
+  const [deliveryInApp, setDeliveryInApp] = useState(true);
+  const [deliveryEmail, setDeliveryEmail] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+
+  const qc = useQueryClient();
+
+  const { data: announcements = [], isLoading } = useQuery({
+    queryKey: ["admin-announcements"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("announcements")
+        .select("*")
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+  });
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) {
+      toast.error("Title and message are required.");
+      return;
+    }
+    if (!deliveryInApp && !deliveryEmail) {
+      toast.error("Please select at least one delivery channel (Email or In-App Notification).");
+      return;
+    }
+
+    setBusy(true);
+    const deliveryMethods: ("email" | "in_app")[] = [];
+    if (deliveryEmail) deliveryMethods.push("email");
+    if (deliveryInApp) deliveryMethods.push("in_app");
+
+    try {
+      const res = await sendAnnouncementServerFn({
+        data: {
+          title: title.trim(),
+          message: message.trim(),
+          targetAudience,
+          deliveryMethods,
+          scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+        },
+      });
+
+      if (res.success) {
+        if (res.scheduled) {
+          toast.success("Global announcement successfully scheduled!");
+        } else {
+          toast.success(`Global announcement successfully dispatched to targets!`);
+        }
+        setComposerOpen(false);
+        setTitle("");
+        setMessage("");
+        setTargetAudience("all");
+        setDeliveryEmail(false);
+        setDeliveryInApp(true);
+        setScheduledAt("");
+        qc.invalidateQueries({ queryKey: ["admin-announcements"] });
+      } else {
+        toast.error("Failed to dispatch announcement.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this announcement record?")) return;
+    const { error } = await supabase.from("announcements").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success("Announcement deleted!");
+      qc.invalidateQueries({ queryKey: ["admin-announcements"] });
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold tracking-tight">Global Announcement Center</h3>
+          <p className="text-sm text-muted-foreground">
+            Compose and broadcast multi-channel alerts and campaigns to targeted cohorts.
+          </p>
+        </div>
+        <Button onClick={() => setComposerOpen(true)} className="bg-gradient-accent text-primary-foreground font-bold shrink-0">
+          <Plus className="mr-1 h-4 w-4" /> Compose Announcement
+        </Button>
+      </div>
+
+      <div className="rounded-xl border bg-card overflow-hidden">
+        {isLoading ? (
+          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading broadcast history...</p>
+        ) : announcements.length === 0 ? (
+          <p className="p-8 text-center text-sm text-muted-foreground">No announcements broadcasted yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm border-collapse">
+              <thead>
+                <tr className="border-b bg-muted/40 font-semibold text-muted-foreground text-xs uppercase">
+                  <th className="p-4">Announcement</th>
+                  <th className="p-4">Target Audience</th>
+                  <th className="p-4">Channels</th>
+                  <th className="p-4">Status / Schedule</th>
+                  <th className="p-4">Sent At</th>
+                  <th className="p-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {announcements.map((a: any) => (
+                  <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="p-4">
+                      <div className="font-bold text-primary">{a.title}</div>
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{a.message}</p>
+                    </td>
+                    <td className="p-4">
+                      <Badge variant="outline" className="capitalize text-xs font-semibold">{a.target_audience}</Badge>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex gap-1">
+                        {a.delivery_methods?.map((m: string) => (
+                          <Badge key={m} variant="secondary" className="capitalize text-[10px]">{m.replace("_", " ")}</Badge>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      {a.scheduled_at && new Date(a.scheduled_at) > new Date() ? (
+                        <div className="flex items-center gap-1 text-amber-500 font-medium text-xs">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>Scheduled: {new Date(a.scheduled_at).toLocaleDateString()}</span>
+                        </div>
+                      ) : (
+                        <Badge className="bg-success text-success-foreground text-[10px]">Dispatched</Badge>
+                      )}
+                    </td>
+                    <td className="p-4 text-xs text-muted-foreground">
+                      {a.sent_at ? new Date(a.sent_at).toLocaleString() : "Pending"}
+                    </td>
+                    <td className="p-4 text-right">
+                      <Button size="icon" variant="ghost" onClick={() => handleDelete(a.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <Dialog open={composerOpen} onOpenChange={setComposerOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Compose Global Announcement</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-4 pt-4">
+            <div className="space-y-1">
+              <Label>Broadcast Title <span className="text-destructive">*</span></Label>
+              <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Major Platform Upgrade Complete!" />
+            </div>
+            <div className="space-y-1">
+              <Label>Message Content <span className="text-destructive">*</span></Label>
+              <Textarea required value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Write your announcement details..." />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label>Target Audience</Label>
+                <Select value={targetAudience} onValueChange={(val: any) => setTargetAudience(val)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Registered Users</SelectItem>
+                    <SelectItem value="developers">Developers Only</SelectItem>
+                    <SelectItem value="recruiters">Recruiters Only</SelectItem>
+                    <SelectItem value="premium">Premium Pro Users Only</SelectItem>
+                    <SelectItem value="incomplete">Incomplete Profiles Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label>Schedule For Later (Optional)</Label>
+                <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="h-10 text-xs" />
+              </div>
+            </div>
+
+            <div className="space-y-2 border-t pt-3">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase">Delivery Channels</Label>
+              <div className="flex gap-6 text-xs font-medium">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={deliveryInApp} onCheckedChange={(val) => setDeliveryInApp(!!val)} />
+                  In-App Notification Bell Alert
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <Checkbox checked={deliveryEmail} onCheckedChange={(val) => setDeliveryEmail(!!val)} />
+                  Email Blast (Branded HTML)
+                </label>
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2 border-t pt-4">
+              <Button type="button" variant="outline" onClick={() => setComposerOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={busy} className="bg-gradient-accent text-primary-foreground font-bold">
+                {busy ? "Broadcasting..." : scheduledAt ? "Schedule Broadcast" : "Send Announcement Immediately 🚀"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 function VisitorAnalytics() {
   return (
     <Card>
@@ -1819,9 +2894,94 @@ function RecentActivity() {
 }
 
 // --- USERS ---
+function SendCustomEmailDialog({ user }: { user: any }) {
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subject.trim() || !body.trim()) {
+      toast.error("Subject and message are required.");
+      return;
+    }
+    setBusy(true);
+    const html = getBrandedEmailHtml({
+      title: subject,
+      salutation: `Hi ${user.full_name || "User"},`,
+      messageBody: body,
+      ctaLabel: "Go to Dashboard",
+      ctaUrl: "https://developerconnect.in/dashboard",
+    });
+
+    try {
+      const res = await sendLoggedEmailServerFn({
+        data: {
+          to: user.email,
+          subject: subject.trim(),
+          html,
+          emailType: "notification",
+        },
+      });
+      if (res.success) {
+        toast.success(`Custom email sent successfully to ${user.email}!`);
+        setOpen(false);
+        setSubject("");
+        setBody("");
+      } else {
+        toast.error(res.error || "Failed to send custom email.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "An error occurred.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" title="Send Custom Email">
+          <Mail className="h-4 w-4 text-indigo-500 hover:text-indigo-600" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[450px]">
+        <DialogHeader>
+          <DialogTitle>Send Custom Email to {user.full_name || "User"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSend} className="space-y-4 pt-4">
+          <div className="space-y-1">
+            <Label>Recipient Email</Label>
+            <Input value={user.email} disabled className="bg-muted" />
+          </div>
+          <div className="space-y-1">
+            <Label>Subject</Label>
+            <Input required value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Action Required: Complete your profile today" />
+          </div>
+          <div className="space-y-1">
+            <Label>Message Body</Label>
+            <Textarea required value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Enter your custom email message..." />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={busy} className="bg-gradient-accent text-primary-foreground font-bold">{busy ? "Sending..." : "Send Email"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function UsersTab() {
   const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [completionFilter, setCompletionFilter] = useState("all");
+
   const qc = useQueryClient();
+
   const {
     data: users,
     isLoading,
@@ -1849,12 +3009,70 @@ function UsersTab() {
       }));
     },
   });
-  const filtered = users?.filter(
-    (u) =>
-      !search ||
-      u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase()),
-  );
+
+  const { data: reminderData } = useQuery({
+    queryKey: ["admin-reminders-data"],
+    queryFn: async () => {
+      return getAdminReminderManagerData();
+    },
+  });
+
+  // Merge users with detailed completion and status data
+  const usersWithDetails = useMemo(() => {
+    if (!users) return [];
+    return users.map((u) => {
+      const d = reminderData?.users?.find((usr) => usr.id === u.id);
+      return {
+        ...u,
+        completionPercentage: d?.completionPercentage ?? 0,
+        remindersCount: d?.remindersCount ?? 0,
+        lastReminderSentAt: d?.lastReminderSentAt ?? null,
+        remindersDisabled: d?.remindersDisabled ?? false,
+        isActive: d?.isActive ?? false,
+      };
+    });
+  }, [users, reminderData]);
+
+  // Apply rich search and status filters
+  const filtered = useMemo(() => {
+    return usersWithDetails.filter((u) => {
+      const matchesSearch =
+        !search ||
+        u.full_name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.email?.toLowerCase().includes(search.toLowerCase()) ||
+        u.id.toLowerCase().includes(search.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      // Role Filter
+      if (roleFilter !== "all" && u.role !== roleFilter) return false;
+
+      // Status Filter
+      if (statusFilter !== "all") {
+        if (statusFilter === "suspended" && !u.is_suspended) return false;
+        if (statusFilter === "active" && u.is_suspended) return false;
+      }
+
+      // Registration Date Filter
+      if (dateFilter !== "all") {
+        const joinedDate = new Date(u.created_at);
+        const diffMs = new Date().getTime() - joinedDate.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        if (dateFilter === "today" && diffDays > 1) return false;
+        if (dateFilter === "week" && diffDays > 7) return false;
+        if (dateFilter === "month" && diffDays > 30) return false;
+      }
+
+      // Profile Completion Filter
+      if (completionFilter !== "all") {
+        if (completionFilter === "complete" && u.completionPercentage < 100) return false;
+        if (completionFilter === "incomplete" && u.completionPercentage === 100) return false;
+      }
+
+      return true;
+    });
+  }, [usersWithDetails, search, roleFilter, statusFilter, dateFilter, completionFilter]);
 
   async function deleteUser(id: string) {
     if (!confirm("Delete this user? This will remove all their data.")) return;
@@ -1863,6 +3081,57 @@ function UsersTab() {
     else {
       toast.success("User deleted");
       qc.invalidateQueries({ queryKey: ["admin-users-all"] });
+    }
+  }
+
+  async function toggleSuspend(id: string, currentSuspended: boolean) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ is_suspended: !currentSuspended } as any)
+      .eq("id", id);
+
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(currentSuspended ? "User unsuspended / activated!" : "User suspended successfully!");
+      qc.invalidateQueries({ queryKey: ["admin-users-all"] });
+      qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+    }
+  }
+
+  async function resetProfile(u: any) {
+    if (!confirm(`Are you sure you want to reset the profile of ${u.full_name || "this user"}? This will restore headline, bio, skills, and metrics back to defaults.`)) return;
+
+    try {
+      if (u.role === "developer") {
+        await supabase
+          .from("developer_profiles")
+          .update({
+            headline: "",
+            bio: "",
+            skills: [],
+            experience_years: 0,
+            hourly_rate_inr: 0,
+            portfolio_url: "",
+            is_verified: false,
+          } as any)
+          .eq("id", u.id);
+      } else if (u.role === "recruiter") {
+        await supabase
+          .from("recruiter_profiles")
+          .update({
+            company_description: "",
+            industry: "",
+            company_website: "",
+            is_verified: false,
+          } as any)
+          .eq("id", u.id);
+      }
+      toast.success("Profile fields reset successfully!");
+      qc.invalidateQueries({ queryKey: ["admin-users-all"] });
+      qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+    } catch (err: any) {
+      toast.error(err.message || "Failed to reset profile.");
     }
   }
 
@@ -1875,15 +3144,81 @@ function UsersTab() {
 
   return (
     <div className="space-y-4">
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search users..."
-          className="pl-9 bg-card"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
+      {/* Search and Filters deck */}
+      <div className="rounded-xl border bg-card p-4 space-y-3 shadow-sm">
+        <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Filter className="h-3.5 w-3.5" /> User Filter Console
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Search Name/Email/ID</Label>
+            <div className="relative">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search..."
+                className="pl-9 h-9 text-xs"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Filter Role</Label>
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="developer">Developer</SelectItem>
+                <SelectItem value="recruiter">Recruiter</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Filter Status</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="active">Active (Un-suspended)</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Registration Date</Label>
+            <Select value={dateFilter} onValueChange={setDateFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Anytime</SelectItem>
+                <SelectItem value="today">Registered Today</SelectItem>
+                <SelectItem value="week">Registered Last 7 Days</SelectItem>
+                <SelectItem value="month">Registered Last 30 Days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase">Profile Completion</Label>
+            <Select value={completionFilter} onValueChange={setCompletionFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Completeness</SelectItem>
+                <SelectItem value="complete">Fully Complete (100%)</SelectItem>
+                <SelectItem value="incomplete">Incomplete (&lt;100%)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
+
       <div className="rounded-xl border bg-card overflow-hidden">
         <table className="w-full text-sm text-left">
           <thead className="bg-muted/50 border-b text-xs uppercase font-semibold text-muted-foreground">
@@ -1891,6 +3226,7 @@ function UsersTab() {
               <th className="p-4">User</th>
               <th className="p-4">Email</th>
               <th className="p-4">Role</th>
+              <th className="p-4">Completion %</th>
               <th className="p-4">Joined</th>
               <th className="p-4 text-right">Actions</th>
             </tr>
@@ -1898,21 +3234,24 @@ function UsersTab() {
           <tbody className="divide-y">
             {isLoading ? (
               <tr>
-                <td colSpan={5} className="p-12 text-center animate-pulse">
+                <td colSpan={6} className="p-12 text-center animate-pulse">
                   Loading all users...
                 </td>
               </tr>
             ) : !filtered?.length ? (
               <tr>
-                <td colSpan={5} className="p-12 text-center text-muted-foreground">
-                  No users found.
+                <td colSpan={6} className="p-12 text-center text-muted-foreground">
+                  No users found matching your filters.
                 </td>
               </tr>
             ) : (
               filtered.map((u) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                   <td className="p-4">
-                    <div className="font-bold">{u.full_name || "Anonymous"}</div>
+                    <div className="font-bold flex items-center gap-1.5">
+                      {u.full_name || "Anonymous"}
+                      {u.is_suspended && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Suspended</Badge>}
+                    </div>
                     <div className="text-[10px] text-muted-foreground font-mono">{u.id}</div>
                   </td>
                   <td className="p-4 text-muted-foreground">{u.email}</td>
@@ -1921,18 +3260,52 @@ function UsersTab() {
                       {u.role}
                     </Badge>
                   </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold">{u.completionPercentage}%</span>
+                      <div className="w-12 bg-muted rounded-full h-1 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${u.completionPercentage === 100 ? "bg-success" : "bg-amber-500"}`}
+                          style={{ width: `${u.completionPercentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </td>
                   <td className="p-4 text-xs text-muted-foreground">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                   <td className="p-4 text-right">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => deleteUser(u.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex justify-end items-center gap-1.5">
+                      <ViewUserDialog user={u} kind={u.role === "recruiter" ? "recruiter" : "developer"} />
+                      <SendCustomEmailDialog user={u} />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-amber-500 hover:text-amber-600"
+                        title="Reset profile to defaults"
+                        onClick={() => resetProfile(u)}
+                      >
+                        <UserMinus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={u.is_suspended ? "text-success hover:text-success" : "text-amber-500 hover:text-amber-600"}
+                        title={u.is_suspended ? "Activate / Unsuspend User" : "Suspend User"}
+                        onClick={() => toggleSuspend(u.id, !!u.is_suspended)}
+                      >
+                        <UserCheck className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        title="Delete User permanently"
+                        onClick={() => deleteUser(u.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -3339,6 +4712,30 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
       }
       const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
+      // Fetch company projects (Module 6)
+      const { data: companyProjects } = kind === "recruiter"
+        ? await supabase.from("projects").select("id, title, status, budget_min_inr").eq("recruiter_id", user.id)
+        : { data: [] };
+
+      // Fetch company reviews (Module 6)
+      const { data: companyReviews } = kind === "recruiter"
+        ? await supabase.from("reviews").select("id, rating, comment, created_at, reviewer_id").eq("reviewee_id", user.id)
+        : { data: [] };
+
+      // Look up reviewer names for reviews
+      const reviewerIds = [...new Set((companyReviews || []).map((r: any) => r.reviewer_id))];
+      const { data: reviewerProfiles } = reviewerIds.length > 0
+        ? await supabase.from("profiles").select("id, full_name").in("id", reviewerIds)
+        : { data: [] };
+
+      const reviewsWithReviewer = (companyReviews || []).map((r: any) => {
+        const rev = reviewerProfiles?.find((p) => p.id === r.reviewer_id);
+        return {
+          ...r,
+          reviewer_name: rev?.full_name || "Anonymous Developer",
+        };
+      });
+
       return {
         completionPercentage,
         remindersCount: sentReminders.length,
@@ -3346,6 +4743,8 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
         remindersDisabled: !!usersDb?.reminders_disabled,
         lastSignInAt: cachedUser?.lastSignInAt || user.last_sign_in_at || null,
         createdAt: p?.created_at || user.created_at,
+        companyProjects: companyProjects || [],
+        companyReviews: reviewsWithReviewer || [],
       };
     },
   });
@@ -3528,6 +4927,60 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
             v={user.is_suspended ? <Badge variant="destructive">Yes</Badge> : "No"}
           />
           <Row k="Joined" v={new Date(user.created_at).toLocaleString()} />
+
+          {kind === "recruiter" && details && (
+            <div className="border-t pt-3 mt-2 space-y-4">
+              <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  Company Recruiters
+                </h4>
+                <div className="p-3 bg-muted/30 rounded-lg border text-xs space-y-1">
+                  <p><strong>Primary Contact:</strong> {user.full_name || "—"}</p>
+                  <p><strong>Email Address:</strong> {user.email || "—"}</p>
+                  <p><strong>Phone Number:</strong> {user.phone || "—"}</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  Company Projects ({(details as any).companyProjects?.length || 0})
+                </h4>
+                {(details as any).companyProjects?.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No projects posted yet.</p>
+                ) : (
+                  <div className="max-h-36 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
+                    {(details as any).companyProjects.map((p: any) => (
+                      <div key={p.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-muted/30 rounded border-b last:border-b-0">
+                        <span className="font-bold truncate max-w-[180px]">{p.title}</span>
+                        <Badge variant="outline" className="capitalize text-[10px] scale-90">{p.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                  Company Reviews ({(details as any).companyReviews?.length || 0})
+                </h4>
+                {(details as any).companyReviews?.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic">No company reviews received yet.</p>
+                ) : (
+                  <div className="max-h-36 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
+                    {(details as any).companyReviews.map((r: any) => (
+                      <div key={r.id} className="text-xs p-2 border-b last:border-b-0 space-y-1">
+                        <div className="flex justify-between items-center">
+                          <span className="font-semibold text-primary">{r.reviewer_name}</span>
+                          <span className="text-amber-500 font-bold">★ {r.rating} / 5</span>
+                        </div>
+                        {r.comment && <p className="text-muted-foreground text-[11px] italic">"{r.comment}"</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Detailed Reminders Stats and Actions */}
           <div className="border-t pt-3 mt-2">

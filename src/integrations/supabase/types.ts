@@ -215,6 +215,14 @@ export type Database = {
       };
       developer_profiles: {
         Row: {
+          active_projects: number;
+          total_applications: number;
+          total_invitations_received: number;
+          certifications: any | null;
+          education: any | null;
+          languages: any | null;
+          portfolio_screenshots: string[] | null;
+          developer_slug: string | null;
           availability_hours_per_week: number | null;
           available_days: string[] | null;
           avatar_url: string | null;
@@ -246,6 +254,14 @@ export type Database = {
           work_preference: Database["public"]["Enums"]["work_preference"] | null;
         };
         Insert: {
+          active_projects?: number;
+          total_applications?: number;
+          total_invitations_received?: number;
+          certifications?: any | null;
+          education?: any | null;
+          languages?: any | null;
+          portfolio_screenshots?: string[] | null;
+          developer_slug?: string | null;
           availability_hours_per_week?: number | null;
           available_days?: string[] | null;
           avatar_url?: string | null;
@@ -277,6 +293,14 @@ export type Database = {
           work_preference?: Database["public"]["Enums"]["work_preference"] | null;
         };
         Update: {
+          active_projects?: number;
+          total_applications?: number;
+          total_invitations_received?: number;
+          certifications?: any | null;
+          education?: any | null;
+          languages?: any | null;
+          portfolio_screenshots?: string[] | null;
+          developer_slug?: string | null;
           availability_hours_per_week?: number | null;
           available_days?: string[] | null;
           avatar_url?: string | null;
@@ -545,6 +569,7 @@ export type Database = {
       };
       projects: {
         Row: {
+          project_slug: string | null;
           ai_suggestions: Json | null;
           budget_max_inr: number | null;
           budget_min_inr: number | null;
@@ -566,6 +591,7 @@ export type Database = {
           work_mode: Database["public"]["Enums"]["work_mode"] | null;
         };
         Insert: {
+          project_slug?: string | null;
           ai_suggestions?: Json | null;
           budget_max_inr?: number | null;
           budget_min_inr?: number | null;
@@ -587,6 +613,7 @@ export type Database = {
           work_mode?: Database["public"]["Enums"]["work_mode"] | null;
         };
         Update: {
+          project_slug?: string | null;
           ai_suggestions?: Json | null;
           budget_max_inr?: number | null;
           budget_min_inr?: number | null;
@@ -637,6 +664,7 @@ export type Database = {
       };
       recruiter_profiles: {
         Row: {
+          company_slug: string | null;
           avatar_url: string | null;
           company_description: string | null;
           company_name: string | null;
@@ -652,6 +680,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          company_slug?: string | null;
           avatar_url?: string | null;
           company_description?: string | null;
           company_name?: string | null;
@@ -667,6 +696,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          company_slug?: string | null;
           avatar_url?: string | null;
           company_description?: string | null;
           company_name?: string | null;
@@ -685,6 +715,17 @@ export type Database = {
       };
       reviews: {
         Row: {
+          communication_rating: number | null;
+          payment_timeliness_rating: number | null;
+          requirement_clarity_rating: number | null;
+          professionalism_rating: number | null;
+          technical_skills_rating: number | null;
+          delivery_quality_rating: number | null;
+          timeline_adherence_rating: number | null;
+          is_hidden: boolean;
+          status: string;
+          is_reported: boolean;
+          report_reason: string | null;
           comment: string | null;
           contract_id: string;
           created_at: string;
@@ -694,6 +735,17 @@ export type Database = {
           reviewer_id: string;
         };
         Insert: {
+          communication_rating?: number | null;
+          payment_timeliness_rating?: number | null;
+          requirement_clarity_rating?: number | null;
+          professionalism_rating?: number | null;
+          technical_skills_rating?: number | null;
+          delivery_quality_rating?: number | null;
+          timeline_adherence_rating?: number | null;
+          is_hidden?: boolean;
+          status?: string;
+          is_reported?: boolean;
+          report_reason?: string | null;
           comment?: string | null;
           contract_id: string;
           created_at?: string;
@@ -703,6 +755,17 @@ export type Database = {
           reviewer_id: string;
         };
         Update: {
+          communication_rating?: number | null;
+          payment_timeliness_rating?: number | null;
+          requirement_clarity_rating?: number | null;
+          professionalism_rating?: number | null;
+          technical_skills_rating?: number | null;
+          delivery_quality_rating?: number | null;
+          timeline_adherence_rating?: number | null;
+          is_hidden?: boolean;
+          status?: string;
+          is_reported?: boolean;
+          report_reason?: string | null;
           comment?: string | null;
           contract_id?: string;
           created_at?: string;
@@ -789,6 +852,321 @@ export type Database = {
           reviewed_by?: string | null;
           status?: Database["public"]["Enums"]["verification_status"];
           status_history?: Json;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      blogs: {
+        Row: {
+          id: string;
+          title: string;
+          slug: string;
+          description: string | null;
+          content: string;
+          featured_image: string | null;
+          author: string;
+          read_time: string | null;
+          category: string;
+          tags: string[] | null;
+          seo_title: string | null;
+          seo_description: string | null;
+          status: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          slug: string;
+          description?: string | null;
+          content: string;
+          featured_image?: string | null;
+          author?: string;
+          read_time?: string | null;
+          category?: string;
+          tags?: string[] | null;
+          seo_title?: string | null;
+          seo_description?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          slug?: string;
+          description?: string | null;
+          content?: string;
+          featured_image?: string | null;
+          author?: string;
+          read_time?: string | null;
+          category?: string;
+          tags?: string[] | null;
+          seo_title?: string | null;
+          seo_description?: string | null;
+          status?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      ndas: {
+        Row: {
+          id: string;
+          project_id: string;
+          recruiter_id: string;
+          developer_id: string;
+          file_url: string | null;
+          template_name: string | null;
+          template_data: any | null;
+          status: "pending" | "accepted" | "rejected" | "viewed" | "sent" | "draft" | "expired";
+          developer_ip: string | null;
+          accepted_at: string | null;
+          rejected_at: string | null;
+          viewed_at: string | null;
+          file_version: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          recruiter_id: string;
+          developer_id: string;
+          file_url?: string | null;
+          template_name?: string | null;
+          template_data?: any | null;
+          status?: "pending" | "accepted" | "rejected" | "viewed" | "sent" | "draft" | "expired";
+          developer_ip?: string | null;
+          accepted_at?: string | null;
+          rejected_at?: string | null;
+          viewed_at?: string | null;
+          file_version?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          recruiter_id?: string;
+          developer_id?: string;
+          file_url?: string | null;
+          template_name?: string | null;
+          template_data?: any | null;
+          status?: "pending" | "accepted" | "rejected" | "viewed" | "sent" | "draft" | "expired";
+          developer_ip?: string | null;
+          accepted_at?: string | null;
+          rejected_at?: string | null;
+          viewed_at?: string | null;
+          file_version?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ndas_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      email_logs: {
+        Row: {
+          id: string;
+          recipient_email: string;
+          subject: string;
+          body: string;
+          status: string;
+          error_message: string | null;
+          email_type: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          recipient_email: string;
+          subject: string;
+          body: string;
+          status: string;
+          error_message?: string | null;
+          email_type?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          recipient_email?: string;
+          subject?: string;
+          body?: string;
+          status?: string;
+          error_message?: string | null;
+          email_type?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      users: {
+        Row: {
+          user_id: string;
+          email: string;
+          role: string;
+          subscription_tier: string;
+          reminders_disabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          email: string;
+          role: string;
+          subscription_tier?: string;
+          reminders_disabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          email?: string;
+          role?: string;
+          subscription_tier?: string;
+          reminders_disabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      project_stages: {
+        Row: {
+          id: string;
+          project_id: string;
+          stage_name: string;
+          stage_description: string | null;
+          stage_status: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          progress_percent: number;
+          deadline: string | null;
+          start_date: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          stage_name: string;
+          stage_description?: string | null;
+          stage_status?: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          progress_percent?: number;
+          deadline?: string | null;
+          start_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          stage_name?: string;
+          stage_description?: string | null;
+          stage_status?: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          progress_percent?: number;
+          deadline?: string | null;
+          start_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_stages_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      project_activities: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          activity_type: string;
+          description: string;
+          metadata: any;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          activity_type: string;
+          description: string;
+          metadata?: any;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          activity_type?: string;
+          description?: string;
+          metadata?: any;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "project_activities_project_id_fkey";
+            columns: ["project_id"];
+            isOneToOne: false;
+            referencedRelation: "projects";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          in_app_new_projects: boolean;
+          email_new_projects: boolean;
+          in_app_invites: boolean;
+          email_invites: boolean;
+          in_app_chat: boolean;
+          email_chat: boolean;
+          in_app_nda: boolean;
+          email_nda: boolean;
+          in_app_milestones: boolean;
+          email_milestones: boolean;
+          in_app_reviews: boolean;
+          email_reviews: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          in_app_new_projects?: boolean;
+          email_new_projects?: boolean;
+          in_app_invites?: boolean;
+          email_invites?: boolean;
+          in_app_chat?: boolean;
+          email_chat?: boolean;
+          in_app_nda?: boolean;
+          email_nda?: boolean;
+          in_app_milestones?: boolean;
+          email_milestones?: boolean;
+          in_app_reviews?: boolean;
+          email_reviews?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          in_app_new_projects?: boolean;
+          email_new_projects?: boolean;
+          in_app_invites?: boolean;
+          email_invites?: boolean;
+          in_app_chat?: boolean;
+          email_chat?: boolean;
+          in_app_nda?: boolean;
+          email_nda?: boolean;
+          in_app_milestones?: boolean;
+          email_milestones?: boolean;
+          in_app_reviews?: boolean;
+          email_reviews?: boolean;
           updated_at?: string;
         };
         Relationships: [];

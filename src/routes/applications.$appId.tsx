@@ -492,14 +492,76 @@ function NdaManager({
           </div>
 
           {ndaType === "custom" && (
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground font-medium">Custom NDA PDF Link / URL</span>
-              <Input
-                value={customUrl}
-                onChange={(e) => setCustomUrl(e.target.value)}
-                placeholder="https://example.com/custom-nda.pdf"
-                className="text-xs h-9"
-              />
+            <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
+              <span className="text-xs font-semibold block">Upload Custom NDA Document (PDF or Docs)</span>
+              {customUrl ? (
+                <div className="flex items-center justify-between bg-background border p-2 rounded text-xs">
+                  <span className="truncate max-w-[250px] font-medium text-success">✓ Document Uploaded Successfully</span>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={() => window.open(customUrl, "_blank")}
+                    >
+                      View File
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="ghost"
+                      className="text-destructive"
+                      onClick={() => setCustomUrl("")}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    className="hidden"
+                    id="nda-file-upload"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+
+                      const toastId = toast.loading("Uploading NDA file...");
+                      try {
+                        const ext = file.name.split(".").pop();
+                        const fileName = `nda-${Date.now()}.${ext}`;
+                        const filePath = `${recruiterId}/${fileName}`;
+
+                        const { error } = await supabase.storage
+                          .from("avatars")
+                          .upload(filePath, file, { upsert: true, contentType: file.type });
+
+                        if (error) {
+                          toast.error(error.message, { id: toastId });
+                          return;
+                        }
+
+                        const { data: pub } = supabase.storage.from("avatars").getPublicUrl(filePath);
+                        setCustomUrl(pub.publicUrl);
+                        toast.success("NDA Document uploaded successfully!", { id: toastId });
+                      } catch (err: any) {
+                        toast.error(err.message || "Failed to upload.", { id: toastId });
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full text-xs h-10 border-dashed"
+                    onClick={() => document.getElementById("nda-file-upload")?.click()}
+                  >
+                    Select PDF / DOCS File to Upload
+                  </Button>
+                  <p className="text-[10px] text-muted-foreground">Supported formats: PDF, DOC, DOCX. Max file size: 10MB.</p>
+                </div>
+              )}
             </div>
           )}
 

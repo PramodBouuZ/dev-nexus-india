@@ -216,7 +216,7 @@ function ProjectDetail() {
 
           {isOwner && <TopMatches project={project} projectId={resolvedProjectId} />}
           {isOwner && (
-            <ApplicantsList projectId={resolvedProjectId} recruiterId={project.recruiter_id} />
+            <ApplicantsList projectId={resolvedProjectId} recruiterId={project.recruiter_id} projectStatus={project.status} />
           )}
           {(project.status !== "open" || isOwner) && user && (
             <ProjectStages projectId={resolvedProjectId} />
@@ -408,7 +408,7 @@ function ApplyForm({ projectId }: { projectId: string }) {
   );
 }
 
-function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruiterId: string }) {
+function ApplicantsList({ projectId, recruiterId, projectStatus }: { projectId: string; recruiterId: string; projectStatus?: string }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data: apps } = useQuery({
@@ -555,7 +555,7 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
                   </Button>
                 </>
               )}
-              {a.status === "accepted" && project?.status !== "assigned" && (
+              {a.status === "accepted" && projectStatus !== "assigned" && (
                 <AssignButton
                   projectId={projectId}
                   developerId={a.developer_id}

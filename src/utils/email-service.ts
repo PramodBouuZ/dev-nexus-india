@@ -962,8 +962,168 @@ export async function processReminderEmails() {
         }
       }
     }
+
+    // Execute Module 9 extended automated reminders (Automation)
+    await processRecruiterNoActivityReminders();
+    await processReviewReminders();
+
   } catch (error) {
     console.error("Error in processReminderEmails:", error);
+  }
+}
+
+export async function processRecruiterNoActivityReminders() {
+  try {
+    const supabaseAdmin = await getSupabaseAdmin();
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+    // Query open projects created > 3 days ago
+    const { data: openProjects } = await supabaseAdmin
+      .from("projects")
+      .select("id, title, recruiter_id, created_at")
+      .eq("status", "open")
+      .lt("created_at", threeDaysAgo.toISOString());
+
+    if (!openProjects || openProjects.length === 0) return;
+
+    for (const p of openProjects) {
+      // Check count of applications and invites
+      const [{ count: appsCount }, { count: invitesCount }] = await Promise.all([
+        supabaseAdmin.from("applications").select("id", { count: "exact", head: true }).eq("project_id", p.id),
+        supabaseAdmin.from("invites").select("id", { count: "exact", head: true }).eq("project_id", p.id),
+      ]);
+
+      if ((appsCount || 0) === 0 && (invitesCount || 0) === 0) {
+        // Fetch recruiter details
+        const { data: recruiter } = await supabaseAdmin
+          .from("profiles")
+          .select("email, full_name")
+          .eq("id", p.recruiter_id)
+          .maybeSingle();
+
+        if (recruiter?.email) {
+          // Check if we already sent a reminder for this project
+          const { data: alreadySent } = await supabaseAdmin
+            .from("email_logs")
+            .select("id")
+            .eq("recipient_email", recruiter.email)
+            .ilike("subject", `%Boost Your Project Visibility%`)
+            .limit(1);
+
+          if (!alreadySent || alreadySent.length === 0) {
+            const subject = `Boost Your Project Visibility: "${p.title}" 🚀`;
+            const html = getEmailHtml(
+              subject,
+              `Hi ${recruiter.full_name || "Partner"},`,
+              `We noticed that your project "${p.title}" has been active for 3+ days but has not received any applications or invitations yet.<br/><br/>You can boost your project discoverability by inviting matching developers or updating your project budget/details.`,
+              "Actions you can take:",
+              [
+                "Invite matches from the developer search directory",
+                "Increase project description clarity",
+                "Review budget competitiveness",
+                "Unlock direct developer contact requests"
+              ],
+              "Discover Developers",
+              "https://developerconnect.in/developers"
+            );
+
+            await sendResendEmail({
+              to: recruiter.email,
+              subject,
+              html,
+              emailType: "reminder"
+            });
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in processRecruiterNoActivityReminders:", error);
+  }
+}
+
+export async function processReviewReminders() {
+  try {
+    const supabaseAdmin = await getSupabaseAdmin();
+    // Query completed contracts (projects)
+    const { data: completedContracts } = await supabaseAdmin
+      .from("contracts")
+      .select("id, project_id, developer_id, recruiter_id")
+      .eq("status", "completed");
+
+    if (!completedContracts || completedContracts.length === 0) return;
+
+    for (const c of completedContracts) {
+      // Check project details
+      const { data: proj } = await supabaseAdmin
+        .from("projects")
+        .select("title")
+        .eq("id", c.project_id)
+        .maybeSingle();
+
+      if (!proj) continue;
+
+      const parties = [
+        { id: c.developer_id, role: "developer" },
+        { id: c.recruiter_id, role: "recruiter" }
+      ];
+
+      for (const party of parties) {
+        // Check if party already reviewed this contract
+        const { data: hasReviewed } = await supabaseAdmin
+          .from("reviews")
+          .select("id")
+          .eq("contract_id", c.id)
+          .eq("reviewer_id", party.id)
+          .maybeSingle();
+
+        if (!hasReviewed) {
+          // Fetch profile details
+          const { data: prof } = await supabaseAdmin
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", party.id)
+            .maybeSingle();
+
+          if (prof?.email) {
+            // Check if reminder was already sent in the last 7 days
+            const { data: alreadySent } = await supabaseAdmin
+              .from("email_logs")
+              .select("id")
+              .eq("recipient_email", prof.email)
+              .ilike("subject", `%Leave a Platform Review%`)
+              .limit(1);
+
+            if (!alreadySent || alreadySent.length === 0) {
+              const subject = `Leave a Platform Review: "${proj.title}" ⭐`;
+              const html = getEmailHtml(
+                subject,
+                `Hi ${prof.full_name || "Partner"},`,
+                `Congratulations on completing "${proj.title}"! We would love to hear about your experience.<br/><br/>Please take a brief minute to share your review on DeveloperConnect. Sharing your review helps maintain trust and transparency across our community!`,
+                "Review details:",
+                [
+                  `Project Title: ${proj.title}`,
+                  "Rating: Rate from 1 to 5 stars",
+                  "Feedback: Share collaboration and timeliness highlights"
+                ],
+                "Submit Review",
+                `https://developerconnect.in/dashboard`
+              );
+
+              await sendResendEmail({
+                to: prof.email,
+                subject,
+                html,
+                emailType: "review_reminder"
+              });
+            }
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in processReviewReminders:", error);
   }
 }
 
@@ -994,6 +1154,111 @@ export const triggerEmailsServerFn = createServerFn({ method: "POST" })
       await processReminderEmails();
     }
     return { success: true };
+  });
+
+export const sendAnnouncementServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        title: z.string(),
+        message: z.string(),
+        targetAudience: z.enum(["all", "developers", "recruiters", "premium", "incomplete"]),
+        deliveryMethods: z.array(z.enum(["email", "in_app"])),
+        scheduledAt: z.string().nullable().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { title, message, targetAudience, deliveryMethods, scheduledAt } = data;
+    const supabaseAdmin = await getSupabaseAdmin();
+
+    // 1. Insert announcement row
+    const { data: ann, error: annErr } = await supabaseAdmin.from("announcements").insert({
+      title,
+      message,
+      target_audience: targetAudience,
+      delivery_methods: deliveryMethods,
+      scheduled_at: scheduledAt || null,
+      sent_at: scheduledAt ? null : new Date().toISOString(),
+    }).select("id").maybeSingle();
+
+    if (annErr) throw annErr;
+
+    // If scheduled for future, do not send immediately
+    if (scheduledAt) {
+      return { success: true, scheduled: true };
+    }
+
+    // 2. Fetch target users
+    let query = supabaseAdmin.from("profiles").select("id, email, full_name");
+
+    // Filter by role
+    if (targetAudience === "developers" || targetAudience === "recruiters") {
+      const { data: usersWithRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", targetAudience === "developers" ? "developer" : "recruiter");
+      const userIds = (usersWithRole || []).map((u: any) => u.user_id);
+      query = query.in("id", userIds);
+    } else if (targetAudience === "premium") {
+      const { data: premiumUsers } = await supabaseAdmin
+        .from("users" as any)
+        .select("user_id")
+        .neq("subscription_tier", "free");
+      const userIds = (premiumUsers || []).map((u: any) => u.user_id);
+      query = query.in("id", userIds);
+    } else if (targetAudience === "incomplete") {
+      // Fetch incomplete profiles via reminder manager calculations
+      const remData = await getAdminReminderManagerData();
+      const incompleteIds = remData.users
+        .filter((u: any) => u.completionPercentage < 100)
+        .map((u: any) => u.id);
+      query = query.in("id", incompleteIds);
+    }
+
+    const { data: targets } = await query;
+    if (!targets || targets.length === 0) {
+      return { success: true, sentCount: 0 };
+    }
+
+    const deliverInApp = deliveryMethods.includes("in_app");
+    const deliverEmail = deliveryMethods.includes("email");
+
+    // 3. Dispatch deliveries
+    let sentEmails = 0;
+    let sentInApps = 0;
+
+    for (const t of targets) {
+      if (deliverInApp) {
+        await supabaseAdmin.from("notifications").insert({
+          user_id: t.id,
+          type: "account_update",
+          title,
+          message,
+          is_read: false,
+        });
+        sentInApps++;
+      }
+
+      if (deliverEmail && t.email) {
+        const html = getBrandedEmailHtml({
+          title,
+          salutation: `Hi ${t.full_name || "User"},`,
+          messageBody: message,
+          ctaLabel: "Open Platform Hub",
+          ctaUrl: "https://developerconnect.in/dashboard",
+        });
+        await sendResendEmail({
+          to: t.email,
+          subject: title,
+          html,
+          emailType: "notification",
+        });
+        sentEmails++;
+      }
+    }
+
+    return { success: true, sentCount: targets.length, sentEmails, sentInApps };
   });
 
 export const sendTimelineEmailServerFn = createServerFn({ method: "POST" })

@@ -549,7 +549,7 @@ function DevProfile() {
                             </div>
                             <div className="flex items-center gap-3">
                               <Badge
-                                variant={p.status === "completed" ? "success" : "default"}
+                                variant={p.status === "completed" ? "default" : "secondary"}
                                 className="capitalize"
                               >
                                 {p.status}
