@@ -3,6 +3,7 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -113,14 +114,14 @@ function Inner({ appId, userId }: { appId: string; userId: string }) {
                 Recruiter
               </Link>
             ) : (
-              <Link
-                to="/developers/$devId"
-                params={{ devId: app.developer_id }}
-                target="_blank"
-                className="font-semibold text-accent hover:underline"
-              >
-                {(app.developer_profiles as any)?.full_name || "Developer"}
-              </Link>
+              <DeveloperProfileDialog
+                developerId={app.developer_id}
+                trigger={
+                  <span className="font-semibold text-accent hover:underline cursor-pointer">
+                    {(app.developer_profiles as any)?.full_name || "Developer"}
+                  </span>
+                }
+              />
             )}
           </div>
         </div>
