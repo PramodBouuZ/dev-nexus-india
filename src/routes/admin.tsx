@@ -998,6 +998,10 @@ function BlogsTab() {
 function NdasTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [developerFilter, setDeveloperFilter] = useState("");
+  const [recruiterFilter, setRecruiterFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const { data: ndas = [], isLoading } = useQuery({
     queryKey: ["admin-ndas"],
@@ -1027,12 +1031,27 @@ function NdasTab() {
 
   const filteredNdas = ndas.filter((n) => {
     const matchesSearch =
+      !search ||
       (n.projects?.title && n.projects.title.toLowerCase().includes(search.toLowerCase())) ||
       n.recruiter_name.toLowerCase().includes(search.toLowerCase()) ||
       n.developer_name.toLowerCase().includes(search.toLowerCase());
+
     const matchesStatus = statusFilter === "all" || n.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    const matchesDeveloper = !developerFilter || n.developer_name.toLowerCase().includes(developerFilter.toLowerCase());
+    const matchesRecruiter = !recruiterFilter || n.recruiter_name.toLowerCase().includes(recruiterFilter.toLowerCase());
+    const matchesProject = !projectFilter || (n.projects?.title && n.projects.title.toLowerCase().includes(projectFilter.toLowerCase()));
+
+    const matchesDate = !dateFilter ||
+      n.created_at.startsWith(dateFilter) ||
+      (n.accepted_at && n.accepted_at.startsWith(dateFilter));
+
+    return matchesSearch && matchesStatus && matchesDeveloper && matchesRecruiter && matchesProject && matchesDate;
   });
+
+  const totalNdas = ndas.length;
+  const pendingNdas = ndas.filter((n) => n.status === "pending" || n.status === "viewed" || n.status === "sent").length;
+  const acceptedNdas = ndas.filter((n) => n.status === "accepted").length;
+  const rejectedNdas = ndas.filter((n) => n.status === "rejected").length;
 
   const exportCSV = () => {
     const headers = [
@@ -1069,39 +1088,132 @@ function NdasTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-xl font-bold tracking-tight">Non-Disclosure Agreements (NDAs)</h3>
-        <p className="text-sm text-muted-foreground">
-          Monitor completed confidentiality documents, developer sign IPs, and pending agreements.
-        </p>
-      </div>
-
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1 max-w-2xl">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by project, developer, recruiter..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-10"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[160px] h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="accepted">Accepted</SelectItem>
-              <SelectItem value="rejected">Rejected</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold tracking-tight">Non-Disclosure Agreements (NDAs)</h3>
+          <p className="text-sm text-muted-foreground">
+            Monitor completed confidentiality documents, developer sign IPs, and pending agreements.
+          </p>
         </div>
         <Button onClick={exportCSV} variant="outline" className="h-10">
           <Download className="mr-1 h-4 w-4" /> Export CSV
         </Button>
+      </div>
+
+      {/* NDA Summaries Deck */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Total NDAs Created"
+          value={totalNdas}
+          sub="Contract drafts & requests"
+          icon={FileText}
+          color="text-primary"
+        />
+        <StatCard
+          label="Pending NDAs"
+          value={pendingNdas}
+          sub="Awaiting signatures"
+          icon={Clock}
+          color="text-amber-500"
+        />
+        <StatCard
+          label="Accepted NDAs"
+          value={acceptedNdas}
+          sub="Fully signed & binding"
+          icon={CheckCircle2}
+          color="text-success"
+        />
+        <StatCard
+          label="Rejected NDAs"
+          value={rejectedNdas}
+          sub="Declined or renegotiating"
+          icon={XCircle}
+          color="text-destructive"
+        />
+      </div>
+
+      {/* Rich Grid Filters */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5" /> Granular Filter Console
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Global Search</Label>
+            <Input
+              placeholder="Search keyword..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Developer</Label>
+            <Input
+              placeholder="Filter developer..."
+              value={developerFilter}
+              onChange={(e) => setDeveloperFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Recruiter</Label>
+            <Input
+              placeholder="Filter recruiter..."
+              value={recruiterFilter}
+              onChange={(e) => setRecruiterFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Project Title</Label>
+            <Input
+              placeholder="Filter project..."
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Agreement Date</Label>
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+        </div>
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="accepted">Accepted</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setDeveloperFilter("");
+              setRecruiterFilter("");
+              setProjectFilter("");
+              setDateFilter("");
+              setStatusFilter("all");
+            }}
+            className="text-[11px] h-7 text-muted-foreground"
+          >
+            Reset Filters
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
@@ -1174,6 +1286,10 @@ function EmailLogsTab() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [developerFilter, setDeveloperFilter] = useState("");
+  const [recruiterFilter, setRecruiterFilter] = useState("");
+  const [projectFilter, setProjectFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["admin-email-logs"],
@@ -1188,11 +1304,20 @@ function EmailLogsTab() {
 
   const filteredLogs = logs.filter((l) => {
     const matchesSearch =
+      !search ||
       l.recipient_email.toLowerCase().includes(search.toLowerCase()) ||
       l.subject.toLowerCase().includes(search.toLowerCase());
+
     const matchesStatus = statusFilter === "all" || l.status === statusFilter;
     const matchesType = typeFilter === "all" || l.email_type === typeFilter;
-    return matchesSearch && matchesStatus && matchesType;
+
+    const matchesDeveloper = !developerFilter || l.recipient_email.toLowerCase().includes(developerFilter.toLowerCase());
+    const matchesRecruiter = !recruiterFilter || l.recipient_email.toLowerCase().includes(recruiterFilter.toLowerCase());
+    const matchesProject = !projectFilter || l.subject.toLowerCase().includes(projectFilter.toLowerCase()) || l.body.toLowerCase().includes(projectFilter.toLowerCase());
+
+    const matchesDate = !dateFilter || l.created_at.startsWith(dateFilter);
+
+    return matchesSearch && matchesStatus && matchesType && matchesDeveloper && matchesRecruiter && matchesProject && matchesDate;
   });
 
   // Calculate metrics
@@ -1256,12 +1381,17 @@ function EmailLogsTab() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-xl font-bold tracking-tight">Email Analytics & Notification Logs</h3>
-        <p className="text-sm text-muted-foreground">
-          Monitor transactional notification runs, campaign triggers, reminders, and delivery
-          failure states.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h3 className="text-xl font-bold tracking-tight">Email Analytics & Notification Logs</h3>
+          <p className="text-sm text-muted-foreground">
+            Monitor transactional notification runs, campaign triggers, reminders, and delivery
+            failure states.
+          </p>
+        </div>
+        <Button onClick={exportCSV} variant="outline" className="h-10 shrink-0">
+          <Download className="mr-1 h-4 w-4" /> Export CSV
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -1337,46 +1467,103 @@ function EmailLogsTab() {
         </CardContent>
       </Card>
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-3 flex-1 max-w-3xl">
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* Rich Grid Filters */}
+      <div className="rounded-xl border border-border bg-card p-5 space-y-4">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+          <Filter className="h-3.5 w-3.5" /> Granular Filter Console
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Global Search</Label>
             <Input
-              placeholder="Search recipient or subject..."
+              placeholder="Search keyword..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-10"
+              className="h-9 text-xs"
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[140px] h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="success">Success</SelectItem>
-              <SelectItem value="failed">Failed</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[160px] h-10">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="welcome">Welcome</SelectItem>
-              <SelectItem value="reminder">Reminders</SelectItem>
-              <SelectItem value="invite">Invites</SelectItem>
-              <SelectItem value="nda">NDA Signed</SelectItem>
-              <SelectItem value="milestone">Milestones</SelectItem>
-              <SelectItem value="chat">Chat Messages</SelectItem>
-              <SelectItem value="notification">General</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Developer (Email)</Label>
+            <Input
+              placeholder="Filter developer..."
+              value={developerFilter}
+              onChange={(e) => setDeveloperFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Recruiter (Email)</Label>
+            <Input
+              placeholder="Filter recruiter..."
+              value={recruiterFilter}
+              onChange={(e) => setRecruiterFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Project Name / Context</Label>
+            <Input
+              placeholder="Filter project/body..."
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Sent Date</Label>
+            <Input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-9 text-xs"
+            />
+          </div>
         </div>
-        <Button onClick={exportCSV} variant="outline" className="h-10 shrink-0">
-          <Download className="mr-1 h-4 w-4" /> Export CSV
-        </Button>
+        <div className="flex items-center justify-between pt-2 border-t">
+          <div className="flex gap-2">
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-[140px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="success">Success</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="welcome">Welcome</SelectItem>
+                <SelectItem value="reminder">Reminders</SelectItem>
+                <SelectItem value="invite">Invites</SelectItem>
+                <SelectItem value="nda">NDA Signed</SelectItem>
+                <SelectItem value="milestone">Milestones</SelectItem>
+                <SelectItem value="chat">Chat Messages</SelectItem>
+                <SelectItem value="notification">General</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="xs"
+            variant="ghost"
+            onClick={() => {
+              setSearch("");
+              setDeveloperFilter("");
+              setRecruiterFilter("");
+              setProjectFilter("");
+              setDateFilter("");
+              setStatusFilter("all");
+              setTypeFilter("all");
+            }}
+            className="text-[11px] h-7 text-muted-foreground"
+          >
+            Reset Filters
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden">
