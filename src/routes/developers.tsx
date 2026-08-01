@@ -12,6 +12,7 @@ import { FavoriteButton } from "@/components/FavoriteButton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteDeveloperDialog } from "@/components/InviteDeveloperDialog";
 import { useAuth } from "@/lib/auth";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 
 export const Route = createFileRoute("/developers")({
   head: () => ({
@@ -121,92 +122,94 @@ function DevList() {
               <div className="absolute right-3 top-3 z-10">
                 <FavoriteButton kind="developer" targetId={d.id} />
               </div>
-              <Link
-                to="/developers/$devId"
-                params={{ devId: d.id }}
-                target="_blank"
-                className="group block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant"
-              >
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12">
-                    {d.avatar_url && (
-                      <AvatarImage src={d.avatar_url} alt={d.full_name ?? "Developer"} />
-                    )}
-                    <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                      {d.full_name?.[0] ?? "?"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="truncate font-semibold group-hover:text-accent transition-colors">
-                        {d.full_name ?? "Developer"}
-                      </h3>
-                      {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
+              <DeveloperProfileDialog
+                developerId={d.id}
+                trigger={
+                  <div className="group block rounded-xl border border-border bg-card p-5 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant cursor-pointer">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-12 w-12">
+                        {d.avatar_url && (
+                          <AvatarImage src={d.avatar_url} alt={d.full_name ?? "Developer"} />
+                        )}
+                        <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                          {d.full_name?.[0] ?? "?"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="truncate font-semibold group-hover:text-accent transition-colors">
+                            {d.full_name ?? "Developer"}
+                          </h3>
+                          {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
+                        </div>
+                        {d.location && (
+                          <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <MapPin className="h-3 w-3" /> {d.location}
+                          </p>
+                        )}
+                        {d.rating_count > 0 && (
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <Stars value={d.rating_avg} size={12} />
+                            <span className="text-xs text-muted-foreground">
+                              {d.rating_avg.toFixed(1)} · {d.rating_count}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    {d.location && (
-                      <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <MapPin className="h-3 w-3" /> {d.location}
+                    {d.headline && (
+                      <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">
+                        {d.headline}
                       </p>
                     )}
-                    {d.rating_count > 0 && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <Stars value={d.rating_avg} size={12} />
-                        <span className="text-xs text-muted-foreground">
-                          {d.rating_avg.toFixed(1)} · {d.rating_count}
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {d.skills?.slice(0, 4).map((s) => (
+                        <Badge key={s} variant="secondary" className="text-xs">
+                          {s}
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+                      {d.hourly_rate_inr && (
+                        <span className="flex items-center gap-1">
+                          <IndianRupee className="h-3 w-3" />
+                          {d.hourly_rate_inr.toLocaleString()}/hr
                         </span>
+                      )}
+                      {d.availability_hours_per_week && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {d.availability_hours_per_week} hrs/wk
+                        </span>
+                      )}
+                    </div>
+                    {(d.github_url || d.portfolio_url) && (
+                      <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        {d.github_url && (
+                          <a
+                            href={d.github_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Github className="h-4 w-4" />
+                          </a>
+                        )}
+                        {d.portfolio_url && (
+                          <a
+                            href={d.portfolio_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Globe className="h-4 w-4" />
+                          </a>
+                        )}
                       </div>
                     )}
                   </div>
-                </div>
-                {d.headline && (
-                  <p className="mt-3 line-clamp-2 text-sm text-muted-foreground">{d.headline}</p>
-                )}
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {d.skills?.slice(0, 4).map((s) => (
-                    <Badge key={s} variant="secondary" className="text-xs">
-                      {s}
-                    </Badge>
-                  ))}
-                </div>
-                <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
-                  {d.hourly_rate_inr && (
-                    <span className="flex items-center gap-1">
-                      <IndianRupee className="h-3 w-3" />
-                      {d.hourly_rate_inr.toLocaleString()}/hr
-                    </span>
-                  )}
-                  {d.availability_hours_per_week && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
-                      {d.availability_hours_per_week} hrs/wk
-                    </span>
-                  )}
-                </div>
-                {(d.github_url || d.portfolio_url) && (
-                  <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
-                    {d.github_url && (
-                      <a
-                        href={d.github_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <Github className="h-4 w-4" />
-                      </a>
-                    )}
-                    {d.portfolio_url && (
-                      <a
-                        href={d.portfolio_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <Globe className="h-4 w-4" />
-                      </a>
-                    )}
-                  </div>
-                )}
-              </Link>
+                }
+              />
               {role === "recruiter" && (
                 <div className="absolute bottom-3 right-3">
                   <InviteDeveloperDialog

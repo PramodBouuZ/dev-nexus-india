@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -724,14 +725,14 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                           <AvatarFallback>{a.dev?.full_name?.[0]}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <Link
-                            to="/developers/$devId"
-                            params={{ devId: a.developer_id }}
-                            target="_blank"
-                            className="font-semibold hover:text-accent"
-                          >
-                            {a.dev?.full_name}
-                          </Link>
+                          <DeveloperProfileDialog
+                            developerId={a.developer_id}
+                            trigger={
+                              <span className="font-semibold hover:text-accent cursor-pointer">
+                                {a.dev?.full_name}
+                              </span>
+                            }
+                          />
                           <p className="text-xs text-muted-foreground">
                             Assigned to:{" "}
                             <span className="font-medium text-foreground">{a.projects?.title}</span>
@@ -757,29 +758,29 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                 </p>
               ) : (
                 savedDevs.map((d) => (
-                  <Link
+                  <DeveloperProfileDialog
                     key={d.id}
-                    to="/developers/$devId"
-                    params={{ devId: d.id }}
-                    target="_blank"
-                    className="group block rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/40 transition-all hover:shadow-elegant"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={d.avatar_url ?? undefined} />
-                        <AvatarFallback>{d.full_name?.[0]}</AvatarFallback>
-                      </Avatar>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-sm font-semibold truncate group-hover:text-accent transition-colors">
-                            {d.full_name}
-                          </p>
-                          {d.is_verified && <ShieldCheck className="h-3 w-3 text-accent" />}
+                    developerId={d.id}
+                    trigger={
+                      <div className="group block rounded-xl border border-border bg-card p-4 shadow-card hover:border-accent/40 transition-all hover:shadow-elegant cursor-pointer">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={d.avatar_url ?? undefined} />
+                            <AvatarFallback>{d.full_name?.[0]}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-semibold truncate group-hover:text-accent transition-colors">
+                                {d.full_name}
+                              </p>
+                              {d.is_verified && <ShieldCheck className="h-3 w-3 text-accent" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground truncate">{d.headline}</p>
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{d.headline}</p>
                       </div>
-                    </div>
-                  </Link>
+                    }
+                  />
                 ))
               )}
             </div>
@@ -813,34 +814,34 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                     className="rounded-xl border border-border bg-card p-4 shadow-card"
                   >
                     <div className="flex items-start gap-3">
-                      <Link
-                        to="/developers/$devId"
-                        params={{ devId: i.developer_id }}
-                        target="_blank"
-                        className="group"
-                      >
-                        <Avatar className="h-12 w-12 transition-transform group-hover:scale-105">
-                          {i.dev?.avatar_url && (
-                            <AvatarImage
-                              src={i.dev.avatar_url}
-                              alt={i.dev?.full_name ?? "Developer"}
-                            />
-                          )}
-                          <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
-                            {i.dev?.full_name?.[0] ?? "?"}
-                          </AvatarFallback>
-                        </Avatar>
-                      </Link>
+                      <DeveloperProfileDialog
+                        developerId={i.developer_id}
+                        trigger={
+                          <div className="group cursor-pointer">
+                            <Avatar className="h-12 w-12 transition-transform group-hover:scale-105">
+                              {i.dev?.avatar_url && (
+                                <AvatarImage
+                                  src={i.dev.avatar_url}
+                                  alt={i.dev?.full_name ?? "Developer"}
+                                />
+                              )}
+                              <AvatarFallback className="bg-gradient-accent text-primary-foreground font-display text-sm font-bold">
+                                {i.dev?.full_name?.[0] ?? "?"}
+                              </AvatarFallback>
+                            </Avatar>
+                          </div>
+                        }
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Link
-                            to="/developers/$devId"
-                            params={{ devId: i.developer_id }}
-                            target="_blank"
-                            className="font-semibold hover:text-accent transition-colors"
-                          >
-                            {i.dev?.full_name ?? "Developer"}
-                          </Link>
+                          <DeveloperProfileDialog
+                            developerId={i.developer_id}
+                            trigger={
+                              <span className="font-semibold hover:text-accent transition-colors cursor-pointer">
+                                {i.dev?.full_name ?? "Developer"}
+                              </span>
+                            }
+                          />
                           {i.dev?.is_verified && (
                             <ShieldCheck className="h-3.5 w-3.5 text-accent" />
                           )}
@@ -908,26 +909,26 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <Link
-                          to="/developers/$devId"
-                          params={{ devId: a.developer_id }}
-                          target="_blank"
-                          className="group block"
-                        >
-                          <Avatar className="h-12 w-12 transition-transform group-hover:scale-105">
-                            <AvatarImage src={a.dev?.avatar_url ?? undefined} />
-                            <AvatarFallback>{a.dev?.full_name?.[0]}</AvatarFallback>
-                          </Avatar>
-                        </Link>
+                        <DeveloperProfileDialog
+                          developerId={a.developer_id}
+                          trigger={
+                            <div className="group block cursor-pointer">
+                              <Avatar className="h-12 w-12 transition-transform group-hover:scale-105">
+                                <AvatarImage src={a.dev?.avatar_url ?? undefined} />
+                                <AvatarFallback>{a.dev?.full_name?.[0]}</AvatarFallback>
+                              </Avatar>
+                            </div>
+                          }
+                        />
                         <div>
-                          <Link
-                            to="/developers/$devId"
-                            params={{ devId: a.developer_id }}
-                            target="_blank"
-                            className="font-semibold hover:text-accent transition-colors"
-                          >
-                            {a.dev?.full_name}
-                          </Link>
+                          <DeveloperProfileDialog
+                            developerId={a.developer_id}
+                            trigger={
+                              <span className="font-semibold hover:text-accent transition-colors cursor-pointer">
+                                {a.dev?.full_name}
+                              </span>
+                            }
+                          />
                           <p className="text-xs text-muted-foreground">
                             Applied to:{" "}
                             <span className="font-medium text-foreground">{a.projectTitle}</span>
@@ -994,26 +995,26 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex items-center gap-3">
-                            <Link
-                              to="/developers/$devId"
-                              params={{ devId: r.requester_id }}
-                              target="_blank"
-                              className="group block"
-                            >
-                              <Avatar className="h-10 w-10 transition-transform group-hover:scale-105">
-                                <AvatarImage src={r.dev?.avatar_url ?? undefined} />
-                                <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
-                              </Avatar>
-                            </Link>
+                            <DeveloperProfileDialog
+                              developerId={r.requester_id}
+                              trigger={
+                                <div className="group block cursor-pointer">
+                                  <Avatar className="h-10 w-10 transition-transform group-hover:scale-105">
+                                    <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                                    <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              }
+                            />
                             <div>
-                              <Link
-                                to="/developers/$devId"
-                                params={{ devId: r.requester_id }}
-                                target="_blank"
-                                className="text-sm font-semibold hover:text-accent"
-                              >
-                                {r.dev?.full_name}
-                              </Link>
+                              <DeveloperProfileDialog
+                                developerId={r.requester_id}
+                                trigger={
+                                  <span className="text-sm font-semibold hover:text-accent cursor-pointer">
+                                    {r.dev?.full_name}
+                                  </span>
+                                }
+                              />
                               <p className="text-[10px] text-muted-foreground">
                                 Requested {new Date(r.created_at).toLocaleDateString()}
                               </p>
@@ -1072,26 +1073,26 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Link
-                              to="/developers/$devId"
-                              params={{ devId: r.target_id }}
-                              target="_blank"
-                              className="group block"
-                            >
-                              <Avatar className="h-10 w-10 transition-transform group-hover:scale-105">
-                                <AvatarImage src={r.dev?.avatar_url ?? undefined} />
-                                <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
-                              </Avatar>
-                            </Link>
+                            <DeveloperProfileDialog
+                              developerId={r.target_id}
+                              trigger={
+                                <div className="group block cursor-pointer">
+                                  <Avatar className="h-10 w-10 transition-transform group-hover:scale-105">
+                                    <AvatarImage src={r.dev?.avatar_url ?? undefined} />
+                                    <AvatarFallback>{r.dev?.full_name?.[0]}</AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              }
+                            />
                             <div>
-                              <Link
-                                to="/developers/$devId"
-                                params={{ devId: r.target_id }}
-                                target="_blank"
-                                className="text-sm font-semibold hover:text-accent transition-colors"
-                              >
-                                {r.dev?.full_name}
-                              </Link>
+                              <DeveloperProfileDialog
+                                developerId={r.target_id}
+                                trigger={
+                                  <span className="text-sm font-semibold hover:text-accent transition-colors cursor-pointer">
+                                    {r.dev?.full_name}
+                                  </span>
+                                }
+                              />
                               <p className="text-[10px] text-muted-foreground">
                                 Requested {new Date(r.created_at).toLocaleDateString()}
                               </p>

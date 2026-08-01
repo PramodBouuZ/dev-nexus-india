@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { toast } from "sonner";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 import {
   Clock,
   IndianRupee,
@@ -496,14 +497,14 @@ function ApplicantsList({ projectId, recruiterId }: { projectId: string; recruit
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Link
-                    to="/developers/$devId"
-                    params={{ devId: a.developer_id }}
-                    target="_blank"
-                    className="font-semibold hover:text-accent"
-                  >
-                    {a.dev?.full_name ?? "Developer"}
-                  </Link>
+                  <DeveloperProfileDialog
+                    developerId={a.developer_id}
+                    trigger={
+                      <span className="font-semibold hover:text-accent cursor-pointer">
+                        {a.dev?.full_name ?? "Developer"}
+                      </span>
+                    }
+                  />
                   {a.dev?.is_verified && (
                     <Badge className="bg-success text-success-foreground">Verified</Badge>
                   )}

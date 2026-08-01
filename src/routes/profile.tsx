@@ -178,13 +178,11 @@ function DeveloperForm({ userId }: { userId: string }) {
     } as any);
     // Upsert phone into private table
     if (form.phone) {
-      await supabase
-        .from("developer_phones" as any)
-        .upsert({
-          developer_id: userId,
-          phone: form.phone,
-          updated_at: new Date().toISOString(),
-        } as any);
+      await supabase.from("developer_phones" as any).upsert({
+        developer_id: userId,
+        phone: form.phone,
+        updated_at: new Date().toISOString(),
+      } as any);
     } else {
       await supabase
         .from("developer_phones" as any)
@@ -504,13 +502,11 @@ function RecruiterForm({ userId }: { userId: string }) {
       hiring_status: form.hiring_status,
     } as any);
     if (form.phone) {
-      await supabase
-        .from("recruiter_phones" as any)
-        .upsert({
-          recruiter_id: userId,
-          phone: form.phone,
-          updated_at: new Date().toISOString(),
-        } as any);
+      await supabase.from("recruiter_phones" as any).upsert({
+        recruiter_id: userId,
+        phone: form.phone,
+        updated_at: new Date().toISOString(),
+      } as any);
     } else {
       await supabase
         .from("recruiter_phones" as any)

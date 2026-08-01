@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import { ShieldCheck, MapPin, IndianRupee, Briefcase, Heart, Search } from "lucide-react";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 
 export const Route = createFileRoute("/saved")({
   head: () => ({ meta: [{ title: "Saved | DeveloperConnect" }] }),
@@ -127,43 +128,43 @@ function SavedPage() {
                     <div className="absolute right-3 top-3 z-10">
                       <FavoriteButton kind="developer" targetId={d.id} />
                     </div>
-                    <Link
-                      to="/developers/$devId"
-                      params={{ devId: d.id }}
-                      target="_blank"
-                      className="group block"
-                    >
-                      <div className="flex items-center gap-1.5 pr-8">
-                        <h3 className="truncate font-semibold group-hover:text-accent transition-colors">
-                          {d.full_name ?? "Developer"}
-                        </h3>
-                        {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
-                      </div>
-                      {d.headline && (
-                        <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
-                          {d.headline}
-                        </p>
-                      )}
-                      {d.location && (
-                        <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          {d.location}
-                        </p>
-                      )}
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {(d.skills ?? []).slice(0, 4).map((s: string) => (
-                          <Badge key={s} variant="secondary" className="text-xs">
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
-                      {d.hourly_rate_inr && (
-                        <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium">
-                          <IndianRupee className="h-3 w-3" />
-                          {d.hourly_rate_inr}/hr
-                        </p>
-                      )}
-                    </Link>
+                    <DeveloperProfileDialog
+                      developerId={d.id}
+                      trigger={
+                        <div className="group block cursor-pointer">
+                          <div className="flex items-center gap-1.5 pr-8">
+                            <h3 className="truncate font-semibold group-hover:text-accent transition-colors">
+                              {d.full_name ?? "Developer"}
+                            </h3>
+                            {d.is_verified && <ShieldCheck className="h-4 w-4 text-accent" />}
+                          </div>
+                          {d.headline && (
+                            <p className="mt-0.5 line-clamp-2 text-sm text-muted-foreground">
+                              {d.headline}
+                            </p>
+                          )}
+                          {d.location && (
+                            <p className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              {d.location}
+                            </p>
+                          )}
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {(d.skills ?? []).slice(0, 4).map((s: string) => (
+                              <Badge key={s} variant="secondary" className="text-xs">
+                                {s}
+                              </Badge>
+                            ))}
+                          </div>
+                          {d.hourly_rate_inr && (
+                            <p className="mt-3 inline-flex items-center gap-1 text-xs font-medium">
+                              <IndianRupee className="h-3 w-3" />
+                              {d.hourly_rate_inr}/hr
+                            </p>
+                          )}
+                        </div>
+                      }
+                    />
                   </div>
                 ))}
               </div>

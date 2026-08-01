@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Sparkles, IndianRupee, Clock } from "lucide-react";
 import { scoreMatch, type ProjectForMatch, type DevForMatch } from "@/lib/matching";
+import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
 
 export function TopMatches({
   project,
@@ -60,51 +61,53 @@ export function TopMatches({
       </p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {matches.map((m) => (
-          <Link
+          <DeveloperProfileDialog
             key={m.id}
-            to="/developers/$devId"
-            params={{ devId: m.id }}
-            target="_blank"
-            className="group rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <p className="truncate font-semibold group-hover:text-accent transition-colors">
-                    {m.full_name}
-                  </p>
-                  {m.is_verified && <ShieldCheck className="h-3.5 w-3.5 text-accent shrink-0" />}
+            developerId={m.id}
+            trigger={
+              <div className="group rounded-xl border border-border bg-card p-4 shadow-card transition-all hover:border-accent/40 hover:shadow-elegant cursor-pointer">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate font-semibold group-hover:text-accent transition-colors">
+                        {m.full_name}
+                      </p>
+                      {m.is_verified && (
+                        <ShieldCheck className="h-3.5 w-3.5 text-accent shrink-0" />
+                      )}
+                    </div>
+                    {m.headline && (
+                      <p className="truncate text-xs text-muted-foreground">{m.headline}</p>
+                    )}
+                  </div>
+                  <div className="shrink-0 rounded-full bg-gradient-accent px-2.5 py-1 text-xs font-bold text-primary-foreground">
+                    {m.score}% match
+                  </div>
                 </div>
-                {m.headline && (
-                  <p className="truncate text-xs text-muted-foreground">{m.headline}</p>
-                )}
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {m.reasons.slice(0, 3).map((r, i) => (
+                    <Badge key={i} variant="secondary" className="text-[10px]">
+                      {r}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                  {m.hourly_rate_inr && (
+                    <span className="inline-flex items-center gap-1">
+                      <IndianRupee className="h-3 w-3" />
+                      {m.hourly_rate_inr}/hr
+                    </span>
+                  )}
+                  {m.availability_hours_per_week && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {m.availability_hours_per_week} hrs/wk
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="shrink-0 rounded-full bg-gradient-accent px-2.5 py-1 text-xs font-bold text-primary-foreground">
-                {m.score}% match
-              </div>
-            </div>
-            <div className="mt-2 flex flex-wrap gap-1">
-              {m.reasons.slice(0, 3).map((r, i) => (
-                <Badge key={i} variant="secondary" className="text-[10px]">
-                  {r}
-                </Badge>
-              ))}
-            </div>
-            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-              {m.hourly_rate_inr && (
-                <span className="inline-flex items-center gap-1">
-                  <IndianRupee className="h-3 w-3" />
-                  {m.hourly_rate_inr}/hr
-                </span>
-              )}
-              {m.availability_hours_per_week && (
-                <span className="inline-flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  {m.availability_hours_per_week} hrs/wk
-                </span>
-              )}
-            </div>
-          </Link>
+            }
+          />
         ))}
       </div>
     </section>
