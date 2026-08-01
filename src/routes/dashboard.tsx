@@ -218,14 +218,14 @@ function NotificationCenter({ userId }: { userId: string }) {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
         <div className="flex gap-2 text-xs font-semibold">
           <Button
-            size="xs"
+            size="sm"
             variant={filter === "all" ? "default" : "outline"}
             onClick={() => setFilter("all")}
           >
             All ({notifications?.length ?? 0})
           </Button>
           <Button
-            size="xs"
+            size="sm"
             variant={filter === "unread" ? "default" : "outline"}
             onClick={() => setFilter("unread")}
             className="relative"
@@ -240,7 +240,7 @@ function NotificationCenter({ userId }: { userId: string }) {
         </div>
         {unreadCount > 0 && (
           <Button
-            size="xs"
+            size="sm"
             variant="outline"
             onClick={markAllRead}
             className="text-xs h-8 border-success/30 text-success hover:bg-success/5"
@@ -309,7 +309,7 @@ function NotificationCenter({ userId }: { userId: string }) {
 
                 <div className="flex items-center gap-1.5 ml-3 shrink-0">
                   {n.link && (
-                    <Button asChild size="xs" variant="outline" className="h-7 text-[10px]">
+                    <Button asChild size="sm" variant="outline" className="h-7 text-[10px]">
                       <Link to={n.link as any} onClick={() => !n.read_at && markAsRead(n.id)}>
                         View
                       </Link>
@@ -808,7 +808,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                           p.status === "open"
                             ? "default"
                             : p.status === "assigned"
-                              ? "success"
+                              ? "secondary"
                               : "outline"
                         }
                       >
@@ -855,7 +855,7 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                           </p>
                         </div>
                       </div>
-                      <Badge variant="success">Assigned</Badge>
+                      <Badge variant="secondary">Assigned</Badge>
                     </div>
                   </div>
                 ))
@@ -1730,7 +1730,7 @@ function DeveloperDashboard({ userId }: { userId: string }) {
                           {(a.projects as any)?.description}
                         </p>
                       </div>
-                      <Badge variant="success">Assigned</Badge>
+                      <Badge variant="secondary">Assigned</Badge>
                     </div>
                   </Link>
                 ))
