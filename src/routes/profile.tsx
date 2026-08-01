@@ -38,6 +38,9 @@ const DEV_TYPES = [
   { value: "other", label: "Other" },
 ];
 
+import { Switch } from "@/components/ui/switch";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+
 function ProfilePage() {
   const { user, role, loading } = useAuth();
   if (loading) return null;
@@ -50,15 +53,234 @@ function ProfilePage() {
         <p className="mt-1 text-muted-foreground">
           Keep your profile up to date to get better matches.
         </p>
-        <div className="mt-8">
+        <div className="mt-8 space-y-8">
           {role === "recruiter" ? (
             <RecruiterForm userId={user.id} />
           ) : (
             <DeveloperForm userId={user.id} />
           )}
+
+          <NotificationPreferencesPanel userId={user.id} />
         </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function NotificationPreferencesPanel({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+
+  const { data: prefs, isLoading } = useQuery({
+    queryKey: ["notification-preferences", userId],
+    queryFn: async () => {
+      const { data } = await (supabase as any)
+        .from("notification_preferences")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  const [emailNewProjects, setEmailNewProjects] = useState(true);
+  const [emailInvites, setEmailInvites] = useState(true);
+  const [emailChat, setEmailChat] = useState(true);
+  const [emailNda, setEmailNda] = useState(true);
+  const [emailMilestones, setEmailMilestones] = useState(true);
+  const [emailReviews, setEmailReviews] = useState(true);
+
+  const [inAppNewProjects, setInAppNewProjects] = useState(true);
+  const [inAppInvites, setInAppInvites] = useState(true);
+  const [inAppChat, setInAppChat] = useState(true);
+  const [inAppNda, setInAppNda] = useState(true);
+  const [inAppMilestones, setInAppMilestones] = useState(true);
+  const [inAppReviews, setInAppReviews] = useState(true);
+
+  useEffect(() => {
+    if (prefs) {
+      setEmailNewProjects(prefs.email_new_projects);
+      setEmailInvites(prefs.email_invites);
+      setEmailChat(prefs.email_chat);
+      setEmailNda(prefs.email_nda);
+      setEmailMilestones(prefs.email_milestones);
+      setEmailReviews(prefs.email_reviews);
+
+      setInAppNewProjects(prefs.in_app_new_projects);
+      setInAppInvites(prefs.in_app_invites);
+      setInAppChat(prefs.in_app_chat);
+      setInAppNda(prefs.in_app_nda);
+      setInAppMilestones(prefs.in_app_milestones);
+      setInAppReviews(prefs.in_app_reviews);
+    }
+  }, [prefs]);
+
+  async function savePreferences() {
+    setBusy(true);
+    const { error } = await (supabase as any).from("notification_preferences").upsert({
+      user_id: userId,
+      email_new_projects: emailNewProjects,
+      email_invites: emailInvites,
+      email_chat: emailChat,
+      email_nda: emailNda,
+      email_milestones: emailMilestones,
+      email_reviews: emailReviews,
+      in_app_new_projects: inAppNewProjects,
+      in_app_invites: inAppInvites,
+      in_app_chat: inAppChat,
+      in_app_nda: inAppNda,
+      in_app_milestones: inAppMilestones,
+      in_app_reviews: inAppReviews,
+    } as any);
+
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Notification preferences saved successfully!");
+    qc.invalidateQueries({ queryKey: ["notification-preferences", userId] });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-4 animate-pulse">
+        <div className="h-6 w-48 bg-muted rounded"></div>
+        <div className="space-y-2">
+          <div className="h-4 w-full bg-muted rounded"></div>
+          <div className="h-4 w-full bg-muted rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6 shadow-card space-y-6">
+      <div>
+        <h3 className="text-lg font-bold tracking-tight">Notification Preferences</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Control exactly how and when you want to receive platform updates and email dispatches.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">
+          Email Notifications
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <PreferenceToggle
+            label="New Matching Projects"
+            desc="Get notified of newly posted projects matching your criteria."
+            checked={emailNewProjects}
+            onChange={setEmailNewProjects}
+          />
+          <PreferenceToggle
+            label="Project Invites"
+            desc="Receive emails when recruiters send you direct invites."
+            checked={emailInvites}
+            onChange={setEmailInvites}
+          />
+          <PreferenceToggle
+            label="Chat Messages"
+            desc="Stay up to date with unread conversation messages."
+            checked={emailChat}
+            onChange={setEmailChat}
+          />
+          <PreferenceToggle
+            label="Mutual NDAs"
+            desc="Get updates on NDA request creations, views, and signatures."
+            checked={emailNda}
+            onChange={setEmailNda}
+          />
+          <PreferenceToggle
+            label="Milestone Progress"
+            desc="Track task status updates, start signals, and deadlines."
+            checked={emailMilestones}
+            onChange={setEmailMilestones}
+          />
+          <PreferenceToggle
+            label="Feedback & Reviews"
+            desc="Get reminders to leave mutual reviews upon completion."
+            checked={emailReviews}
+            onChange={setEmailReviews}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4 pt-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b pb-1.5">
+          In-App Notifications
+        </h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <PreferenceToggle
+            label="New Matching Projects"
+            desc="Bell center alerts for new matching project posts."
+            checked={inAppNewProjects}
+            onChange={setInAppNewProjects}
+          />
+          <PreferenceToggle
+            label="Project Invites"
+            desc="Bell alerts when direct recruiter invitations arrive."
+            checked={inAppInvites}
+            onChange={setInAppInvites}
+          />
+          <PreferenceToggle
+            label="Chat Messages"
+            desc="On-screen real-time notifications for incoming chat."
+            checked={inAppChat}
+            onChange={setInAppChat}
+          />
+          <PreferenceToggle
+            label="Mutual NDAs"
+            desc="Live tracking notifications of NDA states in dashboard."
+            checked={inAppNda}
+            onChange={setInAppNda}
+          />
+          <PreferenceToggle
+            label="Milestone Progress"
+            desc="Updates on stage deadlines and completion sign-offs."
+            checked={inAppMilestones}
+            onChange={setInAppMilestones}
+          />
+          <PreferenceToggle
+            label="Feedback & Reviews"
+            desc="Notifications of received reviews and feedback requests."
+            checked={inAppReviews}
+            onChange={setInAppReviews}
+          />
+        </div>
+      </div>
+
+      <Button
+        onClick={savePreferences}
+        disabled={busy}
+        className="w-full bg-gradient-accent text-primary-foreground font-bold mt-4"
+      >
+        {busy ? "Saving settings..." : "Save Preferences"}
+      </Button>
+    </div>
+  );
+}
+
+function PreferenceToggle({
+  label,
+  desc,
+  checked,
+  onChange,
+}: {
+  label: string;
+  desc: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 p-3 bg-muted/15 rounded-lg border border-border/40 hover:bg-muted/30 transition-colors">
+      <div className="space-y-0.5">
+        <div className="text-xs font-semibold text-foreground">{label}</div>
+        <p className="text-[10px] text-muted-foreground leading-relaxed">{desc}</p>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} className="scale-75 shrink-0 origin-right" />
     </div>
   );
 }

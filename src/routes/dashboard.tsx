@@ -164,6 +164,8 @@ function PendingReviews({ userId }: { userId: string }) {
 
 function NotificationCenter({ userId }: { userId: string }) {
   const qc = useQueryClient();
+  const [filter, setFilter] = useState<"all" | "unread">("all");
+
   const { data: notifications, isLoading } = useQuery({
     queryKey: ["notifications", userId],
     queryFn: async () => {
@@ -179,9 +181,26 @@ function NotificationCenter({ userId }: { userId: string }) {
   async function markAsRead(id: string) {
     await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", userId] });
+    toast.success("Notification marked as read");
   }
 
-  if (isLoading)
+  async function markAllRead() {
+    await supabase
+      .from("notifications")
+      .update({ read_at: new Date().toISOString() })
+      .eq("user_id", userId)
+      .is_null("read_at");
+    qc.invalidateQueries({ queryKey: ["notifications", userId] });
+    toast.success("All notifications marked as read");
+  }
+
+  async function deleteNotification(id: string) {
+    await supabase.from("notifications").delete().eq("id", id);
+    qc.invalidateQueries({ queryKey: ["notifications", userId] });
+    toast.success("Notification deleted");
+  }
+
+  if (isLoading) {
     return (
       <div className="space-y-3 mt-6">
         {[1, 2, 3].map((i) => (
@@ -189,42 +208,139 @@ function NotificationCenter({ userId }: { userId: string }) {
         ))}
       </div>
     );
+  }
+
+  const unreadCount = notifications?.filter((n) => !n.read_at).length ?? 0;
+  const displayNotifs = filter === "all" ? (notifications ?? []) : (notifications?.filter((n) => !n.read_at) ?? []);
 
   return (
-    <div className="mt-6 space-y-3">
-      {!notifications || notifications.length === 0 ? (
-        <p className="text-center py-10 text-sm text-muted-foreground">No notifications yet.</p>
-      ) : (
-        notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-card transition-colors ${!n.read_at ? "bg-accent/5" : "bg-card"}`}
+    <div className="mt-6 space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b pb-3">
+        <div className="flex gap-2 text-xs font-semibold">
+          <Button
+            size="xs"
+            variant={filter === "all" ? "default" : "outline"}
+            onClick={() => setFilter("all")}
           >
-            <div className="flex-1 min-w-0">
-              <h4 className="text-sm font-semibold">{n.title}</h4>
-              <p className="text-xs text-muted-foreground mt-0.5">{n.message || (n as any).body}</p>
-              <p className="text-[10px] text-muted-foreground mt-2">
-                {new Date(n.created_at).toLocaleString()}
-              </p>
-            </div>
-            {!n.read_at && (
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 text-xs"
-                onClick={() => markAsRead(n.id)}
-              >
-                Mark as read
-              </Button>
+            All ({notifications?.length ?? 0})
+          </Button>
+          <Button
+            size="xs"
+            variant={filter === "unread" ? "default" : "outline"}
+            onClick={() => setFilter("unread")}
+            className="relative"
+          >
+            Unread
+            {unreadCount > 0 && (
+              <span className="ml-1 px-1.5 py-0.2 rounded-full bg-destructive text-destructive-foreground text-[9px] font-bold">
+                {unreadCount}
+              </span>
             )}
-            {n.link && (
-              <Button asChild size="sm" variant="outline" className="h-8 text-xs ml-2">
-                <Link to={n.link as any}>View</Link>
-              </Button>
-            )}
+          </Button>
+        </div>
+        {unreadCount > 0 && (
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={markAllRead}
+            className="text-xs h-8 border-success/30 text-success hover:bg-success/5"
+          >
+            Mark all read
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {displayNotifs.length === 0 ? (
+          <div className="text-center py-12 rounded-xl border border-dashed text-muted-foreground bg-muted/5">
+            No notifications found.
           </div>
-        ))
-      )}
+        ) : (
+          displayNotifs.map((n) => {
+            // Determine dynamic Lucide Icon based on type
+            let IconComponent = Briefcase;
+            let iconBg = "bg-primary/10 text-primary";
+
+            if (n.type === "new_matching_project") {
+              IconComponent = Briefcase;
+              iconBg = "bg-indigo-500/10 text-indigo-500";
+            } else if (n.type === "recruiter_invite" || n.type === "invite_accepted") {
+              IconComponent = Send;
+              iconBg = "bg-emerald-500/10 text-emerald-500";
+            } else if (n.type === "new_message") {
+              IconComponent = MessageSquare;
+              iconBg = "bg-teal-500/10 text-teal-500";
+            } else if (n.type === "project_assigned" || n.type === "stage_update" || n.type === "stage_completed") {
+              IconComponent = ShieldCheck;
+              iconBg = "bg-sky-500/10 text-sky-500";
+            } else if (n.type === "contact_request" || n.type === "contact_approved") {
+              IconComponent = Users;
+              iconBg = "bg-amber-500/10 text-amber-500";
+            }
+
+            return (
+              <div
+                key={n.id}
+                className={`flex items-start justify-between rounded-xl border border-border p-4 shadow-sm transition-all duration-200 hover:shadow-elegant ${
+                  !n.read_at ? "bg-accent/5 border-l-2 border-l-accent" : "bg-card"
+                }`}
+              >
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className={`p-2 rounded-lg shrink-0 ${iconBg}`}>
+                    <IconComponent className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline gap-2">
+                      <h4 className="text-sm font-semibold text-foreground truncate">
+                        {n.title}
+                      </h4>
+                      {!n.read_at && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 break-words">
+                      {n.message || (n as any).body}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {new Date(n.created_at).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 ml-3 shrink-0">
+                  {n.link && (
+                    <Button asChild size="xs" variant="outline" className="h-7 text-[10px]">
+                      <Link to={n.link as any} onClick={() => !n.read_at && markAsRead(n.id)}>
+                        View
+                      </Link>
+                    </Button>
+                  )}
+                  {!n.read_at && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-muted-foreground hover:text-success"
+                      onClick={() => markAsRead(n.id)}
+                      title="Mark as Read"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => deleteNotification(n.id)}
+                    title="Delete Notification"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

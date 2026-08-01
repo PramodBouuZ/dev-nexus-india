@@ -265,6 +265,361 @@ export function getEmailHtml(
 </html>`;
 }
 
+// GORGEOUS, HIGH CONVERSION BRANDED EMAIL TEMPLATE BUILDER
+export function getBrandedEmailHtml({
+  title,
+  salutation,
+  messageBody,
+  projectName,
+  developerName,
+  recruiterName,
+  ctaLabel,
+  ctaUrl,
+}: {
+  title: string;
+  salutation: string;
+  messageBody: string;
+  projectName?: string;
+  developerName?: string;
+  recruiterName?: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+}) {
+  const ctaButtonHtml =
+    ctaLabel && ctaUrl
+      ? `<div class="cta-container">
+         <a href="${ctaUrl}" class="cta-button">${ctaLabel}</a>
+       </div>`
+      : "";
+
+  const detailsHtml =
+    projectName || developerName || recruiterName
+      ? `<div class="details-card">
+         <h4 class="details-title">Notification Details</h4>
+         <table class="details-table">
+           ${projectName ? `<tr><th>Project</th><td>${projectName}</td></tr>` : ""}
+           ${developerName ? `<tr><th>Developer</th><td>${developerName}</td></tr>` : ""}
+           ${recruiterName ? `<tr><th>Recruiter</th><td>${recruiterName}</td></tr>` : ""}
+         </table>
+       </div>`
+      : "";
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${title}</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+      color: #1e293b;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border: 1px solid #e2e8f0;
+    }
+    .header {
+      background-color: #0f172a;
+      background-image: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      padding: 32px;
+      text-align: center;
+    }
+    .logo {
+      color: #ffffff;
+      font-size: 24px;
+      font-weight: bold;
+      text-decoration: none;
+      letter-spacing: -0.025em;
+    }
+    .logo-accent {
+      color: #14b8a6;
+    }
+    .content {
+      padding: 40px 32px;
+    }
+    .salutation {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #0f172a;
+    }
+    .text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #475569;
+      margin-bottom: 24px;
+    }
+    .details-card {
+      background-color: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .details-title {
+      margin: 0 0 12px 0;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+    }
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 14px;
+    }
+    .details-table th {
+      color: #64748b;
+      font-weight: 600;
+      padding: 6px 0;
+      width: 100px;
+      vertical-align: top;
+    }
+    .details-table td {
+      color: #1e293b;
+      padding: 6px 0;
+      font-weight: 500;
+    }
+    .cta-container {
+      text-align: center;
+      margin: 32px 0;
+    }
+    .cta-button {
+      background-color: #0d9488;
+      background-image: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+      color: #ffffff !important;
+      font-weight: 600;
+      padding: 14px 30px;
+      border-radius: 8px;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 16px;
+      box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
+    }
+    .footer {
+      background-color: #f1f5f9;
+      padding: 24px;
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      border-top: 1px solid #e2e8f0;
+    }
+    .footer-socials {
+      margin-bottom: 12px;
+    }
+    .footer-socials a {
+      color: #64748b;
+      text-decoration: none;
+      margin: 0 8px;
+      font-weight: 600;
+    }
+    .footer-socials a:hover {
+      color: #0d9488;
+    }
+    .footer a {
+      color: #0d9488;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <a href="https://developerconnect.in" class="logo">
+        Developer<span class="logo-accent">Connect</span>
+      </a>
+    </div>
+    <div class="content">
+      <div class="salutation">${salutation}</div>
+      <p class="text">${messageBody}</p>
+      ${detailsHtml}
+      ${ctaButtonHtml}
+    </div>
+    <div class="footer">
+      <div class="footer-socials">
+        <a href="https://facebook.com" target="_blank">Facebook</a> |
+        <a href="https://instagram.com" target="_blank">Instagram</a> |
+        <a href="https://linkedin.com" target="_blank">LinkedIn</a>
+      </div>
+      <p>&copy; ${new Date().getFullYear()} DeveloperConnect. All rights reserved.</p>
+      <p>Powered by Bant | <a href="mailto:support@developerconnect.in">support@developerconnect.in</a></p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// CENTRALIZED SMART NOTIFICATION & EMAIL DISPATCH SERVER FUNCTION
+export const sendSmartNotificationServerFn = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        recipientId: z.string(),
+        actorId: z.string().optional(),
+        type: z.enum([
+          "new_project",
+          "new_invite",
+          "invite_accepted",
+          "nda_sent",
+          "nda_accepted",
+          "nda_rejected",
+          "chat_message",
+          "milestone_updated",
+          "project_started",
+          "project_completed",
+          "review_reminder",
+        ]),
+        title: z.string(),
+        message: z.string(),
+        link: z.string().optional(),
+        projectId: z.string().optional(),
+        applicationId: z.string().optional(),
+        projectName: z.string().optional(),
+        developerName: z.string().optional(),
+        recruiterName: z.string().optional(),
+        ctaLabel: z.string().optional(),
+        ctaUrl: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const {
+      recipientId,
+      actorId,
+      type,
+      title,
+      message,
+      link,
+      projectId,
+      applicationId,
+      projectName,
+      developerName,
+      recruiterName,
+      ctaLabel,
+      ctaUrl,
+    } = data;
+
+    const supabaseAdmin = await getSupabaseAdmin();
+
+    // 1. Fetch recipient's notification preferences
+    const { data: prefs } = await supabaseAdmin
+      .from("notification_preferences")
+      .select("*")
+      .eq("user_id", recipientId)
+      .maybeSingle();
+
+    // Map types to category fields
+    let prefCategory: "new_projects" | "invites" | "chat" | "nda" | "milestones" | "reviews" = "invites";
+    if (type === "new_project") prefCategory = "new_projects";
+    else if (type === "new_invite" || type === "invite_accepted") prefCategory = "invites";
+    else if (type === "chat_message") prefCategory = "chat";
+    else if (type === "nda_sent" || type === "nda_accepted" || type === "nda_rejected") prefCategory = "nda";
+    else if (type === "milestone_updated" || type === "project_started") prefCategory = "milestones";
+    else if (type === "project_completed" || type === "review_reminder") prefCategory = "reviews";
+
+    const inAppEnabled = prefs ? (prefs as any)[`in_app_${prefCategory}`] : true;
+    const emailEnabled = prefs ? (prefs as any)[`email_${prefCategory}`] : true;
+
+    // 2. Map custom enum to public.notification_type enum values in DB
+    let dbNotifType = "project_update";
+    if (type === "new_project") dbNotifType = "new_matching_project";
+    else if (type === "new_invite") dbNotifType = "recruiter_invite";
+    else if (type === "invite_accepted") dbNotifType = "invite_accepted";
+    else if (type === "chat_message") dbNotifType = "new_message";
+    else if (type === "project_started") dbNotifType = "project_assigned";
+
+    // 3. Create In-App Notification (if enabled)
+    if (inAppEnabled) {
+      const { error: notifErr } = await supabaseAdmin.from("notifications").insert({
+        user_id: recipientId,
+        actor_id: actorId || null,
+        type: dbNotifType as any,
+        title,
+        message,
+        link: link || null,
+        reference_id: projectId || applicationId || null,
+        is_read: false,
+      });
+      if (notifErr) {
+        console.error("Failed to insert in-app notification:", notifErr);
+      }
+    }
+
+    // 4. Send Email Notification (if enabled)
+    let emailResult = { success: true };
+    if (emailEnabled) {
+      const { data: prof } = (await supabaseAdmin
+        .from("profiles")
+        .select("email, full_name")
+        .eq("id", recipientId)
+        .maybeSingle()) as { data: any };
+
+      if (prof?.email) {
+        const salutation = `Hi ${prof.full_name || "User"},`;
+        const html = getBrandedEmailHtml({
+          title,
+          salutation,
+          messageBody: message,
+          projectName,
+          developerName,
+          recruiterName,
+          ctaLabel,
+          ctaUrl,
+        });
+
+        emailResult = await sendResendEmail({
+          to: prof.email,
+          subject: title,
+          html,
+          emailType: prefCategory,
+        });
+      }
+    }
+
+    // 5. If Chat integrated event, auto-insert system message into public.messages
+    if (applicationId) {
+      let systemMsgText = "";
+      if (type === "nda_sent") {
+        systemMsgText = "Confidentiality NDA Requested - Signature Pending";
+      } else if (type === "nda_accepted") {
+        systemMsgText = "NDA Accepted – Project Active";
+      } else if (type === "nda_rejected") {
+        systemMsgText = "NDA Rejected";
+      } else if (type === "project_started") {
+        systemMsgText = "Project Started & Active";
+      } else if (type === "project_completed") {
+        systemMsgText = "Project Completed";
+      } else if (type === "milestone_updated") {
+        systemMsgText = `Milestone Updated: ${message}`;
+      }
+
+      if (systemMsgText) {
+        const { error: msgErr } = await supabaseAdmin.from("messages").insert({
+          application_id: applicationId,
+          sender_id: actorId || recipientId,
+          body: systemMsgText,
+          is_system: true,
+          system_event_type: type,
+        } as any);
+        if (msgErr) {
+          console.error("Failed to insert system message:", msgErr);
+        }
+      }
+    }
+
+    return { success: true, email: emailResult };
+  });
+
 export function getProfileCompletionPercentage(
   profile: any,
   devProfile: any,
@@ -378,7 +733,7 @@ export async function processUserEmails(userId: string) {
       .eq("type", "welcome");
 
     const alreadySent =
-      welcomeNotifs && welcomeNotifs.length > 0 && welcomeNotifs.some((n) => n.email_sent);
+      welcomeNotifs && welcomeNotifs.length > 0 && welcomeNotifs.some((n: any) => n.email_sent);
 
     if (alreadySent) {
       console.log("Welcome email already sent for user:", userId);
@@ -532,7 +887,7 @@ export async function processReminderEmails() {
 
       if (eligibleStage === null) continue;
 
-      // Check if this reminder has already been handled (sent/skipped) in the unified tracking table
+      // Check if this reminder stage has already been handled (sent/skipped) in the unified tracking table
       const { data: existingRem } = await supabaseAdmin
         .from("profile_email_reminders" as any)
         .select("id")
@@ -833,7 +1188,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
       "Failed to fetch auth users list (probably missing service role key). Falling back to mock auth data.",
     );
   }
-  const authMap = new Map(authUsers.map((u) => [u.id, u]));
+  const authMap = new Map(authUsers.map((u: any) => [u.id, u]));
 
   // 2. Fetch profiles
   const { data: profiles, error: profsErr } = await supabaseAdmin
@@ -846,7 +1201,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
     .from("user_roles")
     .select("user_id, role");
   if (rolesErr) throw rolesErr;
-  const rolesMap = new Map((userRoles || []).map((r) => [r.user_id, r.role]));
+  const rolesMap = new Map((userRoles || []).map((r: any) => [r.user_id, r.role]));
 
   // 4. Fetch users disabled settings
   let disabledMap = new Map<string, boolean>();
@@ -863,13 +1218,13 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
   const { data: devProfiles, error: devErr } = await supabaseAdmin
     .from("developer_profiles")
     .select("id, bio, skills, experience_years, portfolio_url, hourly_rate_inr");
-  const devMap = new Map((devProfiles || []).map((d) => [d.id, d]));
+  const devMap = new Map((devProfiles || []).map((d: any) => [d.id, d]));
 
   // 6. Fetch recruiter profiles
   const { data: recProfiles, error: recErr } = await supabaseAdmin
     .from("recruiter_profiles")
     .select("id, company_name, logo_url, company_description, industry, company_website");
-  const recMap = new Map((recProfiles || []).map((r) => [r.id, r]));
+  const recMap = new Map((recProfiles || []).map((r: any) => [r.id, r]));
 
   // 7. Fetch profile email reminders logs
   let remindersList: any[] = [];
@@ -897,7 +1252,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
   }
 
   // Map profiles to complete users array
-  let mappedUsers = (profiles || []).map((p) => {
+  let mappedUsers = (profiles || []).map((p: any) => {
     const authUser = authMap.get(p.id);
     const role = (rolesMap.get(p.id) || "unknown") as
       "developer" | "recruiter" | "admin" | "unknown";
@@ -936,7 +1291,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
 
     return {
       id: p.id,
-      full_name: p.full_name || (role === "recruiter" && recProfile?.company_name) || "Anonymous",
+      full_name: p.full_name || (role === "recruiter" && (recProfile as any)?.company_name) || "Anonymous",
       email: p.email || authUser?.email || "",
       role,
       completionPercentage,
@@ -1049,16 +1404,16 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
 
   // Calculate Dashboard Summary Stats
   const totalUsers = mappedUsers.length;
-  const totalDevelopers = mappedUsers.filter((u) => u.role === "developer").length;
-  const totalRecruiters = mappedUsers.filter((u) => u.role === "recruiter").length;
-  const completeProfiles = mappedUsers.filter((u) => u.completionPercentage === 100).length;
+  const totalDevelopers = mappedUsers.filter((u: any) => u.role === "developer").length;
+  const totalRecruiters = mappedUsers.filter((u: any) => u.role === "recruiter").length;
+  const completeProfiles = mappedUsers.filter((u: any) => u.completionPercentage === 100).length;
   const incompleteProfiles = totalUsers - completeProfiles;
   const completionRate = totalUsers > 0 ? Math.round((completeProfiles / totalUsers) * 100) : 0;
 
   // Sent today: emails sent on current date (UTC calendar day)
   const todayStr = new Date().toISOString().split("T")[0];
   const sentToday = remindersList.filter(
-    (r) => r.email_status === "sent" && r.sent_at.startsWith(todayStr),
+    (r: any) => r.email_status === "sent" && r.sent_at.startsWith(todayStr),
   ).length;
 
   // Pending: users with < 100% completion who are eligible and haven't received that stage's reminder
@@ -1085,7 +1440,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
 
     if (eligibleStage !== null) {
       const alreadyReceived = remindersList.some(
-        (r) =>
+        (r: any) =>
           r.user_id === u.id &&
           r.reminder_stage === eligibleStage &&
           r.reminder_type === "automatic",
@@ -1098,7 +1453,7 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
 
   // Format logs history
   let history = remindersList.map((r: any) => {
-    const p = profiles?.find((prof) => prof.id === r.user_id);
+    const p = profiles?.find((prof: any) => prof.id === r.user_id);
     const role = rolesMap.get(r.user_id) || "unknown";
     return {
       id: r.id,
