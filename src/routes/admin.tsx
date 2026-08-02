@@ -1175,6 +1175,7 @@ function StatCard({
 // ==========================================
 function BlogsTab() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const [search, setSearch] = useState("");
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingBlog, setEditorBlog] = useState<any>(null);
@@ -1430,7 +1431,7 @@ function BlogsTab() {
                 <Label>Featured Image Upload</Label>
                 <div className="p-3 border rounded-lg bg-muted/20">
                   <ImageUpload
-                    userId={user.id}
+                    userId={user?.id || ""}
                     value={featuredImage || null}
                     onChange={(url) => setFeaturedImage(url || "")}
                     shape="square"
