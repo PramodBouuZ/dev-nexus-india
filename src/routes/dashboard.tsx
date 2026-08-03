@@ -572,40 +572,6 @@ function NotificationCenter({ userId }: { userId: string }) {
     },
   });
 
-  const { data: developerNdas = [] } = useQuery({
-    queryKey: ["developer-ndas", userId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ndas")
-        .select("*, projects(title, recruiter_id)")
-        .eq("developer_id", userId)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      if (!data?.length) return [];
-
-      const recIds = data.map((n) => n.recruiter_id);
-      const { data: recProfiles } = await supabase
-        .from("recruiter_profiles")
-        .select("id, company_name, full_name")
-        .in("id", recIds);
-
-      const { data: apps } = await supabase
-        .from("applications")
-        .select("id, project_id, developer_id")
-        .eq("developer_id", userId);
-
-      return data.map((n) => {
-        const rec = recProfiles?.find((r) => r.id === n.recruiter_id);
-        const app = apps?.find((a) => a.project_id === n.project_id);
-        return {
-          ...n,
-          recruiter_name: rec?.company_name || rec?.full_name || "Enterprise Recruiter",
-          application_id: app?.id || "",
-        };
-      });
-    },
-  });
-
   async function markAsRead(id: string) {
     await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", userId] });
