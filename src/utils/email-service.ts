@@ -519,12 +519,15 @@ export const sendSmartNotificationServerFn = createServerFn({ method: "POST" })
       .maybeSingle();
 
     // Map types to category fields
-    let prefCategory: "new_projects" | "invites" | "chat" | "nda" | "milestones" | "reviews" = "invites";
+    let prefCategory: "new_projects" | "invites" | "chat" | "nda" | "milestones" | "reviews" =
+      "invites";
     if (type === "new_project") prefCategory = "new_projects";
     else if (type === "new_invite" || type === "invite_accepted") prefCategory = "invites";
     else if (type === "chat_message") prefCategory = "chat";
-    else if (type === "nda_sent" || type === "nda_accepted" || type === "nda_rejected") prefCategory = "nda";
-    else if (type === "milestone_updated" || type === "project_started") prefCategory = "milestones";
+    else if (type === "nda_sent" || type === "nda_accepted" || type === "nda_rejected")
+      prefCategory = "nda";
+    else if (type === "milestone_updated" || type === "project_started")
+      prefCategory = "milestones";
     else if (type === "project_completed" || type === "review_reminder") prefCategory = "reviews";
 
     const inAppEnabled = prefs ? (prefs as any)[`in_app_${prefCategory}`] : true;
@@ -966,7 +969,6 @@ export async function processReminderEmails() {
     // Execute Module 9 extended automated reminders (Automation)
     await processRecruiterNoActivityReminders();
     await processReviewReminders();
-
   } catch (error) {
     console.error("Error in processReminderEmails:", error);
   }
@@ -990,8 +992,14 @@ export async function processRecruiterNoActivityReminders() {
     for (const p of openProjects) {
       // Check count of applications and invites
       const [{ count: appsCount }, { count: invitesCount }] = await Promise.all([
-        supabaseAdmin.from("applications").select("id", { count: "exact", head: true }).eq("project_id", p.id),
-        supabaseAdmin.from("invites").select("id", { count: "exact", head: true }).eq("project_id", p.id),
+        supabaseAdmin
+          .from("applications")
+          .select("id", { count: "exact", head: true })
+          .eq("project_id", p.id),
+        supabaseAdmin
+          .from("invites")
+          .select("id", { count: "exact", head: true })
+          .eq("project_id", p.id),
       ]);
 
       if ((appsCount || 0) === 0 && (invitesCount || 0) === 0) {
@@ -1022,17 +1030,17 @@ export async function processRecruiterNoActivityReminders() {
                 "Invite matches from the developer search directory",
                 "Increase project description clarity",
                 "Review budget competitiveness",
-                "Unlock direct developer contact requests"
+                "Unlock direct developer contact requests",
               ],
               "Discover Developers",
-              "https://developerconnect.in/developers"
+              "https://developerconnect.in/developers",
             );
 
             await sendResendEmail({
               to: recruiter.email,
               subject,
               html,
-              emailType: "reminder"
+              emailType: "reminder",
             });
           }
         }
@@ -1066,7 +1074,7 @@ export async function processReviewReminders() {
 
       const parties = [
         { id: c.developer_id, role: "developer" },
-        { id: c.recruiter_id, role: "recruiter" }
+        { id: c.recruiter_id, role: "recruiter" },
       ];
 
       for (const party of parties) {
@@ -1105,17 +1113,17 @@ export async function processReviewReminders() {
                 [
                   `Project Title: ${proj.title}`,
                   "Rating: Rate from 1 to 5 stars",
-                  "Feedback: Share collaboration and timeliness highlights"
+                  "Feedback: Share collaboration and timeliness highlights",
                 ],
                 "Submit Review",
-                `https://developerconnect.in/dashboard`
+                `https://developerconnect.in/dashboard`,
               );
 
               await sendResendEmail({
                 to: prof.email,
                 subject,
                 html,
-                emailType: "review_reminder"
+                emailType: "review_reminder",
               });
             }
           }
@@ -1173,14 +1181,18 @@ export const sendAnnouncementServerFn = createServerFn({ method: "POST" })
     const supabaseAdmin = await getSupabaseAdmin();
 
     // 1. Insert announcement row
-    const { data: ann, error: annErr } = await supabaseAdmin.from("announcements").insert({
-      title,
-      message,
-      target_audience: targetAudience,
-      delivery_methods: deliveryMethods,
-      scheduled_at: scheduledAt || null,
-      sent_at: scheduledAt ? null : new Date().toISOString(),
-    }).select("id").maybeSingle();
+    const { data: ann, error: annErr } = await supabaseAdmin
+      .from("announcements")
+      .insert({
+        title,
+        message,
+        target_audience: targetAudience,
+        delivery_methods: deliveryMethods,
+        scheduled_at: scheduledAt || null,
+        sent_at: scheduledAt ? null : new Date().toISOString(),
+      })
+      .select("id")
+      .maybeSingle();
 
     if (annErr) throw annErr;
 
@@ -1520,7 +1532,10 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
   let mappedUsers = (profiles || []).map((p: any) => {
     const authUser = authMap.get(p.id);
     const role = (rolesMap.get(p.id) || "unknown") as
-      "developer" | "recruiter" | "admin" | "unknown";
+      | "developer"
+      | "recruiter"
+      | "admin"
+      | "unknown";
     const devProfile = devMap.get(p.id);
     const recProfile = recMap.get(p.id);
 
@@ -1556,7 +1571,8 @@ export const getAdminReminderManagerData = createServerFn({ method: "GET" }).han
 
     return {
       id: p.id,
-      full_name: p.full_name || (role === "recruiter" && (recProfile as any)?.company_name) || "Anonymous",
+      full_name:
+        p.full_name || (role === "recruiter" && (recProfile as any)?.company_name) || "Anonymous",
       email: p.email || authUser?.email || "",
       role,
       completionPercentage,
