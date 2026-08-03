@@ -33,7 +33,27 @@ import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { logProjectActivityServerFn } from "@/utils/email-service";
+import { logProjectActivityServerFn, sendTimelineEmailServerFn } from "@/utils/email-service";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { NdaManager } from "./applications.$appId";
+import { ProjectStages } from "@/components/ProjectStages";
+import { ChatThread } from "@/components/ChatThread";
+import {
+  Check,
+  Trash2,
+  AlertTriangle,
+  XCircle,
+  CheckCircle2,
+  ChevronRight,
+  Activity,
+  Play
+} from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard | DeveloperConnect" }] }),
@@ -758,8 +778,9 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         )}
       </div>
 
-      <Tabs defaultValue="projects" className="mt-10">
+      <Tabs defaultValue="workspace" className="mt-10">
         <TabsList className="flex flex-wrap h-auto">
+          <TabsTrigger value="workspace" className="font-semibold text-accent hover:text-accent-foreground">Workspace 🚀</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="assigned">Assigned</TabsTrigger>
@@ -769,6 +790,10 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="workspace">
+          <RecruiterWorkspace userId={userId} />
+        </TabsContent>
 
         <TabsContent value="projects">
           <section className="mt-6">
@@ -1277,6 +1302,507 @@ function RecruiterDashboard({ userId }: { userId: string }) {
       </div>
     </>
   );
+}
+
+export function RecruiterWorkspace({ userId }: { userId: string }) {
+  const qc = useQueryClient();
+  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedDevId, setSelectedDevId] = useState<string | null>(null);
+  const [workspaceTab, setWorkspaceTab] = useState<"chat" | "milestones">("chat");
+  const [busy, setBusy] = useState(false);
+
+  // Fetch all projects of the recruiter
+  const { data: projects = [], isLoading: loadingProjects } = useQuery({
+    queryKey: ["workspace-projects", userId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("recruiter_id", userId)
+        .order("created_at", { ascending: false });
+      return data ?? [];
+    },
+  });
+
+  // Set default selected project ID
+  useEffect(() => {
+    if (projects.length > 0 && !selectedProjectId) {
+      setSelectedProjectId(projects[0].id);
+    }
+  }, [projects, selectedProjectId]);
+
+  const project = projects.find((p) => p.id === selectedProjectId) || projects[0];
+
+  // Fetch active assignment if any
+  const { data: activeAssignment, isLoading: loadingAssignment } = useQuery({
+    queryKey: ["workspace-assignment", selectedProjectId],
+    enabled: !!selectedProjectId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("project_assignments")
+        .select("*")
+        .eq("project_id", selectedProjectId)
+        .maybeSingle();
+      return data;
+    },
+  });
+
+  // Fetch all applications/candidates for the selected project
+  const { data: applicants = [], isLoading: loadingApplicants } = useQuery({
+    queryKey: ["workspace-applicants", selectedProjectId],
+    enabled: !!selectedProjectId,
+    queryFn: async () => {
+      const { data: apps } = await supabase
+        .from("applications")
+        .select("*")
+        .eq("project_id", selectedProjectId)
+        .order("created_at", { ascending: false });
+      if (!apps?.length) return [];
+
+      const devIds = apps.map((a) => a.developer_id);
+      const { data: devs } = await supabase
+        .from("developer_profiles")
+        .select("id, full_name, avatar_url, headline, skills, is_verified")
+        .in("id", devIds);
+
+      return apps.map((a) => ({
+        ...a,
+        dev: devs?.find((d) => d.id === a.developer_id) || null,
+      }));
+    },
+  });
+
+  // Automatically select viewed developer (either the assigned one or default to the first accepted/pending)
+  useEffect(() => {
+    if (activeAssignment) {
+      setSelectedDevId(activeAssignment.developer_id);
+      setWorkspaceTab("milestones");
+    } else {
+      const acceptedCandidates = applicants.filter((a) => a.status === "accepted");
+      if (acceptedCandidates.length > 0) {
+        setSelectedDevId(acceptedCandidates[0].developer_id);
+        setWorkspaceTab("chat");
+      } else if (applicants.length > 0) {
+        setSelectedDevId(applicants[0].developer_id);
+        setWorkspaceTab("chat");
+      } else {
+        setSelectedDevId(null);
+      }
+    }
+  }, [activeAssignment, applicants]);
+
+  // Find the current active candidate's application details
+  const activeApp = applicants.find((a) => a.developer_id === selectedDevId);
+
+  // Update Project Status
+  async function handleUpdateProjectStatus(status: any) {
+    const { error } = await supabase
+      .from("projects")
+      .update({ status })
+      .eq("id", selectedProjectId);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      toast.success(`Project status updated to ${status}`);
+      qc.invalidateQueries({ queryKey: ["workspace-projects", userId] });
+      qc.invalidateQueries({ queryKey: ["project", selectedProjectId] });
+    }
+  }
+
+  // Accept/Hire Candidate
+  async function handleHireCandidate(appId: string, developerId: string, proposedRate: number | null) {
+    setBusy(true);
+    const { error: appErr } = await supabase
+      .from("applications")
+      .update({ status: "accepted" })
+      .eq("id", appId);
+
+    if (appErr) {
+      toast.error(appErr.message);
+      setBusy(false);
+      return;
+    }
+
+    // Create contract
+    const { error: conErr } = await supabase.from("contracts").insert({
+      project_id: selectedProjectId,
+      application_id: appId,
+      recruiter_id: userId,
+      developer_id: developerId,
+      agreed_rate_inr: proposedRate,
+    });
+
+    if (conErr) {
+      toast.error(conErr.message);
+      setBusy(false);
+      return;
+    }
+
+    // Update project status to in_discussion
+    await supabase.from("projects").update({ status: "in_discussion" }).eq("id", selectedProjectId);
+
+    // Notify developer
+    await supabase.from("notifications").insert({
+      user_id: developerId,
+      title: "Interest Accepted! 🎉",
+      body: `Your application/interest for project "${project?.title}" has been accepted! You can now chat and sign the Mutual NDA.`,
+      type: "application_accepted",
+      link: `/applications/${appId}`,
+    });
+
+    toast.success("Candidate accepted/hired successfully! Chat and NDA unlocked.");
+    qc.invalidateQueries({ queryKey: ["workspace-applicants", selectedProjectId] });
+    qc.invalidateQueries({ queryKey: ["workspace-projects", userId] });
+    setBusy(false);
+  }
+
+  // Assign Developer to Project
+  async function handleAssignDeveloper(devId: string) {
+    // Check NDA first
+    const { data: nda } = await supabase
+      .from("ndas")
+      .select("status")
+      .eq("project_id", selectedProjectId)
+      .eq("developer_id", devId)
+      .maybeSingle();
+
+    if (!nda || nda.status !== "accepted") {
+      toast.error("Mutual NDA must be signed by the developer before assigning the project.");
+      return;
+    }
+
+    setBusy(true);
+    const { error } = await supabase.from("project_assignments").insert({
+      project_id: selectedProjectId,
+      developer_id: devId,
+      recruiter_id: userId,
+    });
+
+    if (!error) {
+      // Notify developer
+      await supabase.from("notifications").insert({
+        user_id: devId,
+        title: "Project Assigned! 🚀",
+        body: `You have been officially assigned to the project: ${project?.title}`,
+        type: "project_assigned",
+        link: `/projects/${selectedProjectId}`,
+      });
+
+      // Update project status to assigned
+      await supabase.from("projects").update({ status: "assigned" }).eq("id", selectedProjectId);
+
+      try {
+        await logProjectActivityServerFn({
+          data: {
+            projectId: selectedProjectId,
+            userId,
+            activityType: "project_started",
+            description: `Project assigned and started`,
+          },
+        });
+        await sendTimelineEmailServerFn({
+          data: {
+            projectId: selectedProjectId,
+            senderId: userId,
+            type: "project_started",
+          },
+        });
+      } catch (actErr) {
+        console.error("Failed to log activity or send email:", actErr);
+      }
+
+      toast.success("Project assigned successfully!");
+      qc.invalidateQueries({ queryKey: ["workspace-projects", userId] });
+      qc.invalidateQueries({ queryKey: ["workspace-assignment", selectedProjectId] });
+      qc.invalidateQueries({ queryKey: ["stages", selectedProjectId] });
+    } else {
+      toast.error(error.message);
+    }
+    setBusy(false);
+  }
+
+  if (loadingProjects) {
+    return (
+      <div className="space-y-4 py-8">
+        <div className="h-10 w-64 bg-muted animate-pulse rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="h-64 bg-muted animate-pulse rounded-xl col-span-1" />
+          <div className="h-64 bg-muted animate-pulse rounded-xl col-span-2" />
+        </div>
+      </div>
+    );
+  }
+
+  if (projects.length === 0) {
+    return (
+      <div className="mt-8">
+        <EmptyState
+          title="No projects posted yet"
+          desc="Post a project first, then use this workspace to track candidate status, accept candidates, sign NDAs, assign tasks, and chat."
+          actionLabel="Post a project"
+          actionTo="/projects/new"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-6">
+      {/* Workspace Header Panel */}
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-5 bg-card border border-border rounded-2xl shadow-sm">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="bg-primary/10 p-2.5 rounded-xl text-primary">
+            <Briefcase className="h-5 w-5" />
+          </div>
+          <div className="space-y-1 flex-1">
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Active Workspace Project</span>
+            <Select value={selectedProjectId} onValueChange={(val) => {
+              setSelectedProjectId(val);
+              setSelectedDevId(null);
+            }}>
+              <SelectTrigger className="font-semibold text-base h-10 w-full md:w-80 border-none shadow-none focus:ring-0 p-0 hover:text-accent">
+                <SelectValue placeholder="Select a project" />
+              </SelectTrigger>
+              <SelectContent>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-sm font-medium">
+                    {p.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {project && (
+          <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            <div className="text-right hidden sm:block">
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Project Status</span>
+              <Badge className="capitalize mt-0.5" variant={project.status === "assigned" ? "default" : "secondary"}>
+                {project.status.replace("_", " ")}
+              </Badge>
+            </div>
+            <Select value={project.status} onValueChange={handleUpdateProjectStatus}>
+              <SelectTrigger className="h-9 w-40 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">Open (Hiring)</SelectItem>
+                <SelectItem value="in_discussion">In Discussion</SelectItem>
+                <SelectItem value="assigned">Assigned</SelectItem>
+                <SelectItem value="completed">Completed 🏆</SelectItem>
+                <SelectItem value="closed">Closed / Archived</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: Controls & NDA & Developer Info (5 cols) */}
+        <div className="lg:col-span-5 space-y-6">
+          {/* Candidate / Active Developer Info Section */}
+          <div className="bg-card border border-border rounded-2xl p-5 shadow-card space-y-4">
+            <div className="flex items-center justify-between border-b pb-3">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <Users className="h-4 w-4 text-accent" /> Candidate / Hired Developer
+              </h3>
+              <Badge variant="outline" className="text-[10px] font-bold">
+                {activeAssignment ? "Hired & Assigned" : "Select Candidate"}
+              </Badge>
+            </div>
+
+            {/* List of candidates/applicants for the selected project */}
+            {applicants.length === 0 ? (
+              <div className="text-center py-8 text-xs text-muted-foreground">
+                <p>No applicants or invites for this project yet.</p>
+                <Link to="/developers" className="text-accent hover:underline font-bold mt-2 block">
+                  Find and Invite Developers →
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {applicants.map((a) => {
+                  const isSelected = selectedDevId === a.developer_id;
+                  const isAssigned = activeAssignment?.developer_id === a.developer_id;
+                  return (
+                    <button
+                      key={a.id}
+                      onClick={() => setSelectedDevId(a.developer_id)}
+                      className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-center justify-between ${
+                        isSelected
+                          ? "bg-accent/5 border-accent shadow-sm"
+                          : "bg-background border-border hover:border-border/80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={a.dev?.avatar_url || undefined} />
+                          <AvatarFallback>{a.dev?.full_name?.[0] || "D"}</AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="font-bold truncate">{a.dev?.full_name || "Independent Specialist"}</span>
+                            {a.dev?.is_verified && <ShieldCheck className="h-3 w-3 text-accent" />}
+                          </div>
+                          <span className="text-[10px] text-muted-foreground truncate block">{a.dev?.headline}</span>
+                        </div>
+                      </div>
+                      <Badge className="capitalize text-[9px] px-1.5 py-0.2 shrink-0 ml-2" variant={a.status === "accepted" ? "default" : "outline"}>
+                        {isAssigned ? "Assigned" : a.status}
+                      </Badge>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Selected Developer Detailed Card */}
+            {activeApp && activeApp.dev && (
+              <div className="border border-border/60 bg-muted/20 rounded-xl p-4 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-bold text-sm text-foreground">{activeApp.dev.full_name}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{activeApp.dev.headline}</p>
+                  </div>
+                  <DeveloperProfileDialog
+                    developerId={activeApp.developer_id}
+                    trigger={
+                      <Button size="sm" variant="outline" className="text-[10px] h-7 px-2">
+                        View Profile
+                      </Button>
+                    }
+                  />
+                </div>
+
+                {activeApp.cover_message && (
+                  <div className="text-[11px] italic text-muted-foreground bg-background p-2.5 rounded border border-border/40 line-clamp-3">
+                    "{activeApp.cover_message}"
+                  </div>
+                )}
+
+                {/* Direct Action Buttons: Accept/Hire or Confirm Assignment */}
+                <div className="pt-2 border-t border-border/40 flex flex-wrap items-center gap-2">
+                  {activeApp.status === "pending" && (
+                    <Button
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => handleHireCandidate(activeApp.id, activeApp.developer_id, activeApp.proposed_rate_inr)}
+                      className="bg-gradient-accent text-primary-foreground font-bold text-xs"
+                    >
+                      {busy ? "Processing..." : "Hire & Accept Candidate"}
+                    </Button>
+                  )}
+
+                  {activeApp.status === "accepted" && !activeAssignment && (
+                    <div className="w-full space-y-2">
+                      <div className="p-3 rounded-lg border border-warning/30 bg-warning/5 text-[11px] text-warning-foreground flex items-start gap-1.5 leading-normal">
+                        <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-warning" />
+                        <span>
+                          Both parties have accepted interest! <strong>Step 1:</strong> Send & get the Mutual NDA signed by the developer (in the NDA manager below or chat). <strong>Step 2:</strong> Click "Assign Developer" to officially launch milestones tracking!
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={busy}
+                        onClick={() => handleAssignDeveloper(activeApp.developer_id)}
+                        className="w-full bg-success text-success-foreground hover:opacity-90 font-bold text-xs flex items-center justify-center gap-1"
+                      >
+                        <CheckCircle2 className="h-4 w-4" /> {busy ? "Assigning..." : "Assign Developer to Project"}
+                      </Button>
+                    </div>
+                  )}
+
+                  {isAssignedActiveDev(activeApp.developer_id) && (
+                    <div className="w-full p-2.5 rounded-lg border border-success/30 bg-success/5 text-[11px] text-success-foreground font-semibold flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4" /> This developer is officially assigned and working on this project!
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* NDA Management Section (Embedded) */}
+          {project && selectedDevId && activeApp && activeApp.status === "accepted" && (
+            <NdaManager
+              projectId={project.id}
+              developerId={selectedDevId}
+              recruiterId={userId}
+              role="recruiter"
+              applicationId={activeApp.id}
+            />
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: Chat / Stages Tabbed View (7 cols) */}
+        <div className="lg:col-span-7">
+          {activeApp ? (
+            <div className="bg-card border border-border rounded-2xl shadow-card overflow-hidden">
+              <div className="flex items-center justify-between border-b px-5 py-3.5 bg-muted/10">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant={workspaceTab === "chat" ? "default" : "ghost"}
+                    onClick={() => setWorkspaceTab("chat")}
+                    className="text-xs font-semibold gap-1.5"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Messages & NDA
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={!activeAssignment}
+                    variant={workspaceTab === "milestones" ? "default" : "ghost"}
+                    onClick={() => setWorkspaceTab("milestones")}
+                    className={`text-xs font-semibold gap-1.5 ${!activeAssignment ? "opacity-40 cursor-not-allowed" : ""}`}
+                  >
+                    <Activity className="h-3.5 w-3.5" /> Milestones & Stages
+                  </Button>
+                </div>
+                {activeAssignment && (
+                  <Badge variant="outline" className="border-success/30 text-success bg-success/5 text-[10px] font-bold">
+                    Project Active
+                  </Badge>
+                )}
+              </div>
+
+              <div className="p-5">
+                {workspaceTab === "chat" ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-bold text-sm">Unified Communication Center</h4>
+                      <p className="text-xs text-muted-foreground mt-0.5">Discuss terms, review milestones, and exchange files directly with the candidate.</p>
+                    </div>
+                    <ChatThread appId={activeApp.id} userId={userId} />
+                  </div>
+                ) : (
+                  activeAssignment && (
+                    <div className="space-y-2">
+                      <div>
+                        <h4 className="font-bold text-sm">Project Timeline & Milestones Workspace</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">Build deliverables roadmap, set deadlines, track progress percentage, and update work status logs live.</p>
+                      </div>
+                      <ProjectStages projectId={project.id} />
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="bg-card border border-dashed border-border rounded-2xl h-80 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
+              <MessageSquare className="h-10 w-10 text-muted-foreground/50 mb-3" />
+              <h4 className="font-bold text-sm">Unified Communication & Milestones Room</h4>
+              <p className="text-xs max-w-xs mt-1">Select an applicant or hired developer in the left column to unlock messaging, NDA terms, and interactive milestones tracking.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  function isAssignedActiveDev(devId: string) {
+    return activeAssignment && activeAssignment.developer_id === devId;
+  }
 }
 
 function DeveloperDashboard({ userId }: { userId: string }) {
