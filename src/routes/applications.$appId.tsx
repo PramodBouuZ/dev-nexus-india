@@ -180,7 +180,7 @@ interface NdaTemplateData {
   additionalClauses: string;
 }
 
-function NdaManager({
+export function NdaManager({
   projectId,
   developerId,
   recruiterId,
