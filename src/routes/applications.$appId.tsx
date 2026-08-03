@@ -28,7 +28,7 @@ import {
 import { ChatThread } from "@/components/ChatThread";
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { sendSmartNotificationServerFn } from "@/utils/email-service";
+import { sendSmartNotificationServerFn, logProjectActivityServerFn } from "@/utils/email-service";
 
 export const Route = createFileRoute("/applications/$appId")({
   head: () => ({ meta: [{ title: "Application | DeveloperConnect" }] }),
@@ -223,6 +223,7 @@ export function NdaManager({
   const [additionalClauses, setAdditionalClauses] = useState("");
 
   const printRef = useRef<HTMLDivElement>(null);
+  const hasTriggeredReceived = useRef(false);
 
   // Load contextual prefilled values
   const { data: prefillData } = useQuery({
@@ -287,7 +288,13 @@ export function NdaManager({
 
   // Track Received State on Developer load
   useEffect(() => {
-    if (nda && (nda.status === "pending" || nda.status === "sent") && role === "developer") {
+    if (
+      nda &&
+      (nda.status === "pending" || nda.status === "sent") &&
+      role === "developer" &&
+      !hasTriggeredReceived.current
+    ) {
+      hasTriggeredReceived.current = true;
       const nowStr = new Date().toISOString();
       supabase
         .from("ndas")
@@ -297,7 +304,14 @@ export function NdaManager({
           received_at: nowStr,
         } as any)
         .eq("id", nda.id)
-        .then(async () => {
+        .in("status", ["pending", "sent"])
+        .select()
+        .then(async ({ data, error }) => {
+          if (error || !data || data.length === 0) {
+            // Either an error occurred, or the row status was already updated (e.g., stale cached data)
+            return;
+          }
+
           qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] });
           qc.invalidateQueries({ queryKey: ["developer-ndas"] });
           qc.invalidateQueries({ queryKey: ["recruiter-ndas"] });
