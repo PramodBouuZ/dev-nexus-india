@@ -2399,6 +2399,33 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
 }
 
 function DeveloperDashboard({ userId }: { userId: string }) {
+  const { data: developerNdas = [] } = useQuery({
+    queryKey: ["developer-ndas", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ndas")
+        .select("*, projects(title, recruiter_id)")
+        .eq("developer_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data?.length) return [];
+
+      const recruiterIds = data.map((n) => n.recruiter_id).filter(Boolean);
+      const { data: recruiterProfiles } = await supabase
+        .from("recruiter_profiles")
+        .select("id, company_name, full_name")
+        .in("id", recruiterIds);
+
+      return data.map((n) => {
+        const recruiter = recruiterProfiles?.find((r) => r.id === n.recruiter_id);
+        return {
+          ...n,
+          recruiter_name: recruiter?.company_name || recruiter?.full_name || "Independent Recruiter",
+        };
+      });
+    },
+  });
+
   const { data: applications } = useQuery({
     queryKey: ["my-apps", userId],
     queryFn: async () => {
