@@ -280,7 +280,11 @@ function PreferenceToggle({
         <div className="text-xs font-semibold text-foreground">{label}</div>
         <p className="text-[10px] text-muted-foreground leading-relaxed">{desc}</p>
       </div>
-      <Switch checked={checked} onCheckedChange={onChange} className="scale-75 shrink-0 origin-right" />
+      <Switch
+        checked={checked}
+        onCheckedChange={onChange}
+        className="scale-75 shrink-0 origin-right"
+      />
     </div>
   );
 }

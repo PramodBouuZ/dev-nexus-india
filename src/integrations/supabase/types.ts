@@ -969,7 +969,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "projects";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       email_logs: {
@@ -1041,7 +1041,16 @@ export type Database = {
           project_id: string;
           stage_name: string;
           stage_description: string | null;
-          stage_status: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          stage_status:
+            | "planned"
+            | "in_progress"
+            | "under_review"
+            | "completed"
+            | "blocked"
+            | "pending"
+            | "waiting_for_approval"
+            | "delayed"
+            | "cancelled";
           progress_percent: number;
           deadline: string | null;
           start_date: string | null;
@@ -1053,7 +1062,16 @@ export type Database = {
           project_id: string;
           stage_name: string;
           stage_description?: string | null;
-          stage_status?: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          stage_status?:
+            | "planned"
+            | "in_progress"
+            | "under_review"
+            | "completed"
+            | "blocked"
+            | "pending"
+            | "waiting_for_approval"
+            | "delayed"
+            | "cancelled";
           progress_percent?: number;
           deadline?: string | null;
           start_date?: string | null;
@@ -1065,7 +1083,16 @@ export type Database = {
           project_id?: string;
           stage_name?: string;
           stage_description?: string | null;
-          stage_status?: "planned" | "in_progress" | "under_review" | "completed" | "blocked" | "pending" | "waiting_for_approval" | "delayed" | "cancelled";
+          stage_status?:
+            | "planned"
+            | "in_progress"
+            | "under_review"
+            | "completed"
+            | "blocked"
+            | "pending"
+            | "waiting_for_approval"
+            | "delayed"
+            | "cancelled";
           progress_percent?: number;
           deadline?: string | null;
           start_date?: string | null;
@@ -1079,7 +1106,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "projects";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       project_activities: {
@@ -1117,7 +1144,7 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "projects";
             referencedColumns: ["id"];
-          }
+          },
         ];
       };
       notification_preferences: {
@@ -1242,7 +1269,12 @@ export type Database = {
         | "new_message"
         | "developer_accepted_project";
       project_status:
-        "open" | "in_progress" | "completed" | "closed" | "assigned" | "in_discussion";
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "closed"
+        | "assigned"
+        | "in_discussion";
       project_type: "fixed" | "hourly";
       stage_status: "planned" | "in_progress" | "under_review" | "completed" | "blocked";
       verification_status: "pending" | "approved" | "rejected";
@@ -1263,12 +1295,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -1288,12 +1320,13 @@ export type Tables<
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -1312,12 +1345,13 @@ export type TablesInsert<
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
-    keyof DefaultSchema["Tables"] | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -1336,12 +1370,13 @@ export type TablesUpdate<
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
-    keyof DefaultSchema["Enums"] | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }
@@ -1352,12 +1387,13 @@ export type Enums<
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    keyof DefaultSchema["CompositeTypes"] | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals;
 }

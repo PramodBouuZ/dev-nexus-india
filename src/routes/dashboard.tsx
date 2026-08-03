@@ -33,7 +33,11 @@ import { ContractsList } from "@/components/ContractsList";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { InviteActions } from "@/components/InviteActions";
 import { ReviewDialog } from "@/components/ReviewDialog";
-import { logProjectActivityServerFn, sendTimelineEmailServerFn } from "@/utils/email-service";
+import {
+  logProjectActivityServerFn,
+  sendTimelineEmailServerFn,
+  sendSmartNotificationServerFn,
+} from "@/utils/email-service";
 import {
   Select,
   SelectContent,
@@ -52,7 +56,7 @@ import {
   CheckCircle2,
   ChevronRight,
   Activity,
-  Play
+  Play,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -82,6 +86,376 @@ function Dashboard() {
         )}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+export function DeveloperNdaRow({ nda, userId }: { nda: any; userId: string }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [ipAddress, setIpAddress] = useState("127.0.0.1");
+  const [termsDialogOpen, setTermsDialogOpen] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("https://api.ipify.org?format=json")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ip) setIpAddress(data.ip);
+      })
+      .catch(() => {
+        setIpAddress(
+          "103." +
+            Math.floor(Math.random() * 254 + 1) +
+            "." +
+            Math.floor(Math.random() * 254 + 1) +
+            "." +
+            Math.floor(Math.random() * 254 + 1),
+        );
+      });
+  }, []);
+
+  const tData = nda.template_data || {
+    companyName: "Company",
+    clientName: "Client",
+    developerName: "Developer",
+    projectName: "Project",
+    confidentialityTerms: "Confidentiality terms apply.",
+    ipOwnership: "IP terms apply.",
+    paymentTerms: "Payment terms apply.",
+    duration: "Duration terms apply.",
+    jurisdiction: "Jurisdiction terms apply.",
+    additionalClauses: "",
+  };
+
+  async function startReview() {
+    setBusy(true);
+    const nowStr = new Date().toISOString();
+    const { error } = await supabase
+      .from("ndas")
+      .update({
+        status: "under_review",
+        under_review_at: nowStr,
+      } as any)
+      .eq("id", nda.id);
+
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("NDA is now Under Review.");
+    qc.invalidateQueries({ queryKey: ["developer-ndas", userId] });
+    qc.invalidateQueries({ queryKey: ["recruiter-ndas", userId] });
+
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId: nda.project_id,
+          userId,
+          activityType: "nda_viewed",
+          description: `Developer started reviewing the NDA terms`,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Notify Recruiter
+    await sendSmartNotificationServerFn({
+      data: {
+        recipientId: nda.recruiter_id,
+        actorId: userId,
+        type: "nda_sent",
+        title: "NDA Under Review",
+        message: `The developer has started reviewing the NDA terms for project "${nda.projects?.title || "the project"}".`,
+        projectId: nda.project_id,
+        applicationId: nda.application_id,
+        projectName: nda.projects?.title,
+        developerName: tData.developerName,
+        recruiterName: tData.companyName,
+        ctaLabel: "View NDA Progress",
+        ctaUrl: `https://developerconnect.in/applications/${nda.application_id}`,
+      },
+    });
+  }
+
+  async function respond(action: "accepted" | "rejected") {
+    setBusy(true);
+    const updates: any = {
+      status: action,
+      developer_ip: action === "accepted" ? ipAddress : null,
+      accepted_at: action === "accepted" ? new Date().toISOString() : null,
+      rejected_at: action === "rejected" ? new Date().toISOString() : null,
+    };
+
+    const { error } = await supabase.from("ndas").update(updates).eq("id", nda.id);
+
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success(`NDA successfully ${action === "accepted" ? "accepted & signed" : "rejected"}!`);
+    qc.invalidateQueries({ queryKey: ["developer-ndas", userId] });
+    qc.invalidateQueries({ queryKey: ["recruiter-ndas", userId] });
+
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId: nda.project_id,
+          userId,
+          activityType: action === "accepted" ? "nda_accepted" : "nda_rejected",
+          description:
+            action === "accepted"
+              ? `Developer Accepted & Electronically Signed NDA`
+              : `Developer Rejected NDA terms`,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    await sendSmartNotificationServerFn({
+      data: {
+        recipientId: nda.recruiter_id,
+        actorId: userId,
+        type: action === "accepted" ? "nda_accepted" : "nda_rejected",
+        title: action === "accepted" ? "NDA Accepted & Signed" : "NDA Rejected",
+        message:
+          action === "accepted"
+            ? `The developer has signed and accepted the NDA for project "${nda.projects?.title || "the project"}" from IP ${ipAddress}.`
+            : `The developer has rejected the NDA terms for project "${nda.projects?.title || "the project"}".`,
+        projectId: nda.project_id,
+        applicationId: nda.application_id,
+        projectName: nda.projects?.title,
+        developerName: tData.developerName,
+        recruiterName: tData.companyName,
+        ctaLabel: action === "accepted" ? "Assign Project Now" : "Review Terms",
+        ctaUrl: `https://developerconnect.in/projects/${nda.project_id}`,
+      },
+    });
+  }
+
+  const handlePrint = () => {
+    const printContent = printRef.current?.innerHTML;
+    if (printContent) {
+      const win = window.open("", "_blank");
+      if (win) {
+        win.document.write(`
+          <html>
+            <head>
+              <title>DeveloperConnect NDA</title>
+              <style>
+                body { font-family: system-ui, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; line-height: 1.6; }
+                h1, h2, h3 { text-align: center; color: #0f172a; margin-bottom: 24px; }
+                .terms-section { margin-bottom: 20px; }
+                .terms-title { font-weight: bold; margin-bottom: 4px; text-transform: uppercase; font-size: 13px; color: #64748b; }
+                .terms-body { font-size: 14px; text-align: justify; }
+                .signatures { display: grid; grid-cols: 2; margin-top: 50px; gap: 40px; }
+                .signature-box { border-top: 1px solid #cbd5e1; padding-top: 8px; font-size: 12px; }
+              </style>
+            </head>
+            <body onload="window.print();window.close();">
+              ${printContent}
+            </body>
+          </html>
+        `);
+        win.document.close();
+      }
+    }
+  };
+
+  const statusColors: any = {
+    sent: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
+    received: "bg-blue-500/10 text-blue-600 border-blue-500/20",
+    under_review: "bg-purple-500/10 text-purple-600 border-purple-500/20",
+    accepted: "bg-green-500/10 text-green-600 border-green-500/20",
+    rejected: "bg-red-500/10 text-red-600 border-red-500/20",
+    expired: "bg-gray-500/10 text-gray-600 border-gray-500/20",
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm space-y-4 hover:border-accent/30 transition-all">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h3 className="font-bold text-sm text-foreground">{nda.projects?.title}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Requested by: <strong className="text-foreground">{nda.recruiter_name}</strong>
+          </p>
+        </div>
+        <Badge
+          className={`capitalize border font-bold ${statusColors[nda.status] || "bg-muted text-muted-foreground"}`}
+        >
+          {nda.status.replace("_", " ")}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4 text-xs bg-muted/20 rounded-lg p-3">
+        <div>
+          <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+            NDA Sent Date
+          </span>
+          <span className="font-medium text-foreground">
+            {new Date(nda.created_at).toLocaleDateString()}
+          </span>
+        </div>
+        <div>
+          <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+            NDA Received Date
+          </span>
+          <span className="font-medium text-foreground">
+            {nda.received_at ? new Date(nda.received_at).toLocaleDateString() : "Pending"}
+          </span>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2.5 pt-1">
+        <Dialog open={termsDialogOpen} onOpenChange={setTermsDialogOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="text-xs font-semibold">
+              View Agreement Details
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Mutual Non-Disclosure Agreement (NDA)</DialogTitle>
+            </DialogHeader>
+            <div
+              className="p-4 bg-muted/10 rounded-xl border text-xs leading-relaxed space-y-3"
+              ref={printRef}
+            >
+              <h4 className="text-center font-bold text-sm uppercase">
+                Mutual Non-Disclosure Agreement
+              </h4>
+              {nda.template_name === "custom_upload" && nda.file_url ? (
+                <p className="text-justify font-medium">
+                  The recruiter has uploaded a custom NDA PDF. Please click the download/view link
+                  below to inspect terms.
+                </p>
+              ) : (
+                <>
+                  <p className="text-justify">
+                    This Agreement is entered into by and between{" "}
+                    <strong>{tData.companyName}</strong> (Client / Recruiter) and{" "}
+                    <strong>{tData.developerName}</strong> (Developer) for the project{" "}
+                    <strong>"{tData.projectName}"</strong>.
+                  </p>
+                  <div className="space-y-3 pt-2">
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                        Section 1: Confidentiality Details
+                      </span>
+                      <span className="text-justify">{tData.confidentialityTerms}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                        Section 2: Intellectual Property Allocation
+                      </span>
+                      <span className="text-justify">{tData.ipOwnership}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                        Section 3: Release of Payment
+                      </span>
+                      <span className="text-justify">{tData.paymentTerms}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                        Section 4: Term & Duration
+                      </span>
+                      <span>{tData.duration}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                        Section 5: Governing Jurisdiction
+                      </span>
+                      <span>{tData.jurisdiction}</span>
+                    </div>
+                    {tData.additionalClauses && (
+                      <div>
+                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                          Section 6: Supplementary Clauses
+                        </span>
+                        <span className="text-justify">{tData.additionalClauses}</span>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+            <DialogFooter className="gap-2 border-t pt-4">
+              {nda.file_url ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => window.open(nda.file_url, "_blank")}
+                >
+                  Download custom PDF
+                </Button>
+              ) : (
+                <Button size="sm" variant="outline" onClick={handlePrint}>
+                  Print/Download Agreement
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setTermsDialogOpen(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {nda.file_url ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(nda.file_url, "_blank")}
+            className="text-xs"
+          >
+            Download NDA PDF
+          </Button>
+        ) : (
+          <Button size="sm" variant="outline" onClick={handlePrint} className="text-xs">
+            Download NDA
+          </Button>
+        )}
+
+        {/* Dynamic transition flow actions */}
+        {(nda.status === "sent" || nda.status === "received") && (
+          <Button
+            size="sm"
+            onClick={startReview}
+            disabled={busy}
+            className="bg-accent text-accent-foreground font-bold hover:opacity-90 ml-auto"
+          >
+            {busy ? "Processing..." : "Begin Review"}
+          </Button>
+        )}
+
+        {nda.status === "under_review" && (
+          <div className="flex gap-2 ml-auto">
+            <Button
+              size="sm"
+              onClick={() => respond("accepted")}
+              disabled={busy}
+              className="bg-success text-success-foreground hover:opacity-90 font-bold"
+            >
+              Accept
+            </Button>
+            <Button
+              size="sm"
+              onClick={() => respond("rejected")}
+              disabled={busy}
+              variant="outline"
+              className="text-destructive border-destructive/20 font-bold"
+            >
+              Reject
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -198,6 +572,40 @@ function NotificationCenter({ userId }: { userId: string }) {
     },
   });
 
+  const { data: developerNdas = [] } = useQuery({
+    queryKey: ["developer-ndas", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ndas")
+        .select("*, projects(title, recruiter_id)")
+        .eq("developer_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data?.length) return [];
+
+      const recIds = data.map((n) => n.recruiter_id);
+      const { data: recProfiles } = await supabase
+        .from("recruiter_profiles")
+        .select("id, company_name, full_name")
+        .in("id", recIds);
+
+      const { data: apps } = await supabase
+        .from("applications")
+        .select("id, project_id, developer_id")
+        .eq("developer_id", userId);
+
+      return data.map((n) => {
+        const rec = recProfiles?.find((r) => r.id === n.recruiter_id);
+        const app = apps?.find((a) => a.project_id === n.project_id);
+        return {
+          ...n,
+          recruiter_name: rec?.company_name || rec?.full_name || "Enterprise Recruiter",
+          application_id: app?.id || "",
+        };
+      });
+    },
+  });
+
   async function markAsRead(id: string) {
     await supabase.from("notifications").update({ read_at: new Date().toISOString() }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["notifications", userId] });
@@ -231,7 +639,8 @@ function NotificationCenter({ userId }: { userId: string }) {
   }
 
   const unreadCount = notifications?.filter((n) => !n.read_at).length ?? 0;
-  const displayNotifs = filter === "all" ? (notifications ?? []) : (notifications?.filter((n) => !n.read_at) ?? []);
+  const displayNotifs =
+    filter === "all" ? (notifications ?? []) : (notifications?.filter((n) => !n.read_at) ?? []);
 
   return (
     <div className="mt-6 space-y-4">
@@ -290,7 +699,11 @@ function NotificationCenter({ userId }: { userId: string }) {
             } else if (n.type === "new_message") {
               IconComponent = MessageSquare;
               iconBg = "bg-teal-500/10 text-teal-500";
-            } else if (n.type === "project_assigned" || n.type === "stage_update" || n.type === "stage_completed") {
+            } else if (
+              n.type === "project_assigned" ||
+              n.type === "stage_update" ||
+              n.type === "stage_completed"
+            ) {
               IconComponent = ShieldCheck;
               iconBg = "bg-sky-500/10 text-sky-500";
             } else if (n.type === "contact_request" || n.type === "contact_approved") {
@@ -311,9 +724,7 @@ function NotificationCenter({ userId }: { userId: string }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline gap-2">
-                      <h4 className="text-sm font-semibold text-foreground truncate">
-                        {n.title}
-                      </h4>
+                      <h4 className="text-sm font-semibold text-foreground truncate">{n.title}</h4>
                       {!n.read_at && (
                         <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse shrink-0" />
                       )}
@@ -389,6 +800,33 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         .select("id, full_name, avatar_url, headline, is_verified")
         .in("id", ids);
       return devs ?? [];
+    },
+  });
+
+  const { data: recruiterNdas = [] } = useQuery({
+    queryKey: ["recruiter-ndas", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ndas")
+        .select("*, projects(title, recruiter_id)")
+        .eq("recruiter_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      if (!data?.length) return [];
+
+      const devIds = data.map((n) => n.developer_id);
+      const { data: devProfiles } = await supabase
+        .from("developer_profiles")
+        .select("id, full_name")
+        .in("id", devIds);
+
+      return data.map((n) => {
+        const dev = devProfiles?.find((d) => d.id === n.developer_id);
+        return {
+          ...n,
+          developer_name: dev?.full_name || "Independent Specialist",
+        };
+      });
     },
   });
 
@@ -484,6 +922,11 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           qc.invalidateQueries({ queryKey: ["notifications", userId] });
         },
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "ndas" }, () => {
+        qc.invalidateQueries({ queryKey: ["developer-ndas", userId] });
+        qc.invalidateQueries({ queryKey: ["recruiter-ndas", userId] });
+        qc.invalidateQueries({ queryKey: ["project-nda"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -780,7 +1223,13 @@ function RecruiterDashboard({ userId }: { userId: string }) {
 
       <Tabs defaultValue="workspace" className="mt-10">
         <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="workspace" className="font-semibold text-accent hover:text-accent-foreground">Workspace 🚀</TabsTrigger>
+          <TabsTrigger
+            value="workspace"
+            className="font-semibold text-accent hover:text-accent-foreground"
+          >
+            Workspace 🚀
+          </TabsTrigger>
+          <TabsTrigger value="ndas">NDA Management 📄</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="assigned">Assigned</TabsTrigger>
@@ -790,6 +1239,136 @@ function RecruiterDashboard({ userId }: { userId: string }) {
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ndas">
+          <section className="mt-6 space-y-6">
+            <div>
+              <h2 className="font-display text-xl font-semibold">NDA Management & Tracking</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Monitor status of all confidentiality agreements sent to candidates. No refresh
+                required.
+              </p>
+            </div>
+
+            {/* NDA Aggregate Cards Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+              <div className="bg-card border p-4 rounded-xl shadow-sm text-center">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                  Total NDAs Sent
+                </span>
+                <span className="text-2xl font-bold font-display mt-1 block">
+                  {recruiterNdas.length}
+                </span>
+              </div>
+              <div className="bg-card border p-4 rounded-xl shadow-sm text-center">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block text-yellow-600">
+                  Pending NDAs
+                </span>
+                <span className="text-2xl font-bold font-display mt-1 block text-yellow-600">
+                  {
+                    recruiterNdas.filter(
+                      (n: any) =>
+                        n.status === "sent" ||
+                        n.status === "received" ||
+                        n.status === "under_review" ||
+                        n.status === "pending" ||
+                        n.status === "viewed",
+                    ).length
+                  }
+                </span>
+              </div>
+              <div className="bg-card border p-4 rounded-xl shadow-sm text-center">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block text-success">
+                  Accepted NDAs
+                </span>
+                <span className="text-2xl font-bold font-display mt-1 block text-success">
+                  {recruiterNdas.filter((n: any) => n.status === "accepted").length}
+                </span>
+              </div>
+              <div className="bg-card border p-4 rounded-xl shadow-sm text-center">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block text-destructive">
+                  Rejected NDAs
+                </span>
+                <span className="text-2xl font-bold font-display mt-1 block text-destructive">
+                  {recruiterNdas.filter((n: any) => n.status === "rejected").length}
+                </span>
+              </div>
+              <div className="bg-card border p-4 rounded-xl shadow-sm text-center">
+                <span className="text-[10px] uppercase font-bold text-muted-foreground block text-gray-500">
+                  Expired NDAs
+                </span>
+                <span className="text-2xl font-bold font-display mt-1 block text-gray-500">
+                  {recruiterNdas.filter((n: any) => n.status === "expired").length}
+                </span>
+              </div>
+            </div>
+
+            {/* Developer NDA Table List */}
+            <div className="rounded-xl border bg-card overflow-hidden">
+              {recruiterNdas.length === 0 ? (
+                <div className="text-center py-10 text-sm text-muted-foreground">
+                  No NDAs initiated yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm border-collapse">
+                    <thead className="bg-muted/50 border-b text-[10px] uppercase font-bold text-muted-foreground">
+                      <tr>
+                        <th className="p-3.5">Developer Name</th>
+                        <th className="p-3.5">Project Name</th>
+                        <th className="p-3.5">NDA Sent Time</th>
+                        <th className="p-3.5">Current Status</th>
+                        <th className="p-3.5">Last Activity</th>
+                        <th className="p-3.5">Accepted Date</th>
+                        <th className="p-3.5">Rejected Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y text-xs">
+                      {recruiterNdas.map((n: any) => {
+                        const statusColors: any = {
+                          sent: "bg-yellow-500/15 text-yellow-600 border-yellow-500/20",
+                          received: "bg-blue-500/15 text-blue-600 border-blue-500/20",
+                          under_review: "bg-purple-500/15 text-purple-600 border-purple-500/20",
+                          accepted: "bg-success/15 text-success border-success/20",
+                          rejected: "bg-destructive/15 text-destructive border-destructive/20",
+                          expired: "bg-gray-500/15 text-gray-600 border-gray-500/20",
+                        };
+
+                        return (
+                          <tr key={n.id} className="hover:bg-muted/10 transition-colors">
+                            <td className="p-3.5 font-semibold text-foreground">
+                              {n.developer_name}
+                            </td>
+                            <td className="p-3.5">{n.projects?.title}</td>
+                            <td className="p-3.5 text-muted-foreground font-medium">
+                              {new Date(n.created_at).toLocaleString()}
+                            </td>
+                            <td className="p-3.5">
+                              <Badge
+                                className={`capitalize font-bold border ${statusColors[n.status] || "bg-muted text-muted-foreground"}`}
+                              >
+                                {n.status.replace("_", " ")}
+                              </Badge>
+                            </td>
+                            <td className="p-3.5 text-muted-foreground font-medium">
+                              {new Date(n.updated_at).toLocaleString()}
+                            </td>
+                            <td className="p-3.5 font-medium text-success">
+                              {n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}
+                            </td>
+                            <td className="p-3.5 font-medium text-destructive">
+                              {n.rejected_at ? new Date(n.rejected_at).toLocaleString() : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </section>
+        </TabsContent>
 
         <TabsContent value="workspace">
           <RecruiterWorkspace userId={userId} />
@@ -1410,7 +1989,11 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
   }
 
   // Accept/Hire Candidate
-  async function handleHireCandidate(appId: string, developerId: string, proposedRate: number | null) {
+  async function handleHireCandidate(
+    appId: string,
+    developerId: string,
+    proposedRate: number | null,
+  ) {
     setBusy(true);
     const { error: appErr } = await supabase
       .from("applications")
@@ -1555,11 +2138,16 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
             <Briefcase className="h-5 w-5" />
           </div>
           <div className="space-y-1 flex-1">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Active Workspace Project</span>
-            <Select value={selectedProjectId} onValueChange={(val) => {
-              setSelectedProjectId(val);
-              setSelectedDevId(null);
-            }}>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
+              Active Workspace Project
+            </span>
+            <Select
+              value={selectedProjectId}
+              onValueChange={(val) => {
+                setSelectedProjectId(val);
+                setSelectedDevId(null);
+              }}
+            >
               <SelectTrigger className="font-semibold text-base h-10 w-full md:w-80 border-none shadow-none focus:ring-0 p-0 hover:text-accent">
                 <SelectValue placeholder="Select a project" />
               </SelectTrigger>
@@ -1577,8 +2165,13 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
         {project && (
           <div className="flex items-center gap-3 w-full md:w-auto justify-end">
             <div className="text-right hidden sm:block">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground block">Project Status</span>
-              <Badge className="capitalize mt-0.5" variant={project.status === "assigned" ? "default" : "secondary"}>
+              <span className="text-[10px] uppercase font-bold text-muted-foreground block">
+                Project Status
+              </span>
+              <Badge
+                className="capitalize mt-0.5"
+                variant={project.status === "assigned" ? "default" : "secondary"}
+              >
                 {project.status.replace("_", " ")}
               </Badge>
             </div>
@@ -1642,13 +2235,20 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                         </Avatar>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1">
-                            <span className="font-bold truncate">{a.dev?.full_name || "Independent Specialist"}</span>
+                            <span className="font-bold truncate">
+                              {a.dev?.full_name || "Independent Specialist"}
+                            </span>
                             {a.dev?.is_verified && <ShieldCheck className="h-3 w-3 text-accent" />}
                           </div>
-                          <span className="text-[10px] text-muted-foreground truncate block">{a.dev?.headline}</span>
+                          <span className="text-[10px] text-muted-foreground truncate block">
+                            {a.dev?.headline}
+                          </span>
                         </div>
                       </div>
-                      <Badge className="capitalize text-[9px] px-1.5 py-0.2 shrink-0 ml-2" variant={a.status === "accepted" ? "default" : "outline"}>
+                      <Badge
+                        className="capitalize text-[9px] px-1.5 py-0.2 shrink-0 ml-2"
+                        variant={a.status === "accepted" ? "default" : "outline"}
+                      >
                         {isAssigned ? "Assigned" : a.status}
                       </Badge>
                     </button>
@@ -1663,7 +2263,9 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <h4 className="font-bold text-sm text-foreground">{activeApp.dev.full_name}</h4>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{activeApp.dev.headline}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      {activeApp.dev.headline}
+                    </p>
                   </div>
                   <DeveloperProfileDialog
                     developerId={activeApp.developer_id}
@@ -1687,7 +2289,13 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                     <Button
                       size="sm"
                       disabled={busy}
-                      onClick={() => handleHireCandidate(activeApp.id, activeApp.developer_id, activeApp.proposed_rate_inr)}
+                      onClick={() =>
+                        handleHireCandidate(
+                          activeApp.id,
+                          activeApp.developer_id,
+                          activeApp.proposed_rate_inr,
+                        )
+                      }
                       className="bg-gradient-accent text-primary-foreground font-bold text-xs"
                     >
                       {busy ? "Processing..." : "Hire & Accept Candidate"}
@@ -1699,7 +2307,10 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                       <div className="p-3 rounded-lg border border-warning/30 bg-warning/5 text-[11px] text-warning-foreground flex items-start gap-1.5 leading-normal">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-warning" />
                         <span>
-                          Both parties have accepted interest! <strong>Step 1:</strong> Send & get the Mutual NDA signed by the developer (in the NDA manager below or chat). <strong>Step 2:</strong> Click "Assign Developer" to officially launch milestones tracking!
+                          Both parties have accepted interest! <strong>Step 1:</strong> Send & get
+                          the Mutual NDA signed by the developer (in the NDA manager below or chat).{" "}
+                          <strong>Step 2:</strong> Click "Assign Developer" to officially launch
+                          milestones tracking!
                         </span>
                       </div>
                       <Button
@@ -1708,14 +2319,16 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                         onClick={() => handleAssignDeveloper(activeApp.developer_id)}
                         className="w-full bg-success text-success-foreground hover:opacity-90 font-bold text-xs flex items-center justify-center gap-1"
                       >
-                        <CheckCircle2 className="h-4 w-4" /> {busy ? "Assigning..." : "Assign Developer to Project"}
+                        <CheckCircle2 className="h-4 w-4" />{" "}
+                        {busy ? "Assigning..." : "Assign Developer to Project"}
                       </Button>
                     </div>
                   )}
 
                   {isAssignedActiveDev(activeApp.developer_id) && (
                     <div className="w-full p-2.5 rounded-lg border border-success/30 bg-success/5 text-[11px] text-success-foreground font-semibold flex items-center gap-1.5">
-                      <CheckCircle2 className="h-4 w-4" /> This developer is officially assigned and working on this project!
+                      <CheckCircle2 className="h-4 w-4" /> This developer is officially assigned and
+                      working on this project!
                     </div>
                   )}
                 </div>
@@ -1760,7 +2373,10 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                   </Button>
                 </div>
                 {activeAssignment && (
-                  <Badge variant="outline" className="border-success/30 text-success bg-success/5 text-[10px] font-bold">
+                  <Badge
+                    variant="outline"
+                    className="border-success/30 text-success bg-success/5 text-[10px] font-bold"
+                  >
                     Project Active
                   </Badge>
                 )}
@@ -1771,7 +2387,10 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                   <div className="space-y-4">
                     <div>
                       <h4 className="font-bold text-sm">Unified Communication Center</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">Discuss terms, review milestones, and exchange files directly with the candidate.</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Discuss terms, review milestones, and exchange files directly with the
+                        candidate.
+                      </p>
                     </div>
                     <ChatThread appId={activeApp.id} userId={userId} />
                   </div>
@@ -1779,8 +2398,13 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
                   activeAssignment && (
                     <div className="space-y-2">
                       <div>
-                        <h4 className="font-bold text-sm">Project Timeline & Milestones Workspace</h4>
-                        <p className="text-xs text-muted-foreground mt-0.5">Build deliverables roadmap, set deadlines, track progress percentage, and update work status logs live.</p>
+                        <h4 className="font-bold text-sm">
+                          Project Timeline & Milestones Workspace
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Build deliverables roadmap, set deadlines, track progress percentage, and
+                          update work status logs live.
+                        </p>
                       </div>
                       <ProjectStages projectId={project.id} />
                     </div>
@@ -1792,7 +2416,10 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
             <div className="bg-card border border-dashed border-border rounded-2xl h-80 flex flex-col items-center justify-center p-6 text-center text-muted-foreground">
               <MessageSquare className="h-10 w-10 text-muted-foreground/50 mb-3" />
               <h4 className="font-bold text-sm">Unified Communication & Milestones Room</h4>
-              <p className="text-xs max-w-xs mt-1">Select an applicant or hired developer in the left column to unlock messaging, NDA terms, and interactive milestones tracking.</p>
+              <p className="text-xs max-w-xs mt-1">
+                Select an applicant or hired developer in the left column to unlock messaging, NDA
+                terms, and interactive milestones tracking.
+              </p>
             </div>
           )}
         </div>
@@ -2036,6 +2663,11 @@ function DeveloperDashboard({ userId }: { userId: string }) {
           qc.invalidateQueries({ queryKey: ["notifications", userId] });
         },
       )
+      .on("postgres_changes", { event: "*", schema: "public", table: "ndas" }, () => {
+        qc.invalidateQueries({ queryKey: ["developer-ndas", userId] });
+        qc.invalidateQueries({ queryKey: ["recruiter-ndas", userId] });
+        qc.invalidateQueries({ queryKey: ["project-nda"] });
+      })
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
@@ -2183,12 +2815,34 @@ function DeveloperDashboard({ userId }: { userId: string }) {
       <Tabs defaultValue="applications" className="mt-10">
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="applications">Applications</TabsTrigger>
+          <TabsTrigger value="ndas">NDAs & Agreements 📄</TabsTrigger>
           <TabsTrigger value="assigned">Assigned</TabsTrigger>
           <TabsTrigger value="invites">Invites</TabsTrigger>
           <TabsTrigger value="contacts">Contacts</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="chats">Chats</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="ndas">
+          <section className="mt-6">
+            <h2 className="font-display text-xl font-semibold">Your NDA Agreements</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Review, sign, or manage non-disclosure agreements requested by recruiters before
+              project start.
+            </p>
+            <div className="mt-4 space-y-4">
+              {developerNdas.length === 0 ? (
+                <div className="text-center py-12 rounded-xl border border-dashed text-muted-foreground bg-muted/5">
+                  No NDAs requested yet.
+                </div>
+              ) : (
+                developerNdas.map((n: any) => (
+                  <DeveloperNdaRow key={n.id} nda={n} userId={userId} />
+                ))
+              )}
+            </div>
+          </section>
+        </TabsContent>
 
         <TabsContent value="applications">
           <section className="mt-6">

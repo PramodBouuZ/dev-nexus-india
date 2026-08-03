@@ -456,7 +456,9 @@ function SidebarItem({
 
 // --- OVERVIEW ---
 function OverviewTab() {
-  const [subTab, setSubTab] = useState<"system" | "users" | "projects" | "revenue" | "notifications">("system");
+  const [subTab, setSubTab] = useState<
+    "system" | "users" | "projects" | "revenue" | "notifications"
+  >("system");
   const [notifChartPeriod, setNotifChartPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
 
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -474,8 +476,14 @@ function OverviewTab() {
       ]);
 
       const [vDevs, vRecs] = await Promise.all([
-        supabase.from("developer_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
-        supabase.from("recruiter_profiles").select("id", { count: "exact", head: true }).eq("is_verified", true),
+        supabase
+          .from("developer_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_verified", true),
+        supabase
+          .from("recruiter_profiles")
+          .select("id", { count: "exact", head: true })
+          .eq("is_verified", true),
       ]);
 
       const [usersDb, emailLogs, rems] = await Promise.all([
@@ -527,13 +535,15 @@ function OverviewTab() {
 
     // Daily (Last 7 Days)
     const dailyMap: Record<string, { name: string; success: number; failed: number }> = {};
-    const last7Days = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      const dayStr = d.toLocaleDateString(undefined, { weekday: "short" });
-      const dateKey = d.toISOString().split("T")[0];
-      return { dayStr, dateKey };
-    }).reverse();
+    const last7Days = Array.from({ length: 7 })
+      .map((_, i) => {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dayStr = d.toLocaleDateString(undefined, { weekday: "short" });
+        const dateKey = d.toISOString().split("T")[0];
+        return { dayStr, dateKey };
+      })
+      .reverse();
 
     last7Days.forEach(({ dayStr, dateKey }) => {
       dailyMap[dateKey] = { name: dayStr, success: 0, failed: 0 };
@@ -567,13 +577,15 @@ function OverviewTab() {
 
     // Monthly (Last 6 Months)
     const monthlyMap: Record<string, { name: string; success: number; failed: number }> = {};
-    const last6Months = Array.from({ length: 6 }).map((_, i) => {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
-      const monthStr = d.toLocaleDateString(undefined, { month: "short" });
-      const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      return { monthStr, monthKey };
-    }).reverse();
+    const last6Months = Array.from({ length: 6 })
+      .map((_, i) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - i);
+        const monthStr = d.toLocaleDateString(undefined, { month: "short" });
+        const monthKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return { monthStr, monthKey };
+      })
+      .reverse();
 
     last6Months.forEach(({ monthStr, monthKey }) => {
       monthlyMap[monthKey] = { name: monthStr, success: 0, failed: 0 };
@@ -595,7 +607,11 @@ function OverviewTab() {
   }, [stats?.emailLogs]);
 
   if (statsLoading) {
-    return <div className="text-center p-12 text-sm text-muted-foreground animate-pulse">Loading expanded analytics...</div>;
+    return (
+      <div className="text-center p-12 text-sm text-muted-foreground animate-pulse">
+        Loading expanded analytics...
+      </div>
+    );
   }
 
   // Derived Analytics Values
@@ -609,7 +625,7 @@ function OverviewTab() {
   const totalUsers = profiles.length;
   const totalDevs = stats?.devs || 0;
   const totalRecs = stats?.recs || 0;
-  const activeUsersCount = reminderData?.users.filter(u => u.isActive).length || 0;
+  const activeUsersCount = reminderData?.users.filter((u) => u.isActive).length || 0;
 
   // New Users Timestamps
   const now = new Date();
@@ -617,27 +633,42 @@ function OverviewTab() {
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  const newUsersToday = profiles.filter(p => new Date(p.created_at) >= startOfToday).length;
-  const newUsersThisWeek = profiles.filter(p => new Date(p.created_at) >= sevenDaysAgo).length;
-  const newUsersThisMonth = profiles.filter(p => new Date(p.created_at) >= thirtyDaysAgo).length;
+  const newUsersToday = profiles.filter((p) => new Date(p.created_at) >= startOfToday).length;
+  const newUsersThisWeek = profiles.filter((p) => new Date(p.created_at) >= sevenDaysAgo).length;
+  const newUsersThisMonth = profiles.filter((p) => new Date(p.created_at) >= thirtyDaysAgo).length;
 
   const incompleteProfilesCount = reminderData?.stats.incompleteProfiles || 0;
   const profileCompletionRateAvg = reminderData?.stats.completionRate || 0;
 
   // Projects Breakdown
-  const openProjectsCount = projects.filter(p => p.status === "open").length;
-  const activeProjectsCount = projects.filter(p => p.status === "assigned" || p.status === "in_discussion" || p.status === "in_progress").length;
-  const completedProjectsCount = projects.filter(p => p.status === "completed").length;
-  const cancelledProjectsCount = projects.filter(p => p.status === "closed" || p.status === "cancelled").length;
+  const openProjectsCount = projects.filter((p) => p.status === "open").length;
+  const activeProjectsCount = projects.filter(
+    (p) => p.status === "assigned" || p.status === "in_discussion" || p.status === "in_progress",
+  ).length;
+  const completedProjectsCount = projects.filter((p) => p.status === "completed").length;
+  const cancelledProjectsCount = projects.filter(
+    (p) => p.status === "closed" || p.status === "cancelled",
+  ).length;
   const averageProjectDurationVal = "14 Days";
   const totalAppsCount = apps.length;
-  const avgAppsPerProjectVal = projects.length > 0 ? (totalAppsCount / projects.length).toFixed(1) : "0";
+  const avgAppsPerProjectVal =
+    projects.length > 0 ? (totalAppsCount / projects.length).toFixed(1) : "0";
 
   // Revenue Analytics (Future Ready)
-  const freeUsersCount = usersDb.filter(u => u.subscription_tier === "free").length + (profiles.length - usersDb.length);
-  const premiumRecsCount = usersDb.filter(u => u.subscription_tier !== "free" && reminderData?.users.find(usr => usr.id === u.user_id)?.role === "recruiter").length;
-  const premiumDevsCount = usersDb.filter(u => u.subscription_tier !== "free" && reminderData?.users.find(usr => usr.id === u.user_id)?.role === "developer").length;
-  const monthlyRevenueVal = (premiumRecsCount * 2999) + (premiumDevsCount * 999);
+  const freeUsersCount =
+    usersDb.filter((u) => u.subscription_tier === "free").length +
+    (profiles.length - usersDb.length);
+  const premiumRecsCount = usersDb.filter(
+    (u) =>
+      u.subscription_tier !== "free" &&
+      reminderData?.users.find((usr) => usr.id === u.user_id)?.role === "recruiter",
+  ).length;
+  const premiumDevsCount = usersDb.filter(
+    (u) =>
+      u.subscription_tier !== "free" &&
+      reminderData?.users.find((usr) => usr.id === u.user_id)?.role === "developer",
+  ).length;
+  const monthlyRevenueVal = premiumRecsCount * 2999 + premiumDevsCount * 999;
   const annualRevenueVal = monthlyRevenueVal * 12;
   const activeSubscriptionsCount = premiumRecsCount + premiumDevsCount;
   const expiredSubscriptionsCount = 2; // Future ready mock
@@ -645,11 +676,13 @@ function OverviewTab() {
 
   // Notification Analytics
   const totalEmailsSentVal = emailLogs.length;
-  const emailsDeliveredVal = emailLogs.filter(l => l.status === "success").length;
-  const failedEmailsVal = emailLogs.filter(l => l.status === "failed").length;
-  const pendingEmailsVal = emailLogs.filter(l => l.status === "pending").length;
-  const reminderEmailsVal = emailLogs.filter(l => l.email_type === "reminder" || l.subject.toLowerCase().includes("reminder")).length;
-  const bulkEmailsVal = rems.filter(r => r.reminder_type === "manual").length;
+  const emailsDeliveredVal = emailLogs.filter((l) => l.status === "success").length;
+  const failedEmailsVal = emailLogs.filter((l) => l.status === "failed").length;
+  const pendingEmailsVal = emailLogs.filter((l) => l.status === "pending").length;
+  const reminderEmailsVal = emailLogs.filter(
+    (l) => l.email_type === "reminder" || l.subject.toLowerCase().includes("reminder"),
+  ).length;
+  const bulkEmailsVal = rems.filter((r) => r.reminder_type === "manual").length;
   const notifClickRateVal = "15.4%";
 
   return (
@@ -722,7 +755,12 @@ function OverviewTab() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} opacity={0.1} />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
+                    <XAxis
+                      dataKey="name"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 10 }}
+                    />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Area
@@ -831,11 +869,15 @@ function OverviewTab() {
           </div>
 
           <div className="rounded-xl border bg-card p-5">
-            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider mb-4">Registration Velocity</h3>
+            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider mb-4">
+              Registration Velocity
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users Today</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">
+                    New Users Today
+                  </p>
                   <p className="text-2xl font-bold mt-1 text-primary">{newUsersToday}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -844,7 +886,9 @@ function OverviewTab() {
               </div>
               <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users This Week</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">
+                    New Users This Week
+                  </p>
                   <p className="text-2xl font-bold mt-1 text-teal-500">{newUsersThisWeek}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500">
@@ -853,7 +897,9 @@ function OverviewTab() {
               </div>
               <div className="p-4 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-muted-foreground font-semibold uppercase">New Users This Month</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase">
+                    New Users This Month
+                  </p>
                   <p className="text-2xl font-bold mt-1 text-indigo-500">{newUsersThisMonth}</p>
                 </div>
                 <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500">
@@ -901,21 +947,27 @@ function OverviewTab() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Cancelled Projects</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Cancelled Projects
+                </p>
                 <p className="text-xl font-bold mt-1">{cancelledProjectsCount}</p>
               </div>
               <XCircle className="h-5 w-5 text-destructive" />
             </div>
             <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Avg. Project Duration</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Avg. Project Duration
+                </p>
                 <p className="text-xl font-bold mt-1">{averageProjectDurationVal}</p>
               </div>
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <div className="p-5 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Avg. Apps per Project</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Avg. Apps per Project
+                </p>
                 <p className="text-xl font-bold mt-1">{avgAppsPerProjectVal}</p>
               </div>
               <Users className="h-5 w-5 text-teal-500" />
@@ -925,11 +977,20 @@ function OverviewTab() {
           <Card className="bg-card">
             <CardHeader>
               <CardTitle>Project Activity Heat</CardTitle>
-              <CardDescription>Total applications across all projects: {totalAppsCount}</CardDescription>
+              <CardDescription>
+                Total applications across all projects: {totalAppsCount}
+              </CardDescription>
             </CardHeader>
             <CardContent className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={projects.slice(0, 10).map((p, idx) => ({ name: `Proj ${idx + 1}`, count: Math.floor(Math.random() * 8 + 1) }))}>
+                <BarChart
+                  data={projects
+                    .slice(0, 10)
+                    .map((p, idx) => ({
+                      name: `Proj ${idx + 1}`,
+                      count: Math.floor(Math.random() * 8 + 1),
+                    }))}
+                >
                   <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
                   <XAxis dataKey="name" fontSize={11} stroke="#64748b" />
                   <YAxis fontSize={11} stroke="#64748b" />
@@ -971,44 +1032,64 @@ function OverviewTab() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="p-5 bg-card border rounded-xl">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Estimated MRR</p>
-              <p className="text-2xl font-bold mt-1 text-success">₹{monthlyRevenueVal.toLocaleString()}</p>
-              <p className="text-[10px] text-muted-foreground mt-1">Based on active premium plans</p>
+              <p className="text-2xl font-bold mt-1 text-success">
+                ₹{monthlyRevenueVal.toLocaleString()}
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                Based on active premium plans
+              </p>
             </div>
             <div className="p-5 bg-card border rounded-xl">
               <p className="text-xs font-semibold text-muted-foreground uppercase">Estimated ARR</p>
-              <p className="text-2xl font-bold mt-1 text-success">₹{annualRevenueVal.toLocaleString()}</p>
+              <p className="text-2xl font-bold mt-1 text-success">
+                ₹{annualRevenueVal.toLocaleString()}
+              </p>
               <p className="text-[10px] text-muted-foreground mt-1">Annual projected revenue</p>
             </div>
             <div className="p-5 bg-card border rounded-xl">
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Active Subscriptions</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
+                Active Subscriptions
+              </p>
               <p className="text-2xl font-bold mt-1 text-primary">{activeSubscriptionsCount}</p>
               <p className="text-[10px] text-muted-foreground mt-1">Recruiters + Devs Pro</p>
             </div>
             <div className="p-5 bg-card border rounded-xl">
-              <p className="text-xs font-semibold text-muted-foreground uppercase">Pending Payments</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase">
+                Pending Payments
+              </p>
               <p className="text-2xl font-bold mt-1 text-amber-500">{pendingPaymentsCount}</p>
               <p className="text-[10px] text-muted-foreground mt-1">Awaiting invoicing</p>
             </div>
           </div>
 
           <div className="rounded-xl border bg-card p-5 space-y-3">
-            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">Subscription Tiers Breakdown (Future Ready)</h3>
+            <h3 className="font-bold text-sm text-muted-foreground uppercase tracking-wider">
+              Subscription Tiers Breakdown (Future Ready)
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 bg-muted/40 rounded-lg border border-border">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-bold text-xs">Recruiter Pro Suite</span>
                   <Badge variant="outline">₹2,999 / mo</Badge>
                 </div>
-                <div className="text-xs text-muted-foreground">Unlimited project posts, advanced search, customized NDAs, live chat unlocked.</div>
-                <div className="text-sm font-bold mt-2 text-foreground">Active members: {premiumRecsCount}</div>
+                <div className="text-xs text-muted-foreground">
+                  Unlimited project posts, advanced search, customized NDAs, live chat unlocked.
+                </div>
+                <div className="text-sm font-bold mt-2 text-foreground">
+                  Active members: {premiumRecsCount}
+                </div>
               </div>
               <div className="p-4 bg-muted/40 rounded-lg border border-border">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-bold text-xs">Developer Pro Plus</span>
                   <Badge variant="outline">₹999 / mo</Badge>
                 </div>
-                <div className="text-xs text-muted-foreground">Instant matching algorithm, featured placement, priority apply, review insights.</div>
-                <div className="text-sm font-bold mt-2 text-foreground">Active members: {premiumDevsCount}</div>
+                <div className="text-xs text-muted-foreground">
+                  Instant matching algorithm, featured placement, priority apply, review insights.
+                </div>
+                <div className="text-sm font-bold mt-2 text-foreground">
+                  Active members: {premiumDevsCount}
+                </div>
               </div>
             </div>
           </div>
@@ -1051,21 +1132,27 @@ function OverviewTab() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Reminder Emails Sent</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Reminder Emails Sent
+                </p>
                 <p className="text-xl font-bold mt-1 text-primary">{reminderEmailsVal}</p>
               </div>
               <Mail className="h-5 w-5 text-primary" />
             </div>
             <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Bulk Reminders Dispatched</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Bulk Reminders Dispatched
+                </p>
                 <p className="text-xl font-bold mt-1 text-teal-500">{bulkEmailsVal}</p>
               </div>
               <Send className="h-5 w-5 text-teal-500" />
             </div>
             <div className="p-4 bg-card border rounded-xl flex items-center justify-between">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase">Notification Click Rate</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase">
+                  Notification Click Rate
+                </p>
                 <p className="text-xl font-bold mt-1 text-success">{notifClickRateVal}</p>
               </div>
               <TrendingUp className="h-5 w-5 text-success" />
@@ -1586,19 +1673,33 @@ function NdasTab() {
       n.developer_name.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus = statusFilter === "all" || n.status === statusFilter;
-    const matchesDeveloper = !developerFilter || n.developer_name.toLowerCase().includes(developerFilter.toLowerCase());
-    const matchesRecruiter = !recruiterFilter || n.recruiter_name.toLowerCase().includes(recruiterFilter.toLowerCase());
-    const matchesProject = !projectFilter || (n.projects?.title && n.projects.title.toLowerCase().includes(projectFilter.toLowerCase()));
+    const matchesDeveloper =
+      !developerFilter || n.developer_name.toLowerCase().includes(developerFilter.toLowerCase());
+    const matchesRecruiter =
+      !recruiterFilter || n.recruiter_name.toLowerCase().includes(recruiterFilter.toLowerCase());
+    const matchesProject =
+      !projectFilter ||
+      (n.projects?.title && n.projects.title.toLowerCase().includes(projectFilter.toLowerCase()));
 
-    const matchesDate = !dateFilter ||
+    const matchesDate =
+      !dateFilter ||
       n.created_at.startsWith(dateFilter) ||
       (n.accepted_at && n.accepted_at.startsWith(dateFilter));
 
-    return matchesSearch && matchesStatus && matchesDeveloper && matchesRecruiter && matchesProject && matchesDate;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesDeveloper &&
+      matchesRecruiter &&
+      matchesProject &&
+      matchesDate
+    );
   });
 
   const totalNdas = ndas.length;
-  const pendingNdas = ndas.filter((n) => n.status === "pending" || n.status === "viewed" || n.status === "sent").length;
+  const pendingNdas = ndas.filter(
+    (n) => n.status === "pending" || n.status === "viewed" || n.status === "sent",
+  ).length;
   const acceptedNdas = ndas.filter((n) => n.status === "accepted").length;
   const rejectedNdas = ndas.filter((n) => n.status === "rejected").length;
 
@@ -1782,43 +1883,211 @@ function NdasTab() {
                   <th className="p-4">Developer IP</th>
                   <th className="p-4">Signed At</th>
                   <th className="p-4">Created At</th>
+                  <th className="p-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredNdas.map((n) => (
-                  <tr key={n.id} className="hover:bg-muted/30">
-                    <td className="p-4 font-semibold text-primary">
-                      {n.projects?.title || "Project"}
-                    </td>
-                    <td className="p-4">{n.recruiter_name}</td>
-                    <td className="p-4">{n.developer_name}</td>
-                    <td className="p-4">
-                      <Badge
-                        variant={
-                          n.status === "accepted"
-                            ? "default"
-                            : n.status === "rejected"
-                              ? "destructive"
-                              : "secondary"
-                        }
-                        className={
-                          n.status === "accepted" ? "bg-success text-success-foreground" : ""
-                        }
-                      >
-                        {n.status}
-                      </Badge>
-                    </td>
-                    <td className="p-4 text-xs font-mono text-muted-foreground">
-                      {n.developer_ip || "—"}
-                    </td>
-                    <td className="p-4 text-xs text-muted-foreground">
-                      {n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}
-                    </td>
-                    <td className="p-4 text-xs text-muted-foreground">
-                      {new Date(n.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {filteredNdas.map((n) => {
+                  const tData = n.template_data || {
+                    companyName: "Company",
+                    clientName: "Client",
+                    developerName: "Developer",
+                    projectName: "Project",
+                    confidentialityTerms: "Confidentiality terms apply.",
+                    ipOwnership: "IP terms apply.",
+                    paymentTerms: "Payment terms apply.",
+                    duration: "Duration terms apply.",
+                    jurisdiction: "Jurisdiction terms apply.",
+                    additionalClauses: "",
+                  };
+
+                  return (
+                    <tr key={n.id} className="hover:bg-muted/30">
+                      <td className="p-4 font-semibold text-primary">
+                        {n.projects?.title || "Project"}
+                      </td>
+                      <td className="p-4">{n.recruiter_name}</td>
+                      <td className="p-4">{n.developer_name}</td>
+                      <td className="p-4">
+                        <Badge
+                          variant={
+                            n.status === "accepted"
+                              ? "default"
+                              : n.status === "rejected"
+                                ? "destructive"
+                                : "secondary"
+                          }
+                          className={
+                            n.status === "accepted"
+                              ? "bg-success text-success-foreground font-bold"
+                              : "font-bold"
+                          }
+                        >
+                          {n.status}
+                        </Badge>
+                      </td>
+                      <td className="p-4 text-xs font-mono text-muted-foreground">
+                        {n.developer_ip || "—"}
+                      </td>
+                      <td className="p-4 text-xs text-muted-foreground">
+                        {n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}
+                      </td>
+                      <td className="p-4 text-xs text-muted-foreground">
+                        {new Date(n.created_at).toLocaleString()}
+                      </td>
+                      <td className="p-4 text-right">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              className="flex items-center gap-1 font-semibold text-xs h-8"
+                            >
+                              <Eye className="h-3.5 w-3.5" /> Inspect
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Inspect NDA Document (Read-Only)</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 text-sm pt-2">
+                              {/* Quick Detais Grid */}
+                              <div className="grid grid-cols-2 gap-4 border p-3 rounded-lg bg-muted/20 text-xs font-medium">
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    NDA Status
+                                  </span>
+                                  <Badge className="mt-1">{n.status}</Badge>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    Developer IP
+                                  </span>
+                                  <span className="font-mono mt-1 block">
+                                    {n.developer_ip || "Not Signed"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    Sent At
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {new Date(n.created_at).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    Received At
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {n.received_at ? new Date(n.received_at).toLocaleString() : "—"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    Under Review At
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {n.under_review_at
+                                      ? new Date(n.under_review_at).toLocaleString()
+                                      : "—"}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">
+                                    Accepted At
+                                  </span>
+                                  <span className="mt-1 block">
+                                    {n.accepted_at ? new Date(n.accepted_at).toLocaleString() : "—"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="p-4 bg-background rounded-xl border text-xs leading-relaxed space-y-3">
+                                <h4 className="text-center font-bold text-sm uppercase">
+                                  Mutual Non-Disclosure Agreement
+                                </h4>
+                                {n.template_name === "custom_upload" && n.file_url ? (
+                                  <div className="space-y-2">
+                                    <p className="font-semibold">
+                                      Recruiter uploaded a custom NDA PDF:
+                                    </p>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 gap-1"
+                                      onClick={() => window.open(n.file_url, "_blank")}
+                                    >
+                                      <ExternalLink className="h-3.5 w-3.5" /> View Custom Upload
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <p className="text-justify">
+                                      This Agreement is entered into by and between{" "}
+                                      <strong>{tData.companyName}</strong> (Client / Recruiter) and{" "}
+                                      <strong>{tData.developerName}</strong> (Developer) for the
+                                      project <strong>"{tData.projectName}"</strong>.
+                                    </p>
+                                    <div className="space-y-3 pt-2">
+                                      <div>
+                                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                          Section 1: Confidentiality Details
+                                        </span>
+                                        <span className="text-justify">
+                                          {tData.confidentialityTerms}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                          Section 2: Intellectual Property Allocation
+                                        </span>
+                                        <span className="text-justify">{tData.ipOwnership}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                          Section 3: Release of Payment
+                                        </span>
+                                        <span className="text-justify">{tData.paymentTerms}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                          Section 4: Term & Duration
+                                        </span>
+                                        <span>{tData.duration}</span>
+                                      </div>
+                                      <div>
+                                        <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                          Section 5: Governing Jurisdiction
+                                        </span>
+                                        <span>{tData.jurisdiction}</span>
+                                      </div>
+                                      {tData.additionalClauses && (
+                                        <div>
+                                          <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                                            Section 6: Supplementary Clauses
+                                          </span>
+                                          <span className="text-justify">
+                                            {tData.additionalClauses}
+                                          </span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <DialogFooter className="border-t pt-4">
+                              <DialogTrigger asChild>
+                                <Button size="sm">Close</Button>
+                              </DialogTrigger>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1860,13 +2129,26 @@ function EmailLogsTab() {
     const matchesStatus = statusFilter === "all" || l.status === statusFilter;
     const matchesType = typeFilter === "all" || l.email_type === typeFilter;
 
-    const matchesDeveloper = !developerFilter || l.recipient_email.toLowerCase().includes(developerFilter.toLowerCase());
-    const matchesRecruiter = !recruiterFilter || l.recipient_email.toLowerCase().includes(recruiterFilter.toLowerCase());
-    const matchesProject = !projectFilter || l.subject.toLowerCase().includes(projectFilter.toLowerCase()) || l.body.toLowerCase().includes(projectFilter.toLowerCase());
+    const matchesDeveloper =
+      !developerFilter || l.recipient_email.toLowerCase().includes(developerFilter.toLowerCase());
+    const matchesRecruiter =
+      !recruiterFilter || l.recipient_email.toLowerCase().includes(recruiterFilter.toLowerCase());
+    const matchesProject =
+      !projectFilter ||
+      l.subject.toLowerCase().includes(projectFilter.toLowerCase()) ||
+      l.body.toLowerCase().includes(projectFilter.toLowerCase());
 
     const matchesDate = !dateFilter || l.created_at.startsWith(dateFilter);
 
-    return matchesSearch && matchesStatus && matchesType && matchesDeveloper && matchesRecruiter && matchesProject && matchesDate;
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesType &&
+      matchesDeveloper &&
+      matchesRecruiter &&
+      matchesProject &&
+      matchesDate
+    );
   });
 
   // Calculate metrics
@@ -2188,7 +2470,12 @@ function ReviewsTab() {
       if (rErr) throw rErr;
       if (!revs || revs.length === 0) return [];
 
-      const userIds = [...new Set([...revs.map((r: any) => r.reviewer_id), ...revs.map((r: any) => r.reviewee_id)])];
+      const userIds = [
+        ...new Set([
+          ...revs.map((r: any) => r.reviewer_id),
+          ...revs.map((r: any) => r.reviewee_id),
+        ]),
+      ];
       const { data: profiles } = await supabase
         .from("profiles")
         .select("id, full_name, email")
@@ -2243,7 +2530,9 @@ function ReviewsTab() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success(currentHidden ? "Review is now visible!" : "Review is now hidden from public profiles.");
+      toast.success(
+        currentHidden ? "Review is now visible!" : "Review is now hidden from public profiles.",
+      );
       qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     }
   }
@@ -2274,18 +2563,22 @@ function ReviewsTab() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success(currentReported ? "Abuse report dismissed." : "Review successfully flagged for abuse.");
+      toast.success(
+        currentReported ? "Abuse report dismissed." : "Review successfully flagged for abuse.",
+      );
       qc.invalidateQueries({ queryKey: ["admin-reviews"] });
     }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Are you sure you want to permanently delete this review? This action is irreversible.")) return;
+    if (
+      !confirm(
+        "Are you sure you want to permanently delete this review? This action is irreversible.",
+      )
+    )
+      return;
 
-    const { error } = await supabase
-      .from("reviews")
-      .delete()
-      .eq("id", id);
+    const { error } = await supabase.from("reviews").delete().eq("id", id);
 
     if (error) {
       toast.error(error.message);
@@ -2369,9 +2662,13 @@ function ReviewsTab() {
 
       <div className="rounded-xl border bg-card overflow-hidden">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading reviews database...</p>
+          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+            Loading reviews database...
+          </p>
         ) : filtered.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">No reviews found matching criteria.</p>
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            No reviews found matching criteria.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
@@ -2397,18 +2694,38 @@ function ReviewsTab() {
                       <div className="text-[10px] text-muted-foreground">{r.reviewee_email}</div>
                     </td>
                     <td className="p-4">
-                      <span className="text-amber-500 font-bold font-display text-sm">★ {r.rating}</span>
+                      <span className="text-amber-500 font-bold font-display text-sm">
+                        ★ {r.rating}
+                      </span>
                     </td>
                     <td className="p-4 max-w-xs">
-                      <p className="text-xs text-muted-foreground italic break-words">"{r.comment || "No comment written."}"</p>
+                      <p className="text-xs text-muted-foreground italic break-words">
+                        "{r.comment || "No comment written."}"
+                      </p>
                     </td>
                     <td className="p-4 space-y-1">
                       <div className="flex flex-wrap gap-1">
-                        {r.is_hidden && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Hidden</Badge>}
-                        {r.status === "rejected" && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Rejected</Badge>}
-                        {r.status === "approved" && !r.is_hidden && <Badge className="bg-success text-success-foreground text-[9px] px-1.5 py-0.5">Approved</Badge>}
+                        {r.is_hidden && (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">
+                            Hidden
+                          </Badge>
+                        )}
+                        {r.status === "rejected" && (
+                          <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">
+                            Rejected
+                          </Badge>
+                        )}
+                        {r.status === "approved" && !r.is_hidden && (
+                          <Badge className="bg-success text-success-foreground text-[9px] px-1.5 py-0.5">
+                            Approved
+                          </Badge>
+                        )}
                         {r.is_reported && (
-                          <Badge variant="outline" className="text-[9px] border-destructive text-destructive px-1.5 py-0.5 flex items-center gap-0.5" title={r.report_reason || ""}>
+                          <Badge
+                            variant="outline"
+                            className="text-[9px] border-destructive text-destructive px-1.5 py-0.5 flex items-center gap-0.5"
+                            title={r.report_reason || ""}
+                          >
                             <AlertTriangle className="h-2.5 w-2.5" /> Flagged Abuse
                           </Badge>
                         )}
@@ -2419,7 +2736,11 @@ function ReviewsTab() {
                         <Button
                           size="xs"
                           variant="outline"
-                          className={r.is_hidden ? "text-success border-success/20 bg-success/5" : "text-muted-foreground"}
+                          className={
+                            r.is_hidden
+                              ? "text-success border-success/20 bg-success/5"
+                              : "text-muted-foreground"
+                          }
                           title={r.is_hidden ? "Unhide Review" : "Hide Review"}
                           onClick={() => handleToggleHide(r.id, !!r.is_hidden)}
                         >
@@ -2477,7 +2798,9 @@ function ReviewsTab() {
 function AnnouncementsTab() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-  const [targetAudience, setTargetAudience] = useState<"all" | "developers" | "recruiters" | "premium" | "incomplete">("all");
+  const [targetAudience, setTargetAudience] = useState<
+    "all" | "developers" | "recruiters" | "premium" | "incomplete"
+  >("all");
   const [deliveryInApp, setDeliveryInApp] = useState(true);
   const [deliveryEmail, setDeliveryEmail] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
@@ -2568,16 +2891,23 @@ function AnnouncementsTab() {
             Compose and broadcast multi-channel alerts and campaigns to targeted cohorts.
           </p>
         </div>
-        <Button onClick={() => setComposerOpen(true)} className="bg-gradient-accent text-primary-foreground font-bold shrink-0">
+        <Button
+          onClick={() => setComposerOpen(true)}
+          className="bg-gradient-accent text-primary-foreground font-bold shrink-0"
+        >
           <Plus className="mr-1 h-4 w-4" /> Compose Announcement
         </Button>
       </div>
 
       <div className="rounded-xl border bg-card overflow-hidden">
         {isLoading ? (
-          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">Loading broadcast history...</p>
+          <p className="p-8 text-center text-sm text-muted-foreground animate-pulse">
+            Loading broadcast history...
+          </p>
         ) : announcements.length === 0 ? (
-          <p className="p-8 text-center text-sm text-muted-foreground">No announcements broadcasted yet.</p>
+          <p className="p-8 text-center text-sm text-muted-foreground">
+            No announcements broadcasted yet.
+          </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm border-collapse">
@@ -2596,15 +2926,21 @@ function AnnouncementsTab() {
                   <tr key={a.id} className="hover:bg-muted/30 transition-colors">
                     <td className="p-4">
                       <div className="font-bold text-primary">{a.title}</div>
-                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{a.message}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        {a.message}
+                      </p>
                     </td>
                     <td className="p-4">
-                      <Badge variant="outline" className="capitalize text-xs font-semibold">{a.target_audience}</Badge>
+                      <Badge variant="outline" className="capitalize text-xs font-semibold">
+                        {a.target_audience}
+                      </Badge>
                     </td>
                     <td className="p-4">
                       <div className="flex gap-1">
                         {a.delivery_methods?.map((m: string) => (
-                          <Badge key={m} variant="secondary" className="capitalize text-[10px]">{m.replace("_", " ")}</Badge>
+                          <Badge key={m} variant="secondary" className="capitalize text-[10px]">
+                            {m.replace("_", " ")}
+                          </Badge>
                         ))}
                       </div>
                     </td>
@@ -2615,7 +2951,9 @@ function AnnouncementsTab() {
                           <span>Scheduled: {new Date(a.scheduled_at).toLocaleDateString()}</span>
                         </div>
                       ) : (
-                        <Badge className="bg-success text-success-foreground text-[10px]">Dispatched</Badge>
+                        <Badge className="bg-success text-success-foreground text-[10px]">
+                          Dispatched
+                        </Badge>
                       )}
                     </td>
                     <td className="p-4 text-xs text-muted-foreground">
@@ -2641,12 +2979,27 @@ function AnnouncementsTab() {
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 pt-4">
             <div className="space-y-1">
-              <Label>Broadcast Title <span className="text-destructive">*</span></Label>
-              <Input required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Major Platform Upgrade Complete!" />
+              <Label>
+                Broadcast Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Major Platform Upgrade Complete!"
+              />
             </div>
             <div className="space-y-1">
-              <Label>Message Content <span className="text-destructive">*</span></Label>
-              <Textarea required value={message} onChange={(e) => setMessage(e.target.value)} rows={5} placeholder="Write your announcement details..." />
+              <Label>
+                Message Content <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                required
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                rows={5}
+                placeholder="Write your announcement details..."
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
@@ -2666,28 +3019,51 @@ function AnnouncementsTab() {
               </div>
               <div className="space-y-1">
                 <Label>Schedule For Later (Optional)</Label>
-                <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="h-10 text-xs" />
+                <Input
+                  type="datetime-local"
+                  value={scheduledAt}
+                  onChange={(e) => setScheduledAt(e.target.value)}
+                  className="h-10 text-xs"
+                />
               </div>
             </div>
 
             <div className="space-y-2 border-t pt-3">
-              <Label className="text-xs font-semibold text-muted-foreground uppercase">Delivery Channels</Label>
+              <Label className="text-xs font-semibold text-muted-foreground uppercase">
+                Delivery Channels
+              </Label>
               <div className="flex gap-6 text-xs font-medium">
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox checked={deliveryInApp} onCheckedChange={(val) => setDeliveryInApp(!!val)} />
+                  <Checkbox
+                    checked={deliveryInApp}
+                    onCheckedChange={(val) => setDeliveryInApp(!!val)}
+                  />
                   In-App Notification Bell Alert
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Checkbox checked={deliveryEmail} onCheckedChange={(val) => setDeliveryEmail(!!val)} />
+                  <Checkbox
+                    checked={deliveryEmail}
+                    onCheckedChange={(val) => setDeliveryEmail(!!val)}
+                  />
                   Email Blast (Branded HTML)
                 </label>
               </div>
             </div>
 
             <DialogFooter className="gap-2 border-t pt-4">
-              <Button type="button" variant="outline" onClick={() => setComposerOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={busy} className="bg-gradient-accent text-primary-foreground font-bold">
-                {busy ? "Broadcasting..." : scheduledAt ? "Schedule Broadcast" : "Send Announcement Immediately 🚀"}
+              <Button type="button" variant="outline" onClick={() => setComposerOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={busy}
+                className="bg-gradient-accent text-primary-foreground font-bold"
+              >
+                {busy
+                  ? "Broadcasting..."
+                  : scheduledAt
+                    ? "Schedule Broadcast"
+                    : "Send Announcement Immediately 🚀"}
               </Button>
             </DialogFooter>
           </form>
@@ -2958,15 +3334,34 @@ function SendCustomEmailDialog({ user }: { user: any }) {
           </div>
           <div className="space-y-1">
             <Label>Subject</Label>
-            <Input required value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Action Required: Complete your profile today" />
+            <Input
+              required
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. Action Required: Complete your profile today"
+            />
           </div>
           <div className="space-y-1">
             <Label>Message Body</Label>
-            <Textarea required value={body} onChange={(e) => setBody(e.target.value)} rows={6} placeholder="Enter your custom email message..." />
+            <Textarea
+              required
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={6}
+              placeholder="Enter your custom email message..."
+            />
           </div>
           <DialogFooter className="gap-2">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" disabled={busy} className="bg-gradient-accent text-primary-foreground font-bold">{busy ? "Sending..." : "Send Email"}</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy}
+              className="bg-gradient-accent text-primary-foreground font-bold"
+            >
+              {busy ? "Sending..." : "Send Email"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -3094,14 +3489,21 @@ function UsersTab() {
     if (error) {
       toast.error(error.message);
     } else {
-      toast.success(currentSuspended ? "User unsuspended / activated!" : "User suspended successfully!");
+      toast.success(
+        currentSuspended ? "User unsuspended / activated!" : "User suspended successfully!",
+      );
       qc.invalidateQueries({ queryKey: ["admin-users-all"] });
       qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
     }
   }
 
   async function resetProfile(u: any) {
-    if (!confirm(`Are you sure you want to reset the profile of ${u.full_name || "this user"}? This will restore headline, bio, skills, and metrics back to defaults.`)) return;
+    if (
+      !confirm(
+        `Are you sure you want to reset the profile of ${u.full_name || "this user"}? This will restore headline, bio, skills, and metrics back to defaults.`,
+      )
+    )
+      return;
 
     try {
       if (u.role === "developer") {
@@ -3152,7 +3554,9 @@ function UsersTab() {
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground uppercase">Search Name/Email/ID</Label>
+            <Label className="text-[10px] text-muted-foreground uppercase">
+              Search Name/Email/ID
+            </Label>
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
@@ -3205,7 +3609,9 @@ function UsersTab() {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground uppercase">Profile Completion</Label>
+            <Label className="text-[10px] text-muted-foreground uppercase">
+              Profile Completion
+            </Label>
             <Select value={completionFilter} onValueChange={setCompletionFilter}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue />
@@ -3251,7 +3657,11 @@ function UsersTab() {
                   <td className="p-4">
                     <div className="font-bold flex items-center gap-1.5">
                       {u.full_name || "Anonymous"}
-                      {u.is_suspended && <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">Suspended</Badge>}
+                      {u.is_suspended && (
+                        <Badge variant="destructive" className="text-[9px] px-1.5 py-0.5">
+                          Suspended
+                        </Badge>
+                      )}
                     </div>
                     <div className="text-[10px] text-muted-foreground font-mono">{u.id}</div>
                   </td>
@@ -3277,7 +3687,10 @@ function UsersTab() {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex justify-end items-center gap-1.5">
-                      <ViewUserDialog user={u} kind={u.role === "recruiter" ? "recruiter" : "developer"} />
+                      <ViewUserDialog
+                        user={u}
+                        kind={u.role === "recruiter" ? "recruiter" : "developer"}
+                      />
                       <SendCustomEmailDialog user={u} />
                       <Button
                         variant="ghost"
@@ -3291,7 +3704,11 @@ function UsersTab() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className={u.is_suspended ? "text-success hover:text-success" : "text-amber-500 hover:text-amber-600"}
+                        className={
+                          u.is_suspended
+                            ? "text-success hover:text-success"
+                            : "text-amber-500 hover:text-amber-600"
+                        }
                         title={u.is_suspended ? "Activate / Unsuspend User" : "Suspend User"}
                         onClick={() => toggleSuspend(u.id, !!u.is_suspended)}
                       >
@@ -4714,20 +5131,29 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
       const completionPercentage = Math.round((filledFields / totalFields) * 100);
 
       // Fetch company projects (Module 6)
-      const { data: companyProjects } = kind === "recruiter"
-        ? await supabase.from("projects").select("id, title, status, budget_min_inr").eq("recruiter_id", user.id)
-        : { data: [] };
+      const { data: companyProjects } =
+        kind === "recruiter"
+          ? await supabase
+              .from("projects")
+              .select("id, title, status, budget_min_inr")
+              .eq("recruiter_id", user.id)
+          : { data: [] };
 
       // Fetch company reviews (Module 6)
-      const { data: companyReviews } = kind === "recruiter"
-        ? await supabase.from("reviews").select("id, rating, comment, created_at, reviewer_id").eq("reviewee_id", user.id)
-        : { data: [] };
+      const { data: companyReviews } =
+        kind === "recruiter"
+          ? await supabase
+              .from("reviews")
+              .select("id, rating, comment, created_at, reviewer_id")
+              .eq("reviewee_id", user.id)
+          : { data: [] };
 
       // Look up reviewer names for reviews
       const reviewerIds = [...new Set((companyReviews || []).map((r: any) => r.reviewer_id))];
-      const { data: reviewerProfiles } = reviewerIds.length > 0
-        ? await supabase.from("profiles").select("id, full_name").in("id", reviewerIds)
-        : { data: [] };
+      const { data: reviewerProfiles } =
+        reviewerIds.length > 0
+          ? await supabase.from("profiles").select("id, full_name").in("id", reviewerIds)
+          : { data: [] };
 
       const reviewsWithReviewer = (companyReviews || []).map((r: any) => {
         const rev = reviewerProfiles?.find((p) => p.id === r.reviewer_id);
@@ -4936,9 +5362,15 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
                   Company Recruiters
                 </h4>
                 <div className="p-3 bg-muted/30 rounded-lg border text-xs space-y-1">
-                  <p><strong>Primary Contact:</strong> {user.full_name || "—"}</p>
-                  <p><strong>Email Address:</strong> {user.email || "—"}</p>
-                  <p><strong>Phone Number:</strong> {user.phone || "—"}</p>
+                  <p>
+                    <strong>Primary Contact:</strong> {user.full_name || "—"}
+                  </p>
+                  <p>
+                    <strong>Email Address:</strong> {user.email || "—"}
+                  </p>
+                  <p>
+                    <strong>Phone Number:</strong> {user.phone || "—"}
+                  </p>
                 </div>
               </div>
 
@@ -4951,9 +5383,14 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
                 ) : (
                   <div className="max-h-36 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
                     {(details as any).companyProjects.map((p: any) => (
-                      <div key={p.id} className="flex justify-between items-center text-xs p-1.5 hover:bg-muted/30 rounded border-b last:border-b-0">
+                      <div
+                        key={p.id}
+                        className="flex justify-between items-center text-xs p-1.5 hover:bg-muted/30 rounded border-b last:border-b-0"
+                      >
                         <span className="font-bold truncate max-w-[180px]">{p.title}</span>
-                        <Badge variant="outline" className="capitalize text-[10px] scale-90">{p.status}</Badge>
+                        <Badge variant="outline" className="capitalize text-[10px] scale-90">
+                          {p.status}
+                        </Badge>
                       </div>
                     ))}
                   </div>
@@ -4965,7 +5402,9 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
                   Company Reviews ({(details as any).companyReviews?.length || 0})
                 </h4>
                 {(details as any).companyReviews?.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic">No company reviews received yet.</p>
+                  <p className="text-xs text-muted-foreground italic">
+                    No company reviews received yet.
+                  </p>
                 ) : (
                   <div className="max-h-36 overflow-y-auto space-y-2 border rounded-lg p-2 bg-background">
                     {(details as any).companyReviews.map((r: any) => (
@@ -4974,7 +5413,9 @@ function ViewUserDialog({ user, kind }: { user: any; kind: "developer" | "recrui
                           <span className="font-semibold text-primary">{r.reviewer_name}</span>
                           <span className="text-amber-500 font-bold">★ {r.rating} / 5</span>
                         </div>
-                        {r.comment && <p className="text-muted-foreground text-[11px] italic">"{r.comment}"</p>}
+                        {r.comment && (
+                          <p className="text-muted-foreground text-[11px] italic">"{r.comment}"</p>
+                        )}
                       </div>
                     ))}
                   </div>

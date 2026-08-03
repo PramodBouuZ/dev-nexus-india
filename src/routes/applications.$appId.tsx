@@ -206,19 +206,19 @@ export function NdaManager({
   const [developerName, setDeveloperName] = useState("");
   const [projectName, setProjectName] = useState("");
   const [confidentialityTerms, setConfidentialityTerms] = useState(
-    "All information exchanged between the parties during the course of the project, including source code, systems, documentation, credentials, and business data, shall be considered strictly Confidential Information. Neither party shall disclose this information to any third party without written consent."
+    "All information exchanged between the parties during the course of the project, including source code, systems, documentation, credentials, and business data, shall be considered strictly Confidential Information. Neither party shall disclose this information to any third party without written consent.",
   );
   const [ipOwnership, setIpOwnership] = useState(
-    "All intellectual property, code artifacts, designs, and assets produced by the Developer during the engagement shall be owned fully and exclusively by the Recruiter upon successful receipt of agreed payment terms."
+    "All intellectual property, code artifacts, designs, and assets produced by the Developer during the engagement shall be owned fully and exclusively by the Recruiter upon successful receipt of agreed payment terms.",
   );
   const [paymentTerms, setPaymentTerms] = useState(
-    "Payments shall be released strictly in accordance with milestones defined and approved in the DeveloperConnect project stages control hub."
+    "Payments shall be released strictly in accordance with milestones defined and approved in the DeveloperConnect project stages control hub.",
   );
   const [duration, setDuration] = useState(
-    "This Mutual Non-Disclosure Agreement shall remain in effect for a period of 2 years from the date of final signatures, or until the Confidential Information enters public domain."
+    "This Mutual Non-Disclosure Agreement shall remain in effect for a period of 2 years from the date of final signatures, or until the Confidential Information enters public domain.",
   );
   const [jurisdiction, setJurisdiction] = useState(
-    "This agreement shall be governed by and construed in accordance with the laws of India, and any disputes shall be resolved in the courts of New Delhi."
+    "This agreement shall be governed by and construed in accordance with the laws of India, and any disputes shall be resolved in the courts of New Delhi.",
   );
   const [additionalClauses, setAdditionalClauses] = useState("");
 
@@ -231,7 +231,11 @@ export function NdaManager({
       const [{ data: proj }, { data: dev }, { data: rec }] = await Promise.all([
         supabase.from("projects").select("title").eq("id", projectId).maybeSingle(),
         supabase.from("developer_profiles").select("full_name").eq("id", developerId).maybeSingle(),
-        supabase.from("recruiter_profiles").select("company_name").eq("id", recruiterId).maybeSingle(),
+        supabase
+          .from("recruiter_profiles")
+          .select("company_name")
+          .eq("id", recruiterId)
+          .maybeSingle(),
       ]);
       return {
         projectName: proj?.title || "SaaS Project Collaboration",
@@ -257,7 +261,14 @@ export function NdaManager({
         if (data.ip) setIpAddress(data.ip);
       })
       .catch(() => {
-        setIpAddress("103." + Math.floor(Math.random() * 254 + 1) + "." + Math.floor(Math.random() * 254 + 1) + "." + Math.floor(Math.random() * 254 + 1));
+        setIpAddress(
+          "103." +
+            Math.floor(Math.random() * 254 + 1) +
+            "." +
+            Math.floor(Math.random() * 254 + 1) +
+            "." +
+            Math.floor(Math.random() * 254 + 1),
+        );
       });
   }, []);
 
@@ -274,26 +285,45 @@ export function NdaManager({
     },
   });
 
-  // Track Viewed State on Developer load
+  // Track Received State on Developer load
   useEffect(() => {
-    if (nda && nda.status === "pending" && role === "developer") {
+    if (nda && (nda.status === "pending" || nda.status === "sent") && role === "developer") {
+      const nowStr = new Date().toISOString();
       supabase
         .from("ndas")
         .update({
-          status: "viewed",
-          viewed_at: new Date().toISOString(),
+          status: "received",
+          viewed_at: nowStr,
+          received_at: nowStr,
         } as any)
         .eq("id", nda.id)
-        .then(() => {
+        .then(async () => {
           qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] });
-          // Notify Recruiter that NDA has been viewed
+          qc.invalidateQueries({ queryKey: ["developer-ndas"] });
+          qc.invalidateQueries({ queryKey: ["recruiter-ndas"] });
+
+          // Log Activity: Developer Received NDA
+          try {
+            await logProjectActivityServerFn({
+              data: {
+                projectId,
+                userId: developerId,
+                activityType: "nda_received",
+                description: `Developer Received NDA`,
+              },
+            });
+          } catch (e) {
+            console.error(e);
+          }
+
+          // Notify Recruiter that NDA has been received (developer received NDA)
           sendSmartNotificationServerFn({
             data: {
               recipientId: recruiterId,
               actorId: developerId,
-              type: "nda_sent",
-              title: "NDA Document Viewed",
-              message: `The developer has opened and viewed the NDA document for project "${projectName || "the project"}".`,
+              type: "nda_sent", // utilizing existing category for notifications
+              title: "NDA Document Received",
+              message: `The developer has received the NDA document for project "${projectName || "the project"}".`,
               projectId,
               applicationId,
               projectName,
@@ -372,6 +402,22 @@ export function NdaManager({
 
     toast.success(saveAsDraft ? "NDA draft saved!" : "NDA request initiated!");
     qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] });
+    qc.invalidateQueries({ queryKey: ["developer-ndas"] });
+    qc.invalidateQueries({ queryKey: ["recruiter-ndas"] });
+
+    // Log Activity: Recruiter Created NDA Draft or Recruiter Sent NDA Request
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId,
+          userId: recruiterId,
+          activityType: saveAsDraft ? "nda_created" : "nda_sent",
+          description: saveAsDraft ? "Recruiter Created NDA Draft" : "Recruiter Sent NDA Request",
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
 
     if (!saveAsDraft) {
       // Centralized notification with inline chat log!
@@ -381,7 +427,8 @@ export function NdaManager({
           actorId: recruiterId,
           type: "nda_sent",
           title: "NDA Signature Requested",
-          message: "The recruiter has generated and sent a mutual NDA for you to sign before starting the project.",
+          message:
+            "The recruiter has generated and sent a mutual NDA for you to sign before starting the project.",
           projectId,
           applicationId,
           projectName: projectName || "Project Partner",
@@ -392,6 +439,62 @@ export function NdaManager({
         },
       });
     }
+  }
+
+  async function startReviewNda() {
+    setBusy(true);
+    const nowStr = new Date().toISOString();
+    const { error } = await supabase
+      .from("ndas")
+      .update({
+        status: "under_review",
+        under_review_at: nowStr,
+      } as any)
+      .eq("project_id", projectId)
+      .eq("developer_id", developerId);
+
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    toast.success("NDA is now Under Review.");
+    qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] });
+    qc.invalidateQueries({ queryKey: ["developer-ndas"] });
+    qc.invalidateQueries({ queryKey: ["recruiter-ndas"] });
+
+    // Log Activity: Developer Viewed NDA Terms
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId,
+          userId: developerId,
+          activityType: "nda_viewed",
+          description: `Developer started reviewing the NDA terms`,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
+
+    // Notify Recruiter that Developer is reviewing the NDA
+    await sendSmartNotificationServerFn({
+      data: {
+        recipientId: recruiterId,
+        actorId: developerId,
+        type: "nda_sent",
+        title: "NDA Under Review",
+        message: `The developer has started reviewing the NDA terms for project "${projectName || "the project"}".`,
+        projectId,
+        applicationId,
+        projectName,
+        developerName,
+        recruiterName: companyName,
+        ctaLabel: "View NDA Progress",
+        ctaUrl: `https://developerconnect.in/applications/${applicationId}`,
+      },
+    });
   }
 
   async function respondNda(action: "accepted" | "rejected") {
@@ -416,9 +519,28 @@ export function NdaManager({
     }
 
     toast.success(
-      `NDA ${action === "accepted" ? "signed and accepted" : "rejected"} successfully!`
+      `NDA ${action === "accepted" ? "signed and accepted" : "rejected"} successfully!`,
     );
     qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] });
+    qc.invalidateQueries({ queryKey: ["developer-ndas"] });
+    qc.invalidateQueries({ queryKey: ["recruiter-ndas"] });
+
+    // Log Activity: Developer Accepted or Rejected NDA
+    try {
+      await logProjectActivityServerFn({
+        data: {
+          projectId,
+          userId: developerId,
+          activityType: action === "accepted" ? "nda_accepted" : "nda_rejected",
+          description:
+            action === "accepted"
+              ? `Developer Accepted & Electronically Signed NDA`
+              : `Developer Rejected NDA terms`,
+        },
+      });
+    } catch (e) {
+      console.error(e);
+    }
 
     // Notify Recruiter and write chat thread system event
     await sendSmartNotificationServerFn({
@@ -427,9 +549,10 @@ export function NdaManager({
         actorId: developerId,
         type: action === "accepted" ? "nda_accepted" : "nda_rejected",
         title: action === "accepted" ? "NDA Accepted & Signed" : "NDA Rejected",
-        message: action === "accepted"
-          ? `The developer has signed and accepted the NDA for project "${projectName || "the project"}" from IP ${ipAddress}.`
-          : `The developer has rejected the NDA terms for project "${projectName || "the project"}".`,
+        message:
+          action === "accepted"
+            ? `The developer has signed and accepted the NDA for project "${projectName || "the project"}" from IP ${ipAddress}.`
+            : `The developer has rejected the NDA terms for project "${projectName || "the project"}".`,
         projectId,
         applicationId,
         projectName,
@@ -469,7 +592,8 @@ export function NdaManager({
               <FileText className="h-4 w-4 text-primary" /> Initiate Mutual Confidentiality NDA
             </h3>
             <p className="text-xs text-muted-foreground">
-              Configure terms and generate an NDA contract before beginning official project execution.
+              Configure terms and generate an NDA contract before beginning official project
+              execution.
             </p>
           </div>
           <div className="flex gap-4 text-xs font-medium">
@@ -493,10 +617,14 @@ export function NdaManager({
 
           {ndaType === "custom" && (
             <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
-              <span className="text-xs font-semibold block">Upload Custom NDA Document (PDF or Docs)</span>
+              <span className="text-xs font-semibold block">
+                Upload Custom NDA Document (PDF or Docs)
+              </span>
               {customUrl ? (
                 <div className="flex items-center justify-between bg-background border p-2 rounded text-xs">
-                  <span className="truncate max-w-[250px] font-medium text-success">✓ Document Uploaded Successfully</span>
+                  <span className="truncate max-w-[250px] font-medium text-success">
+                    ✓ Document Uploaded Successfully
+                  </span>
                   <div className="flex gap-2">
                     <Button
                       type="button"
@@ -543,7 +671,9 @@ export function NdaManager({
                           return;
                         }
 
-                        const { data: pub } = supabase.storage.from("avatars").getPublicUrl(filePath);
+                        const { data: pub } = supabase.storage
+                          .from("avatars")
+                          .getPublicUrl(filePath);
                         setCustomUrl(pub.publicUrl);
                         toast.success("NDA Document uploaded successfully!", { id: toastId });
                       } catch (err: any) {
@@ -559,7 +689,9 @@ export function NdaManager({
                   >
                     Select PDF / DOCS File to Upload
                   </Button>
-                  <p className="text-[10px] text-muted-foreground">Supported formats: PDF, DOC, DOCX. Max file size: 10MB.</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Supported formats: PDF, DOC, DOCX. Max file size: 10MB.
+                  </p>
                 </div>
               )}
             </div>
@@ -569,44 +701,109 @@ export function NdaManager({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">1. Company Name</Label>
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    1. Company Name
+                  </Label>
+                  <Input
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">2. Client Name</Label>
-                  <Input value={clientName} onChange={(e) => setClientName(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    2. Client Name
+                  </Label>
+                  <Input
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">3. Developer Name</Label>
-                  <Input value={developerName} onChange={(e) => setDeveloperName(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    3. Developer Name
+                  </Label>
+                  <Input
+                    value={developerName}
+                    onChange={(e) => setDeveloperName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">4. Project Name</Label>
-                  <Input value={projectName} onChange={(e) => setProjectName(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    4. Project Name
+                  </Label>
+                  <Input
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">5. Confidentiality Terms</Label>
-                  <Textarea value={confidentialityTerms} onChange={(e) => setConfidentialityTerms(e.target.value)} rows={3} className="text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    5. Confidentiality Terms
+                  </Label>
+                  <Textarea
+                    value={confidentialityTerms}
+                    onChange={(e) => setConfidentialityTerms(e.target.value)}
+                    rows={3}
+                    className="text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">6. Intellectual Property Ownership</Label>
-                  <Textarea value={ipOwnership} onChange={(e) => setIpOwnership(e.target.value)} rows={3} className="text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    6. Intellectual Property Ownership
+                  </Label>
+                  <Textarea
+                    value={ipOwnership}
+                    onChange={(e) => setIpOwnership(e.target.value)}
+                    rows={3}
+                    className="text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">7. Payment Terms</Label>
-                  <Textarea value={paymentTerms} onChange={(e) => setPaymentTerms(e.target.value)} rows={2} className="text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    7. Payment Terms
+                  </Label>
+                  <Textarea
+                    value={paymentTerms}
+                    onChange={(e) => setPaymentTerms(e.target.value)}
+                    rows={2}
+                    className="text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">8. Duration</Label>
-                  <Input value={duration} onChange={(e) => setDuration(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    8. Duration
+                  </Label>
+                  <Input
+                    value={duration}
+                    onChange={(e) => setDuration(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">9. Jurisdiction</Label>
-                  <Input value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)} className="h-8 text-xs" />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    9. Jurisdiction
+                  </Label>
+                  <Input
+                    value={jurisdiction}
+                    onChange={(e) => setJurisdiction(e.target.value)}
+                    className="h-8 text-xs"
+                  />
                 </div>
                 <div className="space-y-1.5 md:col-span-2">
-                  <Label className="text-[11px] font-semibold text-muted-foreground">10. Additional Clauses</Label>
-                  <Textarea value={additionalClauses} onChange={(e) => setAdditionalClauses(e.target.value)} rows={2} className="text-xs" placeholder="e.g. Non-solicitation, liquidated damages details..." />
+                  <Label className="text-[11px] font-semibold text-muted-foreground">
+                    10. Additional Clauses
+                  </Label>
+                  <Textarea
+                    value={additionalClauses}
+                    onChange={(e) => setAdditionalClauses(e.target.value)}
+                    rows={2}
+                    className="text-xs"
+                    placeholder="e.g. Non-solicitation, liquidated damages details..."
+                  />
                 </div>
               </div>
 
@@ -617,40 +814,60 @@ export function NdaManager({
                   onClick={() => setShowPreview(!showPreview)}
                   className="w-full flex items-center justify-between p-3 bg-muted/40 font-semibold text-xs border-b"
                 >
-                  <span>{showPreview ? "Hide Preview Document" : "Show Full Template Preview Document"}</span>
+                  <span>
+                    {showPreview ? "Hide Preview Document" : "Show Full Template Preview Document"}
+                  </span>
                   <Eye className="h-4 w-4" />
                 </button>
                 {showPreview && (
                   <div className="p-6 text-xs max-h-96 overflow-y-auto space-y-4" ref={printRef}>
-                    <h2 className="text-center font-bold text-base uppercase tracking-wider">Mutual Non-Disclosure Agreement</h2>
+                    <h2 className="text-center font-bold text-base uppercase tracking-wider">
+                      Mutual Non-Disclosure Agreement
+                    </h2>
                     <p className="text-justify font-medium">
-                      This Agreement is entered into by and between <strong>{companyName || "[Company Name]"}</strong> (acting as the Recruiter / Client) and <strong>{developerName || "[Developer Name]"}</strong> (acting as the Developer) to protect intellectual secrets and facilitate project collaboration on <strong>"{projectName || "[Project Title]"}"</strong>.
+                      This Agreement is entered into by and between{" "}
+                      <strong>{companyName || "[Company Name]"}</strong> (acting as the Recruiter /
+                      Client) and <strong>{developerName || "[Developer Name]"}</strong> (acting as
+                      the Developer) to protect intellectual secrets and facilitate project
+                      collaboration on <strong>"{projectName || "[Project Title]"}"</strong>.
                     </p>
 
                     <div className="space-y-3 pt-2">
                       <div className="space-y-0.5">
-                        <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 1: Confidential Information</div>
+                        <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                          Section 1: Confidential Information
+                        </div>
                         <div className="text-justify">{confidentialityTerms}</div>
                       </div>
                       <div className="space-y-0.5">
-                        <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 2: Intellectual Property</div>
+                        <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                          Section 2: Intellectual Property
+                        </div>
                         <div className="text-justify">{ipOwnership}</div>
                       </div>
                       <div className="space-y-0.5">
-                        <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 3: Release & Payment Terms</div>
+                        <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                          Section 3: Release & Payment Terms
+                        </div>
                         <div className="text-justify">{paymentTerms}</div>
                       </div>
                       <div className="space-y-0.5">
-                        <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 4: Duration of Binding</div>
+                        <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                          Section 4: Duration of Binding
+                        </div>
                         <div className="text-justify">{duration}</div>
                       </div>
                       <div className="space-y-0.5">
-                        <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 5: Jurisdiction & Governing Law</div>
+                        <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                          Section 5: Jurisdiction & Governing Law
+                        </div>
                         <div className="text-justify">{jurisdiction}</div>
                       </div>
                       {additionalClauses && (
                         <div className="space-y-0.5">
-                          <div className="font-bold text-muted-foreground text-[10px] uppercase">Section 6: Supplementary Clauses</div>
+                          <div className="font-bold text-muted-foreground text-[10px] uppercase">
+                            Section 6: Supplementary Clauses
+                          </div>
                           <div className="text-justify">{additionalClauses}</div>
                         </div>
                       )}
@@ -659,11 +876,15 @@ export function NdaManager({
                     <div className="grid grid-cols-2 gap-8 pt-8 text-[10px]">
                       <div className="border-t border-border pt-2">
                         <p className="font-bold">Authorized Signatory</p>
-                        <p className="text-muted-foreground">For {companyName || "[Company Name]"}</p>
+                        <p className="text-muted-foreground">
+                          For {companyName || "[Company Name]"}
+                        </p>
                       </div>
                       <div className="border-t border-border pt-2">
                         <p className="font-bold">Independent Developer Signature</p>
-                        <p className="text-muted-foreground">For {developerName || "[Developer Name]"}</p>
+                        <p className="text-muted-foreground">
+                          For {developerName || "[Developer Name]"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -675,7 +896,11 @@ export function NdaManager({
           <div className="flex gap-2">
             <Button
               onClick={() => initiateNda(false)}
-              disabled={busy || (ndaType === "custom" && !customUrl) || (ndaType === "template" && (!companyName || !developerName))}
+              disabled={
+                busy ||
+                (ndaType === "custom" && !customUrl) ||
+                (ndaType === "template" && (!companyName || !developerName))
+              }
               size="sm"
               className="bg-gradient-accent text-primary-foreground font-bold"
             >
@@ -708,14 +933,21 @@ export function NdaManager({
     } else {
       return (
         <div className="mt-6 p-4 rounded-xl bg-muted/20 border border-border text-xs flex items-center gap-2 text-muted-foreground">
-          <AlertTriangle className="h-4 w-4 animate-pulse text-amber-500" /> Waiting for the recruiter to send the Mutual NDA.
+          <AlertTriangle className="h-4 w-4 animate-pulse text-amber-500" /> Waiting for the
+          recruiter to send the Mutual NDA.
         </div>
       );
     }
   }
 
-  // Pending / Viewed NDA
-  if (nda.status === "pending" || nda.status === "viewed") {
+  // Intermediate Workflow statuses
+  if (
+    nda.status === "sent" ||
+    nda.status === "received" ||
+    nda.status === "under_review" ||
+    nda.status === "pending" ||
+    nda.status === "viewed"
+  ) {
     const tData: NdaTemplateData = nda.template_data || {
       companyName: "Company",
       clientName: "Client",
@@ -737,52 +969,73 @@ export function NdaManager({
               <FileText className="h-4 w-4" /> Confidentiality NDA Requested
             </h3>
             <p className="text-xs text-muted-foreground">
-              A mutual non-disclosure agreement is pending signature before official assignment activation.
+              A mutual non-disclosure agreement is pending signature before official assignment
+              activation.
             </p>
           </div>
           <Badge
             variant="outline"
             className="border-warning/30 text-warning bg-warning/10 font-bold capitalize flex items-center gap-1"
           >
-            <Eye className="h-3 w-3" /> Status: {nda.status}
+            <Eye className="h-3 w-3" /> Status: {nda.status.replace("_", " ")}
           </Badge>
         </div>
 
-        <div className="p-4 bg-background rounded-xl border border-border text-xs leading-relaxed space-y-3" ref={printRef}>
-          <h4 className="text-center font-bold text-sm uppercase">Mutual Non-Disclosure Agreement</h4>
+        <div
+          className="p-4 bg-background rounded-xl border border-border text-xs leading-relaxed space-y-3"
+          ref={printRef}
+        >
+          <h4 className="text-center font-bold text-sm uppercase">
+            Mutual Non-Disclosure Agreement
+          </h4>
           {nda.template_name === "custom_upload" && nda.file_url ? (
             <p className="text-justify font-medium">
-              The recruiter has uploaded a custom NDA. You must view and download the custom terms linked below:
+              The recruiter has uploaded a custom NDA. You must view and download the custom terms
+              linked below:
             </p>
           ) : (
             <>
               <p className="text-justify">
-                This Agreement is entered into by and between <strong>{tData.companyName}</strong> (Client / Recruiter) and <strong>{tData.developerName}</strong> (Developer) for the project <strong>"{tData.projectName}"</strong>.
+                This Agreement is entered into by and between <strong>{tData.companyName}</strong>{" "}
+                (Client / Recruiter) and <strong>{tData.developerName}</strong> (Developer) for the
+                project <strong>"{tData.projectName}"</strong>.
               </p>
               <div className="space-y-2 pt-2">
                 <div>
-                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 1: Confidentiality Details</span>
+                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                    Section 1: Confidentiality Details
+                  </span>
                   <span className="text-justify">{tData.confidentialityTerms}</span>
                 </div>
                 <div>
-                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 2: Intellectual Property Allocation</span>
+                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                    Section 2: Intellectual Property Allocation
+                  </span>
                   <span className="text-justify">{tData.ipOwnership}</span>
                 </div>
                 <div>
-                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 3: Release of Payment</span>
+                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                    Section 3: Release of Payment
+                  </span>
                   <span className="text-justify">{tData.paymentTerms}</span>
                 </div>
                 <div>
-                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 4: Term & Duration</span>
+                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                    Section 4: Term & Duration
+                  </span>
                   <span>{tData.duration}</span>
                 </div>
                 <div>
-                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 5: Governing Jurisdiction</span>
+                  <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                    Section 5: Governing Jurisdiction
+                  </span>
                   <span>{tData.jurisdiction}</span>
                 </div>
                 {tData.additionalClauses && (
                   <div>
-                    <span className="font-bold uppercase text-[10px] text-muted-foreground block">Section 6: Supplementary Clauses</span>
+                    <span className="font-bold uppercase text-[10px] text-muted-foreground block">
+                      Section 6: Supplementary Clauses
+                    </span>
                     <span className="text-justify">{tData.additionalClauses}</span>
                   </div>
                 )}
@@ -801,12 +1054,7 @@ export function NdaManager({
                 <Download className="h-3.5 w-3.5" /> View Custom Upload Document
               </Button>
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5"
-                onClick={handlePrint}
-              >
+              <Button size="sm" variant="outline" className="h-8 gap-1.5" onClick={handlePrint}>
                 <Printer className="h-3.5 w-3.5" /> Print/Download Agreement
               </Button>
             )}
@@ -814,31 +1062,54 @@ export function NdaManager({
         </div>
 
         {role === "developer" ? (
-          <div className="flex flex-wrap items-center gap-3 pt-1">
-            <Button
-              onClick={() => respondNda("accepted")}
-              disabled={busy}
-              size="sm"
-              className="bg-success text-success-foreground hover:opacity-90 font-bold"
-            >
-              Accept & Electronic Sign NDA
-            </Button>
-            <Button
-              onClick={() => respondNda("rejected")}
-              disabled={busy}
-              size="sm"
-              variant="outline"
-              className="text-destructive border-destructive/20"
-            >
-              Reject Terms
-            </Button>
-            <span className="text-[10px] text-muted-foreground font-mono">
-              IP Captured for Audit: {ipAddress}
-            </span>
+          <div className="space-y-3 pt-1">
+            {nda.status === "sent" || nda.status === "received" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={startReviewNda}
+                    disabled={busy}
+                    size="sm"
+                    className="bg-accent text-accent-foreground font-bold hover:opacity-90"
+                  >
+                    Begin NDA Review
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Clicking "Begin NDA Review" will change status to "Under Review" and unlock your
+                  electronic signature options.
+                </p>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  onClick={() => respondNda("accepted")}
+                  disabled={busy}
+                  size="sm"
+                  className="bg-success text-success-foreground hover:opacity-90 font-bold"
+                >
+                  Accept & Electronic Sign NDA
+                </Button>
+                <Button
+                  onClick={() => respondNda("rejected")}
+                  disabled={busy}
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive border-destructive/20 font-bold"
+                >
+                  Reject Terms
+                </Button>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  IP Captured for Audit: {ipAddress}
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
-            <Eye className="h-4 w-4 text-warning" /> Sent to developer. Current status: <Badge className="capitalize">{nda.status}</Badge> (Waiting for signature).
+            <Eye className="h-4 w-4 text-warning" /> Sent to developer. Current status:{" "}
+            <Badge className="capitalize">{nda.status.replace("_", " ")}</Badge> (Waiting for
+            signature).
           </div>
         )}
       </div>
@@ -865,9 +1136,15 @@ export function NdaManager({
         </div>
         <div className="text-xs text-muted-foreground bg-background p-3 rounded-lg border border-border/50 space-y-2">
           <div className="space-y-1 font-mono">
-            <p><strong>Signed by Developer IP:</strong> {nda.developer_ip || "Verified IP"}</p>
-            <p><strong>Signed Timestamp:</strong> {new Date(nda.accepted_at).toLocaleString()}</p>
-            <p><strong>File Version:</strong> {nda.file_version || "1.0"}</p>
+            <p>
+              <strong>Signed by Developer IP:</strong> {nda.developer_ip || "Verified IP"}
+            </p>
+            <p>
+              <strong>Signed Timestamp:</strong> {new Date(nda.accepted_at).toLocaleString()}
+            </p>
+            <p>
+              <strong>File Version:</strong> {nda.file_version || "1.0"}
+            </p>
           </div>
           {nda.file_url ? (
             <a
@@ -919,7 +1196,7 @@ export function NdaManager({
               .eq("project_id", projectId)
               .eq("developer_id", developerId)
               .then(() =>
-                qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] })
+                qc.invalidateQueries({ queryKey: ["project-nda", projectId, developerId] }),
               );
           }}
           size="sm"
