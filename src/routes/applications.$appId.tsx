@@ -286,10 +286,17 @@ export function NdaManager({
     },
   });
 
+  const effectiveStatus = nda
+    ? (((nda.status === "sent" || nda.status === "received") && nda.viewed_at)
+      ? "under_review"
+      : nda.status)
+    : "pending";
+
   // Track Received State on Developer load
   useEffect(() => {
     if (
       nda &&
+      !nda.received_at &&
       (nda.status === "pending" || nda.status === "sent") &&
       role === "developer" &&
       !hasTriggeredReceived.current
@@ -299,7 +306,7 @@ export function NdaManager({
       supabase
         .from("ndas")
         .update({
-          status: "received",
+          status: "sent",
           viewed_at: nowStr,
           received_at: nowStr,
         } as any)
@@ -461,8 +468,7 @@ export function NdaManager({
     const { error } = await supabase
       .from("ndas")
       .update({
-        status: "under_review",
-        under_review_at: nowStr,
+        viewed_at: nowStr,
       } as any)
       .eq("project_id", projectId)
       .eq("developer_id", developerId);
@@ -584,7 +590,7 @@ export function NdaManager({
     );
 
   // Recruiter: Create NDA Flow
-  if (!nda || nda.status === "draft") {
+  if (!nda || effectiveStatus === "draft") {
     if (role === "recruiter") {
       const templateVals: NdaTemplateData = nda?.template_data || {
         companyName,
@@ -956,11 +962,11 @@ export function NdaManager({
 
   // Intermediate Workflow statuses
   if (
-    nda.status === "sent" ||
-    nda.status === "received" ||
-    nda.status === "under_review" ||
-    nda.status === "pending" ||
-    nda.status === "viewed"
+    effectiveStatus === "sent" ||
+    effectiveStatus === "received" ||
+    effectiveStatus === "under_review" ||
+    effectiveStatus === "pending" ||
+    effectiveStatus === "viewed"
   ) {
     const tData: NdaTemplateData = nda.template_data || {
       companyName: "Company",
@@ -991,7 +997,7 @@ export function NdaManager({
             variant="outline"
             className="border-warning/30 text-warning bg-warning/10 font-bold capitalize flex items-center gap-1"
           >
-            <Eye className="h-3 w-3" /> Status: {nda.status.replace("_", " ")}
+            <Eye className="h-3 w-3" /> Status: {effectiveStatus.replace("_", " ")}
           </Badge>
         </div>
 
@@ -1077,7 +1083,7 @@ export function NdaManager({
 
         {role === "developer" ? (
           <div className="space-y-3 pt-1">
-            {nda.status === "sent" || nda.status === "received" ? (
+            {effectiveStatus === "sent" || effectiveStatus === "received" ? (
               <div className="flex flex-col gap-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <Button
@@ -1122,7 +1128,7 @@ export function NdaManager({
         ) : (
           <div className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
             <Eye className="h-4 w-4 text-warning" /> Sent to developer. Current status:{" "}
-            <Badge className="capitalize">{nda.status.replace("_", " ")}</Badge> (Waiting for
+            <Badge className="capitalize">{effectiveStatus.replace("_", " ")}</Badge> (Waiting for
             signature).
           </div>
         )}
