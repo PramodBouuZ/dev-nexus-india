@@ -885,12 +885,13 @@ function RecruiterDashboard({ userId }: { userId: string }) {
         {
           event: "*",
           schema: "public",
-          table: "project_assignments",
+          table: "projects",
           filter: `recruiter_id=eq.${userId}`,
         },
         () => {
           qc.invalidateQueries({ queryKey: ["assigned-devs", userId] });
           qc.invalidateQueries({ queryKey: ["my-projects", userId] });
+          qc.invalidateQueries({ queryKey: ["workspace-projects", userId] });
         },
       )
       .on(
@@ -959,19 +960,23 @@ function RecruiterDashboard({ userId }: { userId: string }) {
   const { data: assignedDevs } = useQuery({
     queryKey: ["assigned-devs", userId],
     queryFn: async () => {
-      const { data: assignments } = await supabase
-        .from("project_assignments")
-        .select("*, projects(title)")
-        .eq("recruiter_id", userId);
-      if (!assignments?.length) return [];
-      const devIds = assignments.map((a) => a.developer_id);
+      const { data: assignedProjects } = await supabase
+        .from("projects")
+        .select("id, title, assigned_developer_id")
+        .eq("recruiter_id", userId)
+        .not("assigned_developer_id", "is", null);
+      if (!assignedProjects?.length) return [];
+      const devIds = assignedProjects.map((p) => p.assigned_developer_id!);
       const { data: devs } = await supabase
         .from("developer_profiles")
         .select("id, full_name, avatar_url, headline")
         .in("id", devIds);
-      return assignments.map((a) => ({
-        ...a,
-        dev: devs?.find((d) => d.id === a.developer_id),
+      return assignedProjects.map((p) => ({
+        id: p.id,
+        project_id: p.id,
+        developer_id: p.assigned_developer_id!,
+        projects: { title: p.title },
+        dev: devs?.find((d) => d.id === p.assigned_developer_id),
       }));
     },
   });
@@ -1901,11 +1906,16 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
     enabled: !!selectedProjectId,
     queryFn: async () => {
       const { data } = await supabase
-        .from("project_assignments")
-        .select("*")
-        .eq("project_id", selectedProjectId)
+        .from("projects")
+        .select("id, assigned_developer_id, assigned_at")
+        .eq("id", selectedProjectId)
         .maybeSingle();
-      return data;
+      if (!data || !data.assigned_developer_id) return null;
+      return {
+        project_id: data.id,
+        developer_id: data.assigned_developer_id,
+        assigned_at: data.assigned_at,
+      };
     },
   });
 
@@ -2038,25 +2048,16 @@ export function RecruiterWorkspace({ userId }: { userId: string }) {
     }
 
     setBusy(true);
-    const { error } = await supabase.from("project_assignments").insert({
-      project_id: selectedProjectId,
-      developer_id: devId,
-      recruiter_id: userId,
-    });
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        assigned_developer_id: devId,
+        assigned_at: new Date().toISOString(),
+        status: "assigned",
+      } as any)
+      .eq("id", selectedProjectId);
 
     if (!error) {
-      // Notify developer
-      await supabase.from("notifications").insert({
-        user_id: devId,
-        title: "Project Assigned! 🚀",
-        body: `You have been officially assigned to the project: ${project?.title}`,
-        type: "project_assigned",
-        link: `/projects/${selectedProjectId}`,
-      });
-
-      // Update project status to assigned
-      await supabase.from("projects").update({ status: "assigned" }).eq("id", selectedProjectId);
-
       try {
         await logProjectActivityServerFn({
           data: {
@@ -2480,10 +2481,16 @@ function DeveloperDashboard({ userId }: { userId: string }) {
     queryKey: ["assigned-projects", userId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("project_assignments")
-        .select("*, projects(*)")
-        .eq("developer_id", userId);
-      return data ?? [];
+        .from("projects")
+        .select("*")
+        .eq("assigned_developer_id", userId);
+      if (!data) return [];
+      return data.map((p) => ({
+        id: p.id,
+        project_id: p.id,
+        developer_id: userId,
+        projects: p,
+      }));
     },
   });
 
@@ -2657,12 +2664,17 @@ function DeveloperDashboard({ userId }: { userId: string }) {
         {
           event: "*",
           schema: "public",
-          table: "project_assignments",
-          filter: `developer_id=eq.${userId}`,
+          table: "projects",
+          filter: `assigned_developer_id=eq.${userId}`,
         },
         (payload) => {
-          if (payload.eventType === "INSERT")
-            toast.success("You have been assigned to a new project!");
+          if (payload.eventType === "UPDATE") {
+            const next = payload.new as any;
+            const prev = payload.old as any;
+            if (next.assigned_developer_id === userId && (!prev || prev.assigned_developer_id !== userId)) {
+              toast.success("You have been assigned to a new project!");
+            }
+          }
           qc.invalidateQueries({ queryKey: ["assigned-projects", userId] });
         },
       )

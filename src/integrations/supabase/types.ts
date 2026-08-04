@@ -504,33 +504,6 @@ export type Database = {
         };
         Relationships: [];
       };
-      project_assignments: {
-        Row: {
-          assigned_at: string;
-          developer_id: string;
-          id: string;
-          project_id: string;
-          recruiter_id: string;
-          status: string;
-        };
-        Insert: {
-          assigned_at?: string;
-          developer_id: string;
-          id?: string;
-          project_id: string;
-          recruiter_id: string;
-          status?: string;
-        };
-        Update: {
-          assigned_at?: string;
-          developer_id?: string;
-          id?: string;
-          project_id?: string;
-          recruiter_id?: string;
-          status?: string;
-        };
-        Relationships: [];
-      };
       project_stages: {
         Row: {
           comment: string | null;
@@ -571,6 +544,8 @@ export type Database = {
         Row: {
           project_slug: string | null;
           ai_suggestions: Json | null;
+          assigned_developer_id: string | null;
+          assigned_at: string | null;
           budget_max_inr: number | null;
           budget_min_inr: number | null;
           created_at: string;
@@ -593,6 +568,8 @@ export type Database = {
         Insert: {
           project_slug?: string | null;
           ai_suggestions?: Json | null;
+          assigned_developer_id?: string | null;
+          assigned_at?: string | null;
           budget_max_inr?: number | null;
           budget_min_inr?: number | null;
           created_at?: string;
@@ -615,6 +592,8 @@ export type Database = {
         Update: {
           project_slug?: string | null;
           ai_suggestions?: Json | null;
+          assigned_developer_id?: string | null;
+          assigned_at?: string | null;
           budget_max_inr?: number | null;
           budget_min_inr?: number | null;
           created_at?: string;

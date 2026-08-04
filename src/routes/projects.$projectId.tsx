@@ -615,28 +615,16 @@ function AssignButton({
     }
 
     setBusy(true);
-    const { error } = await supabase.from("project_assignments").insert({
-      project_id: projectId,
-      developer_id: developerId,
-      recruiter_id: recruiterId,
-    });
+    const { error } = await supabase
+      .from("projects")
+      .update({
+        assigned_developer_id: developerId,
+        assigned_at: new Date().toISOString(),
+        status: "assigned",
+      } as any)
+      .eq("id", projectId);
 
     if (!error) {
-      // Notify developer
-      const { data: proj } = await supabase
-        .from("projects")
-        .select("title")
-        .eq("id", projectId)
-        .maybeSingle();
-      await supabase.from("notifications").insert({
-        user_id: developerId,
-        title: "Project Assigned!",
-        body: `You have been officially assigned to the project: ${proj?.title || "Project"}`,
-        type: "project_assigned",
-        link: `/projects/${projectId}`,
-      });
-      await supabase.from("projects").update({ status: "assigned" }).eq("id", projectId);
-
       try {
         await logProjectActivityServerFn({
           data: {
