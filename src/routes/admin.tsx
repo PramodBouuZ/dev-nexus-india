@@ -1657,11 +1657,16 @@ function NdasTab() {
         .select("id, full_name")
         .in("id", userIds);
 
-      return data.map((n) => ({
-        ...n,
-        recruiter_name: profiles?.find((p) => p.id === n.recruiter_id)?.full_name || "Recruiter",
-        developer_name: profiles?.find((p) => p.id === n.developer_id)?.full_name || "Developer",
-      }));
+      return data.map((n) => {
+        const effectiveStatus = ((n.status === "sent" || n.status === "received") && n.viewed_at) ? "under_review" : n.status;
+        return {
+          ...n,
+          status: effectiveStatus,
+          under_review_at: n.viewed_at,
+          recruiter_name: profiles?.find((p) => p.id === n.recruiter_id)?.full_name || "Recruiter",
+          developer_name: profiles?.find((p) => p.id === n.developer_id)?.full_name || "Developer",
+        };
+      });
     },
   });
 

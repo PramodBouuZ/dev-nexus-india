@@ -5,6 +5,14 @@ import { useAuth } from "@/lib/auth";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { DeveloperProfileDialog } from "@/components/DeveloperProfileDialog";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -128,14 +136,18 @@ export function DeveloperNdaRow({ nda, userId }: { nda: any; userId: string }) {
     additionalClauses: "",
   };
 
+  const effectiveStatus =
+    ((nda.status === "sent" || nda.status === "received") && nda.viewed_at)
+      ? "under_review"
+      : nda.status;
+
   async function startReview() {
     setBusy(true);
     const nowStr = new Date().toISOString();
     const { error } = await supabase
       .from("ndas")
       .update({
-        status: "under_review",
-        under_review_at: nowStr,
+        viewed_at: nowStr,
       } as any)
       .eq("id", nda.id);
 
@@ -287,9 +299,9 @@ export function DeveloperNdaRow({ nda, userId }: { nda: any; userId: string }) {
           </p>
         </div>
         <Badge
-          className={`capitalize border font-bold ${statusColors[nda.status] || "bg-muted text-muted-foreground"}`}
+          className={`capitalize border font-bold ${statusColors[effectiveStatus] || "bg-muted text-muted-foreground"}`}
         >
-          {nda.status.replace("_", " ")}
+          {effectiveStatus.replace("_", " ")}
         </Badge>
       </div>
 
@@ -423,7 +435,7 @@ export function DeveloperNdaRow({ nda, userId }: { nda: any; userId: string }) {
         )}
 
         {/* Dynamic transition flow actions */}
-        {(nda.status === "sent" || nda.status === "received") && (
+        {(effectiveStatus === "sent" || effectiveStatus === "received") && (
           <Button
             size="sm"
             onClick={startReview}
@@ -434,7 +446,7 @@ export function DeveloperNdaRow({ nda, userId }: { nda: any; userId: string }) {
           </Button>
         )}
 
-        {nda.status === "under_review" && (
+        {effectiveStatus === "under_review" && (
           <div className="flex gap-2 ml-auto">
             <Button
               size="sm"
@@ -1300,6 +1312,11 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                           expired: "bg-gray-500/15 text-gray-600 border-gray-500/20",
                         };
 
+                        const effectiveNdaStatus =
+                          ((n.status === "sent" || n.status === "received") && n.viewed_at)
+                            ? "under_review"
+                            : n.status;
+
                         return (
                           <tr key={n.id} className="hover:bg-muted/10 transition-colors">
                             <td className="p-3.5 font-semibold text-foreground">
@@ -1311,9 +1328,9 @@ function RecruiterDashboard({ userId }: { userId: string }) {
                             </td>
                             <td className="p-3.5">
                               <Badge
-                                className={`capitalize font-bold border ${statusColors[n.status] || "bg-muted text-muted-foreground"}`}
+                                className={`capitalize font-bold border ${statusColors[effectiveNdaStatus] || "bg-muted text-muted-foreground"}`}
                               >
-                                {n.status.replace("_", " ")}
+                                {effectiveNdaStatus.replace("_", " ")}
                               </Badge>
                             </td>
                             <td className="p-3.5 text-muted-foreground font-medium">
