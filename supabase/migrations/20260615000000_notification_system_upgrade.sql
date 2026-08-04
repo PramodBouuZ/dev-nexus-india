@@ -171,38 +171,36 @@ END $$;
 -- Project Assignment -> Notify Parties (Updating the one from 20260610000000_workflow_upgrade.sql)
 CREATE OR REPLACE FUNCTION public.notify_on_project_assignment()
 RETURNS trigger AS $$
-DECLARE
-  ptitle text;
 BEGIN
-  SELECT title INTO ptitle FROM public.projects WHERE id = NEW.project_id;
+  IF NEW.assigned_developer_id IS NOT NULL AND OLD.assigned_developer_id IS NULL THEN
+    -- Update status and timestamp
+    NEW.status := 'assigned';
+    NEW.assigned_at := now();
 
-  -- Notify Developer
-  INSERT INTO public.notifications(user_id, actor_id, type, title, message, link, reference_id)
-  VALUES (
-    NEW.developer_id,
-    NEW.recruiter_id,
-    'project_assigned',
-    'Project Assigned',
-    'You have been assigned to: ' || COALESCE(ptitle, 'a project'),
-    '/projects/' || NEW.project_id,
-    NEW.id
-  );
+    -- Notify Developer
+    INSERT INTO public.notifications(user_id, actor_id, type, title, message, link, reference_id)
+    VALUES (
+      NEW.assigned_developer_id,
+      NEW.recruiter_id,
+      'project_assigned',
+      'Project Assigned',
+      'You have been assigned to: ' || COALESCE(NEW.title, 'a project'),
+      '/projects/' || NEW.id,
+      NEW.id
+    );
 
-  -- Notify Recruiter
-  INSERT INTO public.notifications(user_id, actor_id, type, title, message, link, reference_id)
-  VALUES (
-    NEW.recruiter_id,
-    NEW.developer_id,
-    'developer_accepted_project',
-    'Project Started',
-    'Developer has started working on: ' || COALESCE(ptitle, 'your project'),
-    '/projects/' || NEW.project_id,
-    NEW.id
-  );
-
-  -- Update project status to assigned
-  UPDATE public.projects SET status = 'assigned' WHERE id = NEW.project_id;
-
+    -- Notify Recruiter
+    INSERT INTO public.notifications(user_id, actor_id, type, title, message, link, reference_id)
+    VALUES (
+      NEW.recruiter_id,
+      NEW.assigned_developer_id,
+      'developer_accepted_project',
+      'Project Started',
+      'Developer has started working on: ' || COALESCE(NEW.title, 'your project'),
+      '/projects/' || NEW.id,
+      NEW.id
+    );
+  END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -217,7 +215,7 @@ DECLARE
 BEGIN
   IF NEW.status = 'completed' AND OLD.status <> 'completed' THEN
     SELECT recruiter_id, title INTO rec_id, ptitle FROM public.projects WHERE id = NEW.id;
-    SELECT developer_id INTO dev_id FROM public.project_assignments WHERE project_id = NEW.id LIMIT 1;
+    dev_id := NEW.assigned_developer_id;
 
     -- Notify Developer
     IF dev_id IS NOT NULL THEN
@@ -307,8 +305,8 @@ DROP TRIGGER IF EXISTS trg_notify_on_car_status ON public.contact_access_request
 CREATE TRIGGER trg_notify_on_car_status AFTER UPDATE ON public.contact_access_requests
   FOR EACH ROW EXECUTE FUNCTION public.notify_on_contact_request_status();
 
-DROP TRIGGER IF EXISTS trg_notify_assignment ON public.project_assignments;
-CREATE TRIGGER trg_notify_assignment AFTER INSERT ON public.project_assignments
+DROP TRIGGER IF EXISTS trg_notify_assignment ON public.projects;
+CREATE TRIGGER trg_notify_assignment BEFORE UPDATE OF assigned_developer_id ON public.projects
   FOR EACH ROW EXECUTE FUNCTION public.notify_on_project_assignment();
 
 DROP TRIGGER IF EXISTS trg_notify_message ON public.messages;

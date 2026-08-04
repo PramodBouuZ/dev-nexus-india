@@ -42,25 +42,9 @@ ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS conversation_id uuid REFERE
 ALTER TABLE public.messages ALTER COLUMN application_id DROP NOT NULL;
 
 -- 3. Project Assignments
-CREATE TABLE IF NOT EXISTS public.project_assignments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id uuid NOT NULL REFERENCES public.projects(id) ON DELETE CASCADE,
-  recruiter_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  developer_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-  assigned_at timestamptz NOT NULL DEFAULT now(),
-  status text NOT NULL DEFAULT 'active',
-  UNIQUE (project_id)
-);
-
-ALTER TABLE public.project_assignments ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY pa_select_parties ON public.project_assignments
-  FOR SELECT TO authenticated
-  USING (auth.uid() = recruiter_id OR auth.uid() = developer_id OR public.has_role(auth.uid(), 'admin'));
-
-CREATE POLICY pa_insert_recruiter ON public.project_assignments
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = recruiter_id AND public.has_role(auth.uid(), 'recruiter'));
+-- 3. Project Assignments (using columns on projects table)
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS assigned_developer_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+ALTER TABLE public.projects ADD COLUMN IF NOT EXISTS assigned_at TIMESTAMPTZ;
 
 -- 4. Application and Invite Limits
 CREATE OR REPLACE FUNCTION public.check_application_limit()
@@ -130,35 +114,35 @@ CREATE POLICY "projects_select_v5" ON public.projects FOR SELECT TO authenticate
   USING (
     status IN ('open', 'in_discussion')
     OR auth.uid() = recruiter_id
-    OR EXISTS (SELECT 1 FROM public.project_assignments pa WHERE pa.project_id = public.projects.id AND pa.developer_id = auth.uid())
+    OR assigned_developer_id = auth.uid()
     OR public.has_role(auth.uid(), 'admin')
   );
 
 -- 7. Trigger for project assignment notification
 CREATE OR REPLACE FUNCTION public.notify_on_project_assignment()
 RETURNS trigger AS $$
-DECLARE ptitle text;
 BEGIN
-  SELECT title INTO ptitle FROM public.projects WHERE id = NEW.project_id;
+  IF NEW.assigned_developer_id IS NOT NULL AND OLD.assigned_developer_id IS NULL THEN
+    -- Update status and timestamp
+    NEW.status := 'assigned';
+    NEW.assigned_at := now();
 
-  -- Notify Developer
-  INSERT INTO public.notifications(user_id, type, title, body, link)
-  VALUES (NEW.developer_id, 'project_assigned', 'Project Assigned', 'You have been assigned to: ' || COALESCE(ptitle, 'a project'), '/projects/' || NEW.project_id);
+    -- Notify Developer
+    INSERT INTO public.notifications(user_id, type, title, body, link)
+    VALUES (NEW.assigned_developer_id, 'project_assigned', 'Project Assigned', 'You have been assigned to: ' || COALESCE(NEW.title, 'a project'), '/projects/' || NEW.id);
 
-  -- Notify Recruiter (Developer Accepted Project logic)
-  INSERT INTO public.notifications(user_id, type, title, body, link)
-  VALUES (NEW.recruiter_id, 'developer_accepted_project', 'Project Started', 'Developer has been assigned to ' || COALESCE(ptitle, 'your project'), '/projects/' || NEW.project_id);
-
-  -- Update project status to assigned
-  UPDATE public.projects SET status = 'assigned' WHERE id = NEW.project_id;
+    -- Notify Recruiter (Developer Accepted Project logic)
+    INSERT INTO public.notifications(user_id, type, title, body, link)
+    VALUES (NEW.recruiter_id, 'developer_accepted_project', 'Project Started', 'Developer has been assigned to ' || COALESCE(NEW.title, 'your project'), '/projects/' || NEW.id);
+  END IF;
 
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP TRIGGER IF EXISTS trg_notify_assignment ON public.project_assignments;
+DROP TRIGGER IF EXISTS trg_notify_assignment ON public.projects;
 CREATE TRIGGER trg_notify_assignment
-  AFTER INSERT ON public.project_assignments
+  BEFORE UPDATE OF assigned_developer_id ON public.projects
   FOR EACH ROW EXECUTE FUNCTION public.notify_on_project_assignment();
 
 -- 8. Notification on new message
@@ -215,6 +199,5 @@ CREATE TRIGGER trg_archive_project
 
 -- 10. Realtime configuration
 DO $$ BEGIN
-  BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.project_assignments; EXCEPTION WHEN duplicate_object THEN NULL; END;
   BEGIN ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations; EXCEPTION WHEN duplicate_object THEN NULL; END;
 END $$;
