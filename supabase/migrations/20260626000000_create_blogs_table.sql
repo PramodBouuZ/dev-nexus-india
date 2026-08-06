@@ -104,6 +104,9 @@ BEGIN
       AND tablename = 'blogs'
     ) THEN
       ALTER PUBLICATION supabase_realtime ADD TABLE public.blogs;
-    END IF;
+    END If;
   END IF;
 END $$;
+
+-- 6. Notify PostgREST to reload the schema cache immediately so that client-side calls don't fail with "Could not find the table public.blogs in the schema cache"
+NOTIFY pgrst, 'reload schema';
