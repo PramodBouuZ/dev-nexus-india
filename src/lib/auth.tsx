@@ -10,6 +10,7 @@ interface AuthContextValue {
   role: AppRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  setUserRole: (newRole: AppRole) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -61,13 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (pendingRole && currentUser) {
       console.log("Applying pending role from Google Sign Up:", pendingRole);
       localStorage.removeItem("pending_role");
-
-      // Update user metadata with the role
-      await supabase.auth.updateUser({
-        data: { role: pendingRole },
-      });
-
-      setRole(pendingRole);
+      await setUserRole(pendingRole);
       return;
     }
 
@@ -80,15 +75,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 2. Fallback to user_roles table
+    // 3. Fallback to user_roles table
     const { data } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", uid)
       .maybeSingle();
 
-    const dbRole = data?.role as AppRole | undefined;
-    setRole(dbRole ?? null);
+    let dbRole = data?.role as AppRole | undefined;
+
+    // 4. Fallback check developer_profiles and recruiter_profiles
+    if (!dbRole) {
+      const [{ data: devProf }, { data: recProf }] = await Promise.all([
+        supabase.from("developer_profiles").select("id").eq("id", uid).maybeSingle(),
+        supabase.from("recruiter_profiles").select("id").eq("id", uid).maybeSingle(),
+      ]);
+
+      if (devProf) dbRole = "developer";
+      else if (recProf) dbRole = "recruiter";
+    }
+
+    if (dbRole) {
+      if (currentUser && !metaRole) {
+        await supabase.auth.updateUser({
+          data: { role: dbRole },
+        });
+      }
+      setRole(dbRole);
+    } else {
+      setRole(null);
+    }
+  }
+
+  async function setUserRole(newRole: AppRole) {
+    const {
+      data: { user: currentUser },
+    } = await supabase.auth.getUser();
+    const u = currentUser || user;
+    if (!u) return;
+
+    console.log("Setting user role to:", newRole, "for user:", u.id);
+
+    // 1. Update user metadata with the role
+    const { error: metaErr } = await supabase.auth.updateUser({
+      data: { role: newRole },
+    });
+    if (metaErr) console.error("Error updating user metadata role:", metaErr.message);
+
+    // 2. Ensure user_roles record exists
+    const { error: roleErr } = await supabase.from("user_roles").upsert({
+      user_id: u.id,
+      role: newRole,
+    } as any);
+    if (roleErr) console.error("Error upserting user_roles:", roleErr.message);
+
+    // 3. Ensure profile record exists in developer_profiles or recruiter_profiles
+    const fullName = u.user_metadata?.full_name || u.email?.split("@")[0] || "User";
+    if (newRole === "developer") {
+      const { error: devErr } = await supabase.from("developer_profiles").upsert({
+        id: u.id,
+        full_name: fullName,
+        avatar_url: u.user_metadata?.avatar_url || null,
+      } as any);
+      if (devErr) console.error("Error creating developer profile:", devErr.message);
+    } else if (newRole === "recruiter") {
+      const { error: recErr } = await supabase.from("recruiter_profiles").upsert({
+        id: u.id,
+        full_name: fullName,
+        company_name: "Company",
+        avatar_url: u.user_metadata?.avatar_url || null,
+      } as any);
+      if (recErr) console.error("Error creating recruiter profile:", recErr.message);
+    }
+
+    setRole(newRole);
   }
 
   async function signOut() {
@@ -98,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, role, loading, signOut }}>
+    <AuthContext.Provider value={{ user, session, role, loading, signOut, setUserRole }}>
       {children}
     </AuthContext.Provider>
   );

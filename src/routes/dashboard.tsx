@@ -65,6 +65,7 @@ import {
   ChevronRight,
   Activity,
   Play,
+  Code2,
 } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard")({
@@ -87,13 +88,107 @@ function Dashboard() {
         ) : role === "developer" ? (
           <DeveloperDashboard userId={user.id} />
         ) : (
-          <div className="flex flex-col items-center justify-center py-20">
-            <h1 className="text-2xl font-bold">Unauthorized</h1>
-            <p className="text-muted-foreground">You do not have a valid role assigned.</p>
-          </div>
+          <RoleSelectionOnboarding userId={user.id} />
         )}
       </main>
       <Footer />
+    </div>
+  );
+}
+
+function RoleSelectionOnboarding({ userId }: { userId: string }) {
+  const { setUserRole } = useAuth();
+  const [selectedRole, setSelectedRole] = useState<"developer" | "recruiter">("developer");
+  const [busy, setBusy] = useState(false);
+
+  async function handleCompleteOnboarding() {
+    setBusy(true);
+    try {
+      await setUserRole(selectedRole);
+      toast.success("Welcome to DeveloperConnect! Account setup complete.");
+    } catch (err: any) {
+      toast.error(err.message || "Failed to set role");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4 max-w-xl mx-auto text-center">
+      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-accent text-primary-foreground shadow-glow">
+        <Briefcase className="h-7 w-7" />
+      </div>
+
+      <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+        Welcome to DeveloperConnect
+      </h1>
+      <p className="mt-2 text-muted-foreground text-sm max-w-md">
+        Choose your role to complete your setup and access your personalized workspace.
+      </p>
+
+      <div className="mt-8 w-full space-y-4 text-left">
+        <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          Choose your role
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div
+            onClick={() => setSelectedRole("developer")}
+            className={`cursor-pointer rounded-2xl border p-5 transition-all shadow-card hover:shadow-elegant ${
+              selectedRole === "developer"
+                ? "border-accent bg-accent/5 ring-2 ring-accent/20"
+                : "border-border bg-card hover:border-accent/40"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
+                <Code2 className="h-5 w-5" />
+              </div>
+              {selectedRole === "developer" && (
+                <span className="h-5 w-5 rounded-full bg-accent text-primary-foreground flex items-center justify-center">
+                  <Check className="h-3 w-3" />
+                </span>
+              )}
+            </div>
+            <h3 className="mt-4 font-bold text-base text-foreground">Developer</h3>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              Find part-time work, freelancing, or long-term developer projects.
+            </p>
+          </div>
+
+          <div
+            onClick={() => setSelectedRole("recruiter")}
+            className={`cursor-pointer rounded-2xl border p-5 transition-all shadow-card hover:shadow-elegant ${
+              selectedRole === "recruiter"
+                ? "border-accent bg-accent/5 ring-2 ring-accent/20"
+                : "border-border bg-card hover:border-accent/40"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/15 text-accent">
+                <Briefcase className="h-5 w-5" />
+              </div>
+              {selectedRole === "recruiter" && (
+                <span className="h-5 w-5 rounded-full bg-accent text-primary-foreground flex items-center justify-center">
+                  <Check className="h-3 w-3" />
+                </span>
+              )}
+            </div>
+            <h3 className="mt-4 font-bold text-base text-foreground">Recruiter</h3>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              Post projects, hire vetted developers, and manage contracts.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          onClick={handleCompleteOnboarding}
+          disabled={busy}
+          className="w-full mt-6 bg-gradient-accent text-primary-foreground font-bold h-11 text-sm hover:opacity-90 transition-opacity"
+        >
+          {busy ? "Setting up profile..." : "Continue to Dashboard →"}
+        </Button>
+      </div>
     </div>
   );
 }
