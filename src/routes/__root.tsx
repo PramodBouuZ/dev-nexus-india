@@ -39,56 +39,73 @@ interface RouterContext {
 }
 
 export const Route = createRootRouteWithContext<RouterContext>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect" },
-      {
-        name: "description",
-        content:
-          "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect.",
-      },
-      {
-        name: "keywords",
-        content:
-          "hire developers, hire software developers, hire web developers, hire app developers, hire developers in India, part time developers, full time developers, remote developers, freelance developers, react developers, node js developers, python developers, flutter developers, full stack developers, startup hiring, software engineers India, developer marketplace India",
-      },
-      {
-        property: "og:title",
-        content: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect",
-      },
-      {
-        property: "og:description",
-        content:
-          "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect.",
-      },
-      { property: "og:type", content: "website" },
-      { property: "og:url", content: "https://developerconnect.in" },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png",
-      },
-      {
-        name: "twitter:title",
-        content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect",
-      },
-      {
-        name: "twitter:description",
-        content:
-          "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly.",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png",
-      },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "robots", content: "index, follow" },
-      { name: "author", content: "DeveloperConnect" },
-      { name: "theme-color", content: "#0f172a" },
-    ],
+  head: () => {
+    const adsensePublisherId =
+      (typeof process !== "undefined" &&
+        (process.env.VITE_ADSENSE_ACCOUNT ||
+          process.env.ADSENSE_PUBLISHER_ID ||
+          process.env.VITE_ADSENSE_PUBLISHER_ID ||
+          process.env.GOOGLE_ADSENSE_ACCOUNT ||
+          process.env.VITE_GOOGLE_ADSENSE_ACCOUNT)) ||
+      (typeof import.meta !== "undefined" &&
+        import.meta.env &&
+        (import.meta.env.VITE_ADSENSE_ACCOUNT ||
+          import.meta.env.VITE_ADSENSE_PUBLISHER_ID ||
+          import.meta.env.VITE_GOOGLE_ADSENSE_ACCOUNT)) ||
+      "";
+
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect" },
+        {
+          name: "description",
+          content:
+            "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect.",
+        },
+        {
+          name: "keywords",
+          content:
+            "hire developers, hire software developers, hire web developers, hire app developers, hire developers in India, part time developers, full time developers, remote developers, freelance developers, react developers, node js developers, python developers, flutter developers, full stack developers, startup hiring, software engineers India, developer marketplace India",
+        },
+        {
+          property: "og:title",
+          content: "Hire Developers in India | Part-time & Full-time Developers | DeveloperConnect",
+        },
+        {
+          property: "og:description",
+          content:
+            "Hire skilled developers in India for part-time, full-time, freelance, startup and project-based work. Connect with verified developers and recruiters on DeveloperConnect.",
+        },
+        { property: "og:type", content: "website" },
+        { property: "og:url", content: "https://developerconnect.in" },
+        {
+          property: "og:image",
+          content:
+            "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png",
+        },
+        {
+          name: "twitter:title",
+          content: "Hire Part-Time & Full-Time Developers in India | DeveloperConnect",
+        },
+        {
+          name: "twitter:description",
+          content:
+            "DeveloperConnect helps startups and businesses hire skilled part-time and full-time developers in India. Find React, Node.js, Full Stack, Backend, Frontend, and freelance developers quickly.",
+        },
+        {
+          name: "twitter:image",
+          content:
+            "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/048d9539-d15a-48ae-87ae-dcc781661fc9/id-preview-ccc11d2b--4f2b6e14-bc26-4ba1-9413-febc7f0ab51e.lovable.app-1777173063062.png",
+        },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "robots", content: "index, follow" },
+        { name: "author", content: "DeveloperConnect" },
+        { name: "theme-color", content: "#0f172a" },
+        { name: "google-adsense-account", content: adsensePublisherId },
+        { name: "google-site-verification", content: "googlecfe54323128723a8" },
+      ],
     links: [
       { rel: "canonical", href: "https://developerconnect.in" },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
@@ -137,7 +154,8 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         }),
       },
     ],
-  }),
+    };
+  },
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
