@@ -52,7 +52,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
         (import.meta.env.VITE_ADSENSE_ACCOUNT ||
           import.meta.env.VITE_ADSENSE_PUBLISHER_ID ||
           import.meta.env.VITE_GOOGLE_ADSENSE_ACCOUNT)) ||
-      "";
+      "ca-pub-4510136274296161";
 
     return {
       meta: [
