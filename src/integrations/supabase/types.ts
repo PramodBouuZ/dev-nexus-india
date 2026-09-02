@@ -38,6 +38,42 @@ export type Database = {
         }
         Relationships: []
       }
+      announcements: {
+        Row: {
+          created_at: string
+          delivery_methods: string[]
+          id: string
+          message: string
+          scheduled_at: string | null
+          sent_at: string | null
+          target_audience: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delivery_methods?: string[]
+          id?: string
+          message: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          target_audience?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delivery_methods?: string[]
+          id?: string
+          message?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          target_audience?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       applications: {
         Row: {
           cover_message: string | null
@@ -78,6 +114,57 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      blogs: {
+        Row: {
+          author: string
+          category: string | null
+          content: string
+          created_at: string
+          description: string | null
+          featured_image: string | null
+          id: string
+          seo_description: string | null
+          seo_title: string | null
+          slug: string
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author?: string
+          category?: string | null
+          content?: string
+          created_at?: string
+          description?: string | null
+          featured_image?: string | null
+          id?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug: string
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author?: string
+          category?: string | null
+          content?: string
+          created_at?: string
+          description?: string | null
+          featured_image?: string | null
+          id?: string
+          seo_description?: string | null
+          seo_title?: string | null
+          slug?: string
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       contact_access_requests: {
         Row: {
@@ -292,6 +379,42 @@ export type Database = {
         }
         Relationships: []
       }
+      email_logs: {
+        Row: {
+          body: string
+          created_at: string
+          email_type: string
+          error_message: string | null
+          id: string
+          recipient_email: string
+          status: string
+          subject: string
+          user_id: string | null
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          recipient_email: string
+          status?: string
+          subject?: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          email_type?: string
+          error_message?: string | null
+          id?: string
+          recipient_email?: string
+          status?: string
+          subject?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       favorites: {
         Row: {
           created_at: string
@@ -387,6 +510,65 @@ export type Database = {
           },
         ]
       }
+      ndas: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          developer_id: string
+          developer_ip: string | null
+          file_url: string | null
+          id: string
+          project_id: string
+          received_at: string | null
+          recruiter_id: string
+          status: string
+          template_data: Json
+          template_name: string | null
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          developer_id: string
+          developer_ip?: string | null
+          file_url?: string | null
+          id?: string
+          project_id: string
+          received_at?: string | null
+          recruiter_id: string
+          status?: string
+          template_data?: Json
+          template_name?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          developer_id?: string
+          developer_ip?: string | null
+          file_url?: string | null
+          id?: string
+          project_id?: string
+          received_at?: string | null
+          recruiter_id?: string
+          status?: string
+          template_data?: Json
+          template_name?: string | null
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ndas_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           body: string | null
@@ -423,6 +605,42 @@ export type Database = {
         }
         Relationships: []
       }
+      profile_email_reminders: {
+        Row: {
+          created_at: string
+          email_status: string
+          error_message: string | null
+          id: string
+          reminder_stage: number | null
+          reminder_type: string
+          sent_at: string
+          sent_by: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email_status?: string
+          error_message?: string | null
+          id?: string
+          reminder_stage?: number | null
+          reminder_type?: string
+          sent_at?: string
+          sent_by?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email_status?: string
+          error_message?: string | null
+          id?: string
+          reminder_stage?: number | null
+          reminder_type?: string
+          sent_at?: string
+          sent_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -452,6 +670,44 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      project_activities: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string
+          id: string
+          metadata: Json
+          project_id: string
+          user_id: string | null
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          project_id: string
+          user_id?: string | null
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json
+          project_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_activities_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       project_stages: {
         Row: {
@@ -492,6 +748,8 @@ export type Database = {
       projects: {
         Row: {
           ai_suggestions: Json | null
+          assigned_at: string | null
+          assigned_developer_id: string | null
           budget_max_inr: number | null
           budget_min_inr: number | null
           created_at: string
@@ -513,6 +771,8 @@ export type Database = {
         }
         Insert: {
           ai_suggestions?: Json | null
+          assigned_at?: string | null
+          assigned_developer_id?: string | null
           budget_max_inr?: number | null
           budget_min_inr?: number | null
           created_at?: string
@@ -534,6 +794,8 @@ export type Database = {
         }
         Update: {
           ai_suggestions?: Json | null
+          assigned_at?: string | null
+          assigned_developer_id?: string | null
           budget_max_inr?: number | null
           budget_min_inr?: number | null
           created_at?: string
@@ -688,6 +950,30 @@ export type Database = {
         }
         Relationships: []
       }
+      users: {
+        Row: {
+          created_at: string
+          reminders_disabled: boolean
+          subscription_tier: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          reminders_disabled?: boolean
+          subscription_tier?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          reminders_disabled?: boolean
+          subscription_tier?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       verification_requests: {
         Row: {
           admin_notes: string | null
@@ -811,7 +1097,14 @@ export type Database = {
         | "welcome"
         | "stage_update"
         | "invite_rejected"
-      project_status: "open" | "in_progress" | "completed" | "closed"
+      project_status:
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "closed"
+        | "assigned"
+        | "in_discussion"
+        | "cancelled"
       project_type: "fixed" | "hourly"
       stage_status:
         | "planned"
@@ -989,7 +1282,15 @@ export const Constants = {
         "stage_update",
         "invite_rejected",
       ],
-      project_status: ["open", "in_progress", "completed", "closed"],
+      project_status: [
+        "open",
+        "in_progress",
+        "completed",
+        "closed",
+        "assigned",
+        "in_discussion",
+        "cancelled",
+      ],
       project_type: ["fixed", "hourly"],
       stage_status: [
         "planned",
