@@ -117,40 +117,36 @@ function AdminPage() {
   useEffect(() => {
     if (role !== "admin") return;
 
-    const tables = [
-      "profiles",
-      "user_roles",
-      "developer_profiles",
-      "recruiter_profiles",
-      "projects",
-      "applications",
-      "invites",
-      "contact_access_requests",
-      "messages",
-      "verification_requests",
-      "admin_alerts",
-      "profile_email_reminders",
-      "users",
-    ];
+    // Map each realtime source table to the exact React Query keys it feeds.
+    const TABLE_QUERY_KEYS: Record<string, string[]> = {
+      profiles: ["admin-stats-full", "admin-users-all", "admin-developers", "admin-recruiters", "admin-recent-activity", "admin-reminders-data"],
+      user_roles: ["admin-stats-full", "admin-users-all", "admin-developers", "admin-recruiters", "admin-reminders-data"],
+      developer_profiles: ["admin-stats-full", "admin-developers", "admin-reminders-data"],
+      recruiter_profiles: ["admin-stats-full", "admin-recruiters", "admin-reminders-data"],
+      projects: ["admin-stats-full", "admin-projects", "admin-recent-activity"],
+      applications: ["admin-stats-full", "admin-applications", "admin-recent-activity"],
+      invites: ["admin-stats-full", "admin-invites"],
+      contact_access_requests: ["admin-stats-full", "admin-contacts"],
+      messages: ["admin-stats-full", "admin-chats"],
+      verification_requests: ["admin-stats-full", "admin-developers"],
+      admin_alerts: ["admin-alerts"],
+      notifications: ["admin-stats-full"],
+      email_logs: ["admin-stats-full", "admin-email-logs"],
+      profile_email_reminders: ["admin-stats-full", "admin-reminders-data"],
+      users: ["admin-stats-full", "admin-reminders-data"],
+      announcements: ["admin-announcements"],
+      blogs: ["admin-blogs"],
+      ndas: ["admin-ndas"],
+      reviews: ["admin-reviews"],
+      project_activities: ["admin-recent-activity"],
+    };
 
-    const channels = tables.map((table) =>
+    const channels = Object.entries(TABLE_QUERY_KEYS).map(([table, keys]) =>
       supabase
         .channel(`admin-rt-${table}`)
         .on("postgres_changes", { event: "*", schema: "public", table }, (payload) => {
-          console.log(`Realtime update for ${table}`, payload);
-          qc.invalidateQueries({ queryKey: ["admin-stats-full"] });
-          qc.invalidateQueries({ queryKey: ["admin-recent-activity"] });
-          qc.invalidateQueries({ queryKey: ["admin-users-all"] });
-          qc.invalidateQueries({ queryKey: ["admin-developers"] });
-          qc.invalidateQueries({ queryKey: ["admin-recruiters"] });
-          qc.invalidateQueries({ queryKey: ["admin-projects"] });
-          qc.invalidateQueries({ queryKey: ["admin-applications"] });
-          qc.invalidateQueries({ queryKey: ["admin-contacts"] });
-          qc.invalidateQueries({ queryKey: ["admin-invites"] });
-          qc.invalidateQueries({ queryKey: ["admin-chats"] });
-          qc.invalidateQueries({ queryKey: ["admin-reminders-data"] });
+          keys.forEach((key) => qc.invalidateQueries({ queryKey: [key] }));
 
-          // If a specific user reminder or user setting changed, invalidate details as well
           const userId =
             (payload.new as any)?.user_id ||
             (payload.new as any)?.id ||
@@ -160,13 +156,25 @@ function AdminPage() {
             qc.invalidateQueries({ queryKey: ["admin-user-details", userId] });
           }
         })
-        .subscribe(),
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.warn(`Admin realtime channel for "${table}" is unavailable (${status}).`);
+          }
+        }),
     );
 
+    // Safety net: realtime is primary, but never let the panel go stale if a
+    // socket reconnects or drops an event while the admin panel is open.
+    const interval = window.setInterval(() => {
+      qc.invalidateQueries({ predicate: (q) => String(q.queryKey[0]).startsWith("admin-") });
+    }, 60_000);
+
     return () => {
+      window.clearInterval(interval);
       channels.forEach((ch) => supabase.removeChannel(ch));
     };
   }, [role, qc]);
+
 
   if (loading)
     return (
